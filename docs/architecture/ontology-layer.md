@@ -29,30 +29,30 @@ The Ontology Layer resolves all six by establishing a formal, versioned, Neo4j-n
 ```mermaid
 graph TD
     subgraph Entity["Entity Domain"]
-        ENT["Entity\n(Company / Trust / Fund)"]
-        PER["Person\n(Director / UBO)"]
-        ADR["Address\nplace_id canonical"]
-        DOM["Domain\n(web)"]
-        BA["BankAccount\nIBAN / crypto"]
-        GP["GazettePublication\nBelgisch Staatsblad"]
+        ENT["Entity<br/>(Company / Trust / Fund)"]
+        PER["Person<br/>(Director / UBO)"]
+        ADR["Address<br/>place_id canonical"]
+        DOM["Domain<br/>(web)"]
+        BA["BankAccount<br/>IBAN / crypto"]
+        GP["GazettePublication<br/>Belgisch Staatsblad"]
     end
 
     subgraph Evidence["Evidence Domain"]
-        EA["EvidenceArtifact\nSHA-256 · source_url"]
-        PR["ProvenanceRecord\nproperty-level"]
+        EA["EvidenceArtifact<br/>SHA-256 · source_url"]
+        PR["ProvenanceRecord<br/>property-level"]
     end
 
     subgraph Investigation["Investigation Domain"]
         INV["Investigation"]
-        TC["TrustCapsule\nJSON-LD · capsule_hash"]
+        TC["TrustCapsule<br/>JSON-LD · capsule_hash"]
         FT["FollowUpTask"]
     end
 
     subgraph Compliance["Compliance Domain"]
-        RUL["Rule\nsemver · rule_logic Cypher"]
-        RA["RegulatoryArticle\nAMLD6 · AI Act · PSD2"]
-        MOT["Motif\ncypher_pattern stored"]
-        MI["MotifInstance\ndetection result"]
+        RUL["Rule<br/>semver · rule_logic Cypher"]
+        RA["RegulatoryArticle<br/>AMLD6 · AI Act · PSD2"]
+        MOT["Motif<br/>cypher_pattern stored"]
+        MI["MotifInstance<br/>detection result"]
         SC["SegmentConfig"]
     end
 
@@ -106,12 +106,12 @@ Every individual data point on every node traces to an `EvidenceArtifact` via a 
 
 ```mermaid
 graph LR
-    E["Entity\nACME Trading BV"]
+    E["Entity<br/>ACME Trading BV"]
 
-    E -->|"PROVED_BY\nproperty: legal_name"| PR1["ProvenanceRecord\nlegal_name = 'ACME Trading BV'\ncaptured: 2026-02-24T10:15:00Z"]
-    E -->|"PROVED_BY\nproperty: status"| PR2["ProvenanceRecord\nstatus = 'active'\ncaptured: 2026-02-24T10:15:00Z"]
+    E -->|"PROVED_BY<br/>property: legal_name"| PR1["ProvenanceRecord<br/>legal_name = 'ACME Trading BV'<br/>captured: 2026-02-24T10:15:00Z"]
+    E -->|"PROVED_BY<br/>property: status"| PR2["ProvenanceRecord<br/>status = 'active'<br/>captured: 2026-02-24T10:15:00Z"]
 
-    PR1 -->|SOURCE| EA["EvidenceArtifact\nKBO Registry API\nSHA-256: a7f3b2c...\nmcp_tool_id: kbo_lookup"]
+    PR1 -->|SOURCE| EA["EvidenceArtifact<br/>KBO Registry API<br/>SHA-256: a7f3b2c...<br/>mcp_tool_id: kbo_lookup"]
     PR2 -->|SOURCE| EA
 
     style E fill:#0d9488,stroke:#5eead4,color:#fff
@@ -197,12 +197,12 @@ Dissolved entity sharing a director with a recently incorporated entity — the 
 
 ```mermaid
 graph TD
-    D["Dissolved Entity\nstatus: dissolved\ndissolution: 2025-06"]
-    A["Active Entity\nstatus: active\nincorporation: 2025-09"]
-    P["Shared Director\nJan De Smedt"]
-    ADDR["Shared Address\nRue de la Loi 42"]
-    G1["GazettePublication\nevent_type: dissolution"]
-    G2["GazettePublication\nevent_type: incorporation"]
+    D["Dissolved Entity<br/>status: dissolved<br/>dissolution: 2025-06"]
+    A["Active Entity<br/>status: active<br/>incorporation: 2025-09"]
+    P["Shared Director<br/>Jan De Smedt"]
+    ADDR["Shared Address<br/>Rue de la Loi 42"]
+    G1["GazettePublication<br/>event_type: dissolution"]
+    G2["GazettePublication<br/>event_type: incorporation"]
 
     P -->|IS_DIRECTOR_OF| D
     P -->|IS_DIRECTOR_OF| A
@@ -211,7 +211,7 @@ graph TD
     D -->|PUBLISHED_IN| G1
     A -->|PUBLISHED_IN| G2
 
-    MI["MotifInstance\nphoenix-company v1.0.0\nconfidence: 0.85"]
+    MI["MotifInstance<br/>phoenix-company v1.0.0<br/>confidence: 0.85"]
     MI -.->|INVOLVES| D
     MI -.->|INVOLVES| A
     MI -.->|INVOLVES| P
@@ -324,29 +324,29 @@ Every statutory change to a Belgian legal entity is published in the Belgisch St
 ```mermaid
 flowchart LR
     subgraph Phase1["Phase 1 — KBO Baseline"]
-        KBO["KBO/CBE\nmonthly CSV\nkbopub.economie.fgov.be"]
-        PARSE1["CSV Parser\nISO-8859-1 · semicolon delim"]
-        BULK["add_episode_bulk()\nno edge invalidation"]
+        KBO["KBO/CBE<br/>monthly CSV<br/>kbopub.economie.fgov.be"]
+        PARSE1["CSV Parser<br/>ISO-8859-1 · semicolon delim"]
+        BULK["add_episode_bulk()<br/>no edge invalidation"]
         KBO --> PARSE1 --> BULK
     end
 
     subgraph Phase2["Phase 2 — Gazette Ingestion"]
-        GAZ["Belgisch Staatsblad\ndata.gov.be\nNL / FR / DE text"]
-        PARSE2["Rule-based Parser\nregex + grammar patterns\nconfidence score"]
-        EP["add_episode()\nedge invalidation fires"]
+        GAZ["Belgisch Staatsblad<br/>data.gov.be<br/>NL / FR / DE text"]
+        PARSE2["Rule-based Parser<br/>regex + grammar patterns<br/>confidence score"]
+        EP["add_episode()<br/>edge invalidation fires"]
         GAZ --> PARSE2 --> EP
     end
 
     subgraph Phase3["Phase 3 — Monthly Diff"]
-        NEW["New KBO CSV\n(monthly)"]
-        DIFF["Diff Engine\nmaterial field changes only"]
-        EP2["add_episode() per delta\nedge invalidation fires"]
+        NEW["New KBO CSV<br/>(monthly)"]
+        DIFF["Diff Engine<br/>material field changes only"]
+        EP2["add_episode() per delta<br/>edge invalidation fires"]
         NEW --> DIFF --> EP2
     end
 
-    BULK -->|"MERGE on kbo_number\nEvidenceArtifact created"| NEO["Neo4j\nOntology Graph\n+ Graphiti overlay"]
-    EP -->|"PUBLISHED_IN · IS_DIRECTOR_OF\nREGISTERED_AT updated"| NEO
-    EP2 -->|"Dissolved / new / modified\nentities updated"| NEO
+    BULK -->|"MERGE on kbo_number<br/>EvidenceArtifact created"| NEO["Neo4j<br/>Ontology Graph<br/>+ Graphiti overlay"]
+    EP -->|"PUBLISHED_IN · IS_DIRECTOR_OF<br/>REGISTERED_AT updated"| NEO
+    EP2 -->|"Dissolved / new / modified<br/>entities updated"| NEO
 
     style NEO fill:#1e3a5f,stroke:#f59e0b,color:#fff
 ```
@@ -412,11 +412,11 @@ Every entity property, relationship type, and Rule node maps to the specific EU 
 ```mermaid
 graph TD
     subgraph Regulations["Covered Regulations"]
-        AMLD6["AMLD6\nArt. 13 · 18 · 22 · 30"]
-        AIAct["EU AI Act\nArt. 13 (transparency)"]
-        PSD2["PSD2\nArt. 5"]
+        AMLD6["AMLD6<br/>Art. 13 · 18 · 22 · 30"]
+        AIAct["EU AI Act<br/>Art. 13 (transparency)"]
+        PSD2["PSD2<br/>Art. 5"]
         AMLR["EU AMLR 2024/1624"]
-        PEPPOL["PEPPOL SPA\nClause 9.2"]
+        PEPPOL["PEPPOL SPA<br/>Clause 9.2"]
     end
 
     subgraph Rules["Active Rules (examples)"]
@@ -468,21 +468,21 @@ An entity enters the system through four possible paths. They must all converge 
 ```mermaid
 graph TD
     subgraph Entry["Four Entry Paths"]
-        ATL["Atlas\nKYB investigation\nby VAT / registration number"]
-        RAD["Radar\nWebsite trust\nby domain → imprint → VAT"]
-        SEN["Sentry\nTransaction monitor\nby IBAN → account holder"]
-        KBO["Belgian Entity\nLifecycle Pipeline\nby KBO number"]
+        ATL["Atlas<br/>KYB investigation<br/>by VAT / registration number"]
+        RAD["Radar<br/>Website trust<br/>by domain → imprint → VAT"]
+        SEN["Sentry<br/>Transaction monitor<br/>by IBAN → account holder"]
+        KBO["Belgian Entity<br/>Lifecycle Pipeline<br/>by KBO number"]
     end
 
-    ATL -->|"MERGE on vat_number"| E["Single Entity Node\nBE0811631959"]
+    ATL -->|"MERGE on vat_number"| E["Single Entity Node<br/>BE0811631959"]
     RAD -->|"domain imprint → VAT → MERGE"| E
     SEN -->|"IBAN → account → VAT → MERGE"| E
-    KBO -->|"MERGE on kbo_number\n(auto-derives vat_number)"| E
+    KBO -->|"MERGE on kbo_number<br/>(auto-derives vat_number)"| E
 
-    E -->|"from Atlas"| EV1["Registry Data\nDirectors · UBOs · Filings"]
-    E -->|"from Radar"| EV2["Domain Posture\nTLS · DMARC · Screenshot"]
-    E -->|"from Sentry"| EV3["Transaction Patterns\nVolume · Counterparties"]
-    E -->|"from Pipeline"| EV4["Official Records\nKBO · Gazette History"]
+    E -->|"from Atlas"| EV1["Registry Data<br/>Directors · UBOs · Filings"]
+    E -->|"from Radar"| EV2["Domain Posture<br/>TLS · DMARC · Screenshot"]
+    E -->|"from Sentry"| EV3["Transaction Patterns<br/>Volume · Counterparties"]
+    E -->|"from Pipeline"| EV4["Official Records<br/>KBO · Gazette History"]
 
     style E fill:#854d0e,stroke:#eab308,color:#fff
     style ATL fill:#0d9488,stroke:#5eead4,color:#fff

@@ -16,19 +16,19 @@ PostgreSQL owns transactional writes. Neo4j owns graph reads. Neither depends on
 ```mermaid
 flowchart LR
     subgraph Write["Write Path"]
-        API["Compliance API"] --> PG["PostgreSQL\nCases · Audit · Evidence"]
-        API --> MIO["MinIO\nDocuments · OSINT Artefacts"]
+        API["Compliance API"] --> PG["PostgreSQL<br/>Cases · Audit · Evidence"]
+        API --> MIO["MinIO<br/>Documents · OSINT Artefacts"]
     end
 
     subgraph Sync["Sync (async)"]
-        ETL["GraphETL\nIdempotent MERGE\non case completion"]
+        ETL["GraphETL<br/>Idempotent MERGE<br/>on case completion"]
         PG -->|reads| ETL
         MIO -->|reads| ETL
         ETL -->|MERGE| NEO
     end
 
     subgraph Read["Read Path"]
-        NEO["Neo4j\nKnowledge Graph\n+ Graphiti overlay"]
+        NEO["Neo4j<br/>Knowledge Graph<br/>+ Graphiti overlay"]
         GAPI["Ontology API"] -->|Cypher| NEO
         AGENT["Investigation Agents"] -->|MCP tools| NEO
         DASH["Officer Dashboard"] -->|REST| GAPI
@@ -160,17 +160,17 @@ RETURN other, p,
 ```mermaid
 graph TD
     subgraph Entity["Entity Domain"]
-        E["Entity\n(legal entity)"]
-        P["Person\n(director / UBO)"]
-        A["Address\n(place_id canonical)"]
-        D["Domain\n(web)"]
-        BA["BankAccount\n(IBAN / crypto)"]
+        E["Entity<br/>(legal entity)"]
+        P["Person<br/>(director / UBO)"]
+        A["Address<br/>(place_id canonical)"]
+        D["Domain<br/>(web)"]
+        BA["BankAccount<br/>(IBAN / crypto)"]
         GP["GazettePublication"]
     end
 
     subgraph Evidence["Evidence Domain"]
-        EA["EvidenceArtifact\n(SHA-256)"]
-        PR["ProvenanceRecord\n(property-level)"]
+        EA["EvidenceArtifact<br/>(SHA-256)"]
+        PR["ProvenanceRecord<br/>(property-level)"]
     end
 
     subgraph Investigation["Investigation Domain"]
@@ -180,10 +180,10 @@ graph TD
     end
 
     subgraph Compliance["Compliance Domain"]
-        R["Rule\n(semver)"]
+        R["Rule<br/>(semver)"]
         RA["RegulatoryArticle"]
-        M["Motif\n(cypher_pattern)"]
-        MI["MotifInstance\n(detection result)"]
+        M["Motif<br/>(cypher_pattern)"]
+        MI["MotifInstance<br/>(detection result)"]
         SC["SegmentConfig"]
     end
 
