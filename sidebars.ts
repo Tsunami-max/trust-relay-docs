@@ -75,6 +75,7 @@ const sidebars: SidebarsConfig = {
   strategySidebar: [
     'why-trust-relay',
     'product-overview',
+    'portfolio-audit-mode',
     'competitive-landscape',
   ],
 };

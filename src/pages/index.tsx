@@ -64,6 +64,14 @@ const features: FeatureItem[] = [
     link: '/docs/architecture/tiered-scanning',
     accent: 'mint',
   },
+  {
+    title: 'Portfolio Audit Mode',
+    icon: '\u{1F4CA}',
+    description:
+      'Batch portfolio verification with evidence-cited reports. Upload a CSV of entities, receive an Independent Verification Report with Trust Capsules — SHA-256 hashed, source-cited evidence packs built for the AMLR era.',
+    link: '/docs/portfolio-audit-mode',
+    accent: 'teal',
+  },
 ];
 
 function FeatureCard({title, icon, description, link, accent = 'teal'}: FeatureItem): ReactNode {

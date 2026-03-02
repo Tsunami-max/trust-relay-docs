@@ -144,6 +144,10 @@ const config: Config = {
               to: '/docs/product-overview',
             },
             {
+              label: 'Portfolio Audit Mode',
+              to: '/docs/portfolio-audit-mode',
+            },
+            {
               label: 'Competitive Landscape',
               to: '/docs/competitive-landscape',
             },

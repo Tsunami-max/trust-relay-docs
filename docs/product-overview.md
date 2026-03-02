@@ -137,6 +137,8 @@ Independent verification firms acting as second-line or third-line defense can u
 
 Because the system records the full investigation trail — which sources were checked, what was found, what discrepancies were identified, and how they were resolved — audit reports can be generated directly from the case record rather than reconstructed from memory after the fact. The knowledge graph provides a visual artifact that can be included in reports to illustrate entity relationships and evidence provenance.
 
+For portfolio-scale verification, [Portfolio Audit Mode](./portfolio-audit-mode.md) extends the same 9-domain investigation framework to batch processing — upload a CSV of entity identifiers, and receive a structured Independent Verification Report with evidence-cited Trust Capsules for every entity. Cross-entity relationship analysis reveals patterns invisible in single-entity reviews: shared directors, overlapping addresses, and undeclared ownership chains across the portfolio.
+
 ## Deployment and Data Sovereignty
 
 Trust Relay is designed to run entirely on your infrastructure. There is no mandatory cloud service, no data phoning home, no vendor lock-in on where your compliance data lives.
