@@ -16,38 +16,52 @@ type FeatureItem = {
 
 const features: FeatureItem[] = [
   {
-    title: 'Temporal Workflows',
+    title: 'Iterative Compliance Loop',
     icon: '\u{1F504}',
     description:
-      'Durable, fault-tolerant compliance workflows powered by Temporal. Signal-driven state machine with iterative review loops, automatic retries, and full audit trail.',
-    link: '/docs/architecture/temporal-workflows',
+      'Multi-round investigation workflows orchestrated by Temporal. Customer portal collects documents, AI agents investigate, officers decide, and the loop repeats until resolution — up to 5 iterations within a 60-day timeline.',
+    link: '/docs/why-trust-relay',
   },
   {
     title: 'AI-Powered OSINT',
     icon: '\u{1F50D}',
     description:
-      '13 specialized PydanticAI agents orchestrate open-source intelligence gathering. Registry validation, adverse media screening, person verification, and financial health analysis across 4 Belgian official sources.',
+      '13 specialized PydanticAI agents cross-reference uploaded documents against commercial registries, adverse media, financial databases, and government publications. Discrepancies are flagged with severity classification.',
     link: '/docs/architecture/osint-pipeline',
+  },
+  {
+    title: 'Compliance Memory',
+    icon: '\u{1F9E0}',
+    description:
+      'AI that learns from every officer decision. Per-officer persistent memory captures institutional knowledge with a safety invariant: the system can add scrutiny but never suppress risk signals.',
+    link: '/docs/architecture/compliance-memory',
   },
   {
     title: 'Knowledge Graph',
     icon: '\u{1F578}\u{FE0F}',
     description:
-      'Neo4j-powered entity network analysis detects co-directorship patterns, fraud rings, risk contagion paths, and establishment concentration across all investigated cases.',
+      'Neo4j-powered entity network analysis reveals hidden connections: shared directors across shell companies, mail-drop addresses, phoenix patterns, and nominee structures — with full provenance.',
     link: '/docs/architecture/knowledge-graph',
   },
   {
-    title: 'Evidence Chain',
-    icon: '\u{1F512}',
+    title: 'EU-Native Architecture',
+    icon: '\u{1F1EA}\u{1F1FA}',
     description:
-      'Cryptographic SHA-256 hashing of every data source. Property-level provenance via the ontology layer traces each data point to its exact source, timestamp, and content hash — zero hallucination at the atomic level.',
-    link: '/docs/architecture/ontology-layer',
+      'Self-hosted deployment with full data sovereignty. SHA-256 evidence chains, tamper-evident audit logs, and deterministic AI safety constraints — built for EU AI Act, AMLA, and GDPR from the ground up.',
+    link: '/docs/architecture/security',
+  },
+  {
+    title: '4-Tier Cost Optimization',
+    icon: '\u{1F4B0}',
+    description:
+      'Portfolio scanning at scale: clean entities cost $0.01, flagged entities get full investigation at $0.50. Projected 92-96% savings versus flat-rate screening for a typical 10,000-merchant portfolio.',
+    link: '/docs/architecture/tiered-scanning',
   },
 ];
 
 function FeatureCard({title, icon, description, link}: FeatureItem): ReactNode {
   return (
-    <article className={clsx('col col--6', styles.featureCard)}>
+    <article className={clsx('col col--4', styles.featureCard)}>
       <div className={styles.featureCardInner}>
         <div className={styles.featureIcon} aria-hidden="true">
           {icon}
@@ -77,25 +91,26 @@ function HeroSection(): ReactNode {
             width={180}
             height={180}
           />
-          <span className={styles.heroBadge}>Technical Documentation</span>
+          <span className={styles.heroBadge}>Investigation Orchestrator</span>
           <Heading as="h1" className={styles.heroTitle}>
-            {siteConfig.title} Architecture
+            {siteConfig.title}
           </Heading>
           <p className={styles.heroSubtitle}>
-            Complete technical reference for the enterprise KYB/KYC compliance
-            workflow platform. System architecture, decision records, and API
-            documentation for engineering teams and technical due diligence.
+            The compliance investigation platform that closes the loop.
+            Automated document collection, AI-powered OSINT cross-referencing,
+            iterative review workflows, and a system that learns from every
+            officer decision — all self-hosted in your infrastructure.
           </p>
           <nav className={styles.heroActions} aria-label="Quick navigation">
             <Link
               className="button button--primary button--lg"
-              to="/docs/architecture/overview">
-              Architecture Overview
+              to="/docs/why-trust-relay">
+              Why Trust Relay
             </Link>
             <Link
               className="button button--outline button--lg"
-              to="/docs/adr/">
-              Decision Records
+              to="/docs/architecture/overview">
+              Architecture
             </Link>
           </nav>
         </div>
@@ -110,7 +125,7 @@ function StatsSection(): ReactNode {
       <div className="container">
         <div className={styles.statsGrid}>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>26</span>
+            <span className={styles.statValue}>88</span>
             <span className={styles.statLabel}>API Endpoints</span>
           </div>
           <div className={styles.statItem}>
@@ -118,11 +133,11 @@ function StatsSection(): ReactNode {
             <span className={styles.statLabel}>AI Agents</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>9</span>
+            <span className={styles.statValue}>29</span>
             <span className={styles.statLabel}>Services</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>1,170+</span>
+            <span className={styles.statValue}>2,236+</span>
             <span className={styles.statLabel}>Tests Passing</span>
           </div>
         </div>
@@ -134,8 +149,8 @@ function StatsSection(): ReactNode {
 export default function Home(): ReactNode {
   return (
     <Layout
-      title="Architecture Documentation"
-      description="Technical documentation for the Trust Relay enterprise KYB/KYC compliance workflow platform.">
+      title="Compliance Investigation Platform"
+      description="Trust Relay — the compliance investigation platform that closes the loop. Iterative KYB workflows, AI-powered OSINT, compliance memory, and self-hosted EU data sovereignty.">
       <HeroSection />
       <main>
         <StatsSection />

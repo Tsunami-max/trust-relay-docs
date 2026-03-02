@@ -13,7 +13,7 @@ title: "Tech Stack"
 | React | 19 | UI library | Production-ready |
 | Tailwind CSS | v4 | Utility-first styling | Production-ready |
 | shadcn/ui | latest | Component primitives (25 components installed) | Production-ready |
-| CopilotKit | v1.51.4 | AI assistant integration in dashboard | PoC -- pinned at v1, v2 migration planned |
+| CopilotKit | v1.52.1 (v2 APIs) | AI assistant integration in dashboard | Production-ready -- migrated to v2 APIs (ADR-0013) |
 | Recharts | latest | Financial charts and analytics visualizations | Production-ready |
 | Framer Motion | latest | Animations (particle background, transitions) | Production-ready |
 | @uiw/react-json-view | latest | JSON data viewer for evidence display | Production-ready |
@@ -82,7 +82,7 @@ All agents default to `openai:gpt-5.2` except the Belgian scraping agent which u
 | MinIO | latest | S3-compatible object storage for documents | Production-ready |
 | Redis | 8 (Alpine) | Cache layer (PEPPOL, inhoudingsplicht results) | Production-ready |
 
-### Database Schema (7 tables)
+### Database Schema (8 tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -93,6 +93,7 @@ All agents default to `openai:gpt-5.2` except the Belgian scraping agent which u
 | `peppol_api_keys` | API key management for PEPPOL service |
 | `belgian_evidence` | SHA-256 hashed evidence from Belgian official sources |
 | `agent_executions` | Agent pipeline execution tracking for observability |
+| `signal_events` | Compliance memory signal capture (officer actions) |
 
 ## Scraping and Data Acquisition
 
@@ -111,12 +112,12 @@ Each data source uses the scraping tool best suited to its protection level. See
 
 | Technology | Purpose | Scope |
 |-----------|---------|-------|
-| pytest | Backend test runner | 943+ tests |
-| Testcontainers | Isolated database containers for integration tests | PostgreSQL integration tests |
+| pytest | Backend test runner | 1,689+ tests |
+| Testcontainers | Isolated database containers for integration tests | 20 PostgreSQL integration tests |
 | respx | HTTP mock library for httpx | OSINT and scraping service tests |
 | PydanticAI TestModel | Deterministic AI agent testing | All 13 agents |
-| Jest | Frontend test runner | 228+ tests |
-| React Testing Library | Component testing | 27 dashboard components + portal components |
+| Jest | Frontend test runner | 547+ tests |
+| React Testing Library | Component testing | 47 test suites covering dashboard, portal, entity-network, memory |
 | Playwright | End-to-end browser testing | 6 E2E specs |
 
 ### Test Safety Mechanisms

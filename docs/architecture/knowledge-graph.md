@@ -34,7 +34,7 @@ flowchart LR
         DASH["Officer Dashboard"] -->|REST| GAPI
     end
 
-    style NEO fill:#1e3a5f,stroke:#f59e0b,color:#fff
+    style NEO fill:#2563eb,stroke:#f59e0b,color:#fff
 ```
 
 | Concern | Store | Rationale |
@@ -45,6 +45,69 @@ flowchart LR
 | Temporal bookkeeping | Graphiti overlay | Bitemporal edge lifecycle; see §Bitemporal Overlay below |
 
 **Fault isolation**: Neo4j availability has zero impact on the core compliance workflow. All graph operations are feature-flagged — when disabled, every method returns neutral values.
+
+---
+
+## GraphETL Pipeline
+
+The `GraphETL` class (`backend/app/services/graph_etl.py`) transforms compliance case data into graph nodes and relationships. It runs **after each OSINT investigation iteration** (not only on final approval) and is fully idempotent via Cypher `MERGE`.
+
+### ETL Steps (12 steps, best-effort isolation)
+
+Each step is wrapped in try/catch — failures are logged and collected but never block subsequent steps.
+
+| Step | Creates | Depends on |
+|------|---------|------------|
+| 0. Investigation | Investigation node + TARGETS relationship | case_id |
+| 1. Company | Company node (MERGE on registration_number) | case_data |
+| 2. Directors | Person nodes + HAS_DIRECTOR relationships | registration_number |
+| 3. UBOs | Person nodes + HAS_UBO relationships | registration_number |
+| 4. Establishments | Establishment nodes + HAS_ESTABLISHMENT | registration_number |
+| 5. Findings | Finding nodes + HAS_FINDING relationships | investigation_result |
+| 6. Evidence | Evidence nodes + BASED_ON relationships | findings |
+| 7. Sanctions | SanctionMatch nodes + SANCTIONED relationships | sanctions_hits |
+| 8. Financial Metrics | FinancialMetric nodes + FILED_FINANCIALS | financial_health_report |
+| 9. Contagion Detection | CONTAGION_FROM cross-company relationships | shared directors |
+| 10. Evidence Links | EVIDENCED_BY: Company → Evidence | evidence list |
+| 11. **Provenance Records** | ProvenanceRecord + EvidenceArtifact nodes with PROVED_BY/SOURCE | finding details |
+| 12. **Regulatory Linkage** | SUBJECT_TO: Company → RegulatoryArticle | country |
+
+### Provenance Creation (Step 11)
+
+Each finding's `details` dict generates per-property provenance chains:
+
+```
+Company ──PROVED_BY──▸ ProvenanceRecord ──SOURCE──▸ EvidenceArtifact
+                       (property_name,              (mcp_tool_id,
+                        property_value,              artifact_type,
+                        captured_at)                 captured_at)
+```
+
+Tool ID mapping is automatic: `source` strings like "KBO/BCE public search" map to `kbo_registry_lookup`, "NBB/CBSO filings" maps to `nbb_financial_lookup`, etc.
+
+### Regulatory Linkage (Step 12)
+
+Companies are linked to applicable `RegulatoryArticle` nodes via `SUBJECT_TO` based on country:
+- **All EEA companies**: AMLD6
+- **BE/NL/LU/DE/FR**: + PSD2
+- **BE**: + PEPPOL, VAT
+
+### Backfill Endpoint
+
+For existing cases that were processed before the provenance/compliance ETL was added:
+
+```
+POST /api/graph/backfill-etl/{case_id}
+```
+
+Re-reads investigation results from the case and runs the full ETL pipeline including provenance and regulatory steps.
+
+### Incremental ETL
+
+The ETL also supports incremental ingestion during the pipeline (before synthesis completes):
+- `ingest_registry_data()` — after registry agent: Company, Directors, UBOs, Establishments
+- `ingest_media_data()` — after adverse media: Findings, Evidence, Sanctions
+- `ingest_synthesis_data()` — after synthesis: Financial Metrics, Contagion, Evidence Links
 
 ---
 
@@ -201,11 +264,11 @@ graph TD
         PLR["PipelineRun"]
     end
 
-    style E fill:#1e3a5f,stroke:#38bdf8,color:#fff
-    style P fill:#1e3a5f,stroke:#38bdf8,color:#fff
-    style GP fill:#1e3a5f,stroke:#38bdf8,color:#fff
-    style MI fill:#7c2d12,stroke:#f97316,color:#fff
-    style TC fill:#065f46,stroke:#34d399,color:#fff
+    style E fill:#2563eb,stroke:#38bdf8,color:#fff
+    style P fill:#2563eb,stroke:#38bdf8,color:#fff
+    style GP fill:#2563eb,stroke:#38bdf8,color:#fff
+    style MI fill:#ea580c,stroke:#f97316,color:#fff
+    style TC fill:#059669,stroke:#34d399,color:#fff
 ```
 
 ---

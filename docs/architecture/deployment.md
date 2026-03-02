@@ -219,17 +219,20 @@ This reduces image sizes and eliminates development dependencies from production
 
 ## Testcontainers
 
-Integration tests can use Testcontainers for isolated PostgreSQL instances per test run:
+20 integration tests use Testcontainers for isolated PostgreSQL instances per test run. macOS Docker Desktop is automatically detected via `~/.docker/run/docker.sock`:
 
 ```python
 @pytest.fixture
-async def db_session():
+async def integration_db():
     async with PostgresContainer("postgres:16") as pg:
         engine = create_async_engine(pg.get_connection_url())
-        # Run migrations, yield session, cleanup
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with async_sessionmaker(engine)() as session:
+            yield session
 ```
 
-In CI, GitHub Actions service containers serve the same purpose with less overhead.
+In CI, GitHub Actions service containers serve the same purpose with less overhead. Testcontainers is primarily used for local development testing where Docker Desktop provides the container runtime.
 
 ## Production Infrastructure Enhancements
 

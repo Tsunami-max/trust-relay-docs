@@ -155,7 +155,7 @@ This means the customer can be asked to re-upload without officer intervention, 
 
 ## Activities
 
-Six activities are defined in `backend/app/workflows/activities.py` (470 lines). Activities are the bridge between Temporal's deterministic sandbox and the outside world.
+Seven activities are defined in `backend/app/workflows/activities.py` (470 lines). Activities are the bridge between Temporal's deterministic sandbox and the outside world.
 
 | Activity | Timeout | Purpose |
 |----------|---------|---------|

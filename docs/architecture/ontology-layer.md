@@ -83,10 +83,10 @@ graph TD
 
     style ENT fill:#0d9488,stroke:#5eead4,color:#fff
     style PER fill:#0d9488,stroke:#5eead4,color:#fff
-    style GP fill:#1e3a5f,stroke:#38bdf8,color:#fff
-    style MI fill:#7c2d12,stroke:#f97316,color:#fff
-    style TC fill:#065f46,stroke:#34d399,color:#fff
-    style EA fill:#854d0e,stroke:#eab308,color:#fff
+    style GP fill:#2563eb,stroke:#38bdf8,color:#fff
+    style MI fill:#ea580c,stroke:#f97316,color:#fff
+    style TC fill:#059669,stroke:#34d399,color:#fff
+    style EA fill:#d97706,stroke:#eab308,color:#fff
 ```
 
 | Domain | Node Types | Purpose |
@@ -115,8 +115,8 @@ graph LR
     PR2 -->|SOURCE| EA
 
     style E fill:#0d9488,stroke:#5eead4,color:#fff
-    style PR1 fill:#854d0e,stroke:#eab308,color:#fff
-    style PR2 fill:#854d0e,stroke:#eab308,color:#fff
+    style PR1 fill:#d97706,stroke:#eab308,color:#fff
+    style PR2 fill:#d97706,stroke:#eab308,color:#fff
     style EA fill:#dc2626,stroke:#fca5a5,color:#fff
 ```
 
@@ -217,11 +217,11 @@ graph TD
     MI -.->|INVOLVES| P
 
     style D fill:#dc2626,stroke:#fca5a5,color:#fff
-    style A fill:#854d0e,stroke:#eab308,color:#fff
-    style P fill:#7c2d12,stroke:#f97316,color:#fff
-    style G1 fill:#1e3a5f,stroke:#38bdf8,color:#fff
-    style G2 fill:#1e3a5f,stroke:#38bdf8,color:#fff
-    style MI fill:#065f46,stroke:#34d399,color:#fff
+    style A fill:#d97706,stroke:#eab308,color:#fff
+    style P fill:#ea580c,stroke:#f97316,color:#fff
+    style G1 fill:#2563eb,stroke:#38bdf8,color:#fff
+    style G2 fill:#2563eb,stroke:#38bdf8,color:#fff
+    style MI fill:#059669,stroke:#34d399,color:#fff
 ```
 
 ```cypher
@@ -348,7 +348,7 @@ flowchart LR
     EP -->|"PUBLISHED_IN · IS_DIRECTOR_OF<br/>REGISTERED_AT updated"| NEO
     EP2 -->|"Dissolved / new / modified<br/>entities updated"| NEO
 
-    style NEO fill:#1e3a5f,stroke:#f59e0b,color:#fff
+    style NEO fill:#2563eb,stroke:#f59e0b,color:#fff
 ```
 
 ### Phase 1 — KBO Baseline Load
@@ -434,11 +434,11 @@ graph TD
     R4 -->|IMPLEMENTS| PSD2
     R5 -->|IMPLEMENTS| AMLD6
 
-    style AMLD6 fill:#7c2d12,stroke:#f97316,color:#fff
-    style AIAct fill:#7c2d12,stroke:#f97316,color:#fff
-    style PSD2 fill:#7c2d12,stroke:#f97316,color:#fff
-    style AMLR fill:#7c2d12,stroke:#f97316,color:#fff
-    style PEPPOL fill:#7c2d12,stroke:#f97316,color:#fff
+    style AMLD6 fill:#ea580c,stroke:#f97316,color:#fff
+    style AIAct fill:#ea580c,stroke:#f97316,color:#fff
+    style PSD2 fill:#ea580c,stroke:#f97316,color:#fff
+    style AMLR fill:#ea580c,stroke:#f97316,color:#fff
+    style PEPPOL fill:#ea580c,stroke:#f97316,color:#fff
 ```
 
 ```cypher
@@ -484,9 +484,9 @@ graph TD
     E -->|"from Sentry"| EV3["Transaction Patterns<br/>Volume · Counterparties"]
     E -->|"from Pipeline"| EV4["Official Records<br/>KBO · Gazette History"]
 
-    style E fill:#854d0e,stroke:#eab308,color:#fff
+    style E fill:#d97706,stroke:#eab308,color:#fff
     style ATL fill:#0d9488,stroke:#5eead4,color:#fff
-    style KBO fill:#1e3a5f,stroke:#38bdf8,color:#fff
+    style KBO fill:#2563eb,stroke:#38bdf8,color:#fff
 ```
 
 ```cypher
@@ -540,3 +540,52 @@ The ontology layer is not a feature — it is an accumulated structural advantag
 **4. Property-level provenance at EU AI Act Art. 13 fidelity.** EU AI Act Article 13 requires high-risk AI systems to provide traceability of data provenance. TrustRelay's provenance chain goes to the atomic property level: not "we used KBO data" but "this exact property value came from this exact API call at this timestamp with this SHA-256 hash." The `ProvenanceRecord → SOURCE → EvidenceArtifact` chain is the machine-readable compliance artifact required by Art. 13 — rendered as JSON-LD in every Trust Capsule's `evidence_chain` field.
 
 **5. Segment configuration as declarative graph data.** Compliance logic for each client segment (PSP, bank, insurance, marketplace, PEPPOL SP) is stored in `SegmentConfig` nodes linked to `RegulatoryArticle` nodes via `:REQUIRES_COMPLIANCE_WITH`. Adding a new segment or modifying a regulatory requirement is a graph write, not a code change — and the change is immediately auditable by query. Competitors encode this in application logic, making it opaque to regulators and expensive to change.
+
+---
+
+## Frontend Visualization Architecture
+
+The ontology and graph data surfaces through five interconnected views:
+
+### 1. Ontology Page (`/dashboard/ontology`)
+
+Two-tab interface consuming the meta-ontology:
+- **Catalog View**: Domain/regulation grouping of all `NodeTypeDefinition` and `RelationshipTypeDefinition` nodes with live instance counts
+- **Graph View**: Interactive SVG visualization of node type relationships using d3-force, with a Voyager-style three-panel layout
+
+**Data source**: `GET /api/graph/ontology/schema` → OntologyVersion + NodeTypeDefinition + RelationshipTypeDefinition + DerivedQueryDefinition + live counts
+
+### 2. Graph Explorer (`/dashboard/graph`)
+
+Full 2D/3D graph exploration with filtering, temporal queries, and multiple detail panels:
+- `GraphCanvas2D` (react-force-graph-2d) with custom shape rendering per node type
+- `GraphCanvas` (Three.js) with WebGL 3D visualization and bloom effects
+- Right-sidebar panels: Node Detail, Timeline, Provenance, Ontology, Motif Catalog, Segment Config, Entity Timeline
+
+**Data source**: `GET /api/graph/explorer/data` → up to 300 nodes from Neo4j ordered by degree
+
+### 3. Entity Network Tab (Case Detail)
+
+Four sub-tabs within the case detail page's Entity Network tab:
+
+| Sub-tab | Component | Data Source | Shows |
+|---------|-----------|-------------|-------|
+| 2D Graph | `SvgEntityGraph` | `GET /api/graph/risk-propagation/{wid}` | Concentric ring layout of company + connected entities |
+| 3D Provenance | `ProvenanceGraph` | `GET /api/graph/entity/{reg}/provenance` | WebGL graph with source artifact nodes + per-property provenance |
+| Schema Overlay | `SchemaOverlay` | `GET /api/graph/entity/{reg}/schema-overlay` | Node type catalog with regulation filtering and instance counts |
+| Compliance Map | `ComplianceMap` | `GET /api/graph/entity/{reg}/compliance-map` | Regulation compliance cards with gap analysis |
+
+**Data flow**: Case → registration_number → Neo4j entity-level queries
+
+### Neo4j Enabled vs Disabled
+
+When `NEO4J_ENABLED=true` (default since v2.x):
+- All views query Neo4j directly
+- Entity Network shows full graph (Company + Directors + Findings + Evidence + Financial + Investigation)
+- Provenance shows per-property source tracking
+- Compliance shows regulation coverage with gap analysis
+
+When `NEO4J_ENABLED=false`:
+- Graph Explorer and Ontology pages show empty state
+- Entity Network falls back to synthetic network from `company_profile.json` in MinIO
+- Provenance and Compliance sub-tabs show empty state

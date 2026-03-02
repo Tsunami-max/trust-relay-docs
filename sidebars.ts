@@ -21,6 +21,8 @@ const sidebars: SidebarsConfig = {
         'architecture/temporal-workflows',
         'architecture/ai-agents',
         'architecture/osint-pipeline',
+        'architecture/tiered-scanning',
+        'architecture/compliance-memory',
       ],
     },
     {
@@ -59,12 +61,21 @@ const sidebars: SidebarsConfig = {
     'adr/0007-belgian-data-layer',
     'adr/0013-neo4j-knowledge-graph',
     'adr/0014-react-query-caching',
+    'adr/0015-tiered-scan-agent',
+    'adr/0016-compliance-memory-system',
   ],
   apiSidebar: [
     'api/overview',
     'api/cases',
     'api/portal',
     'api/webhooks',
+    'api/scan',
+    'api/memory',
+  ],
+  strategySidebar: [
+    'why-trust-relay',
+    'product-overview',
+    'competitive-landscape',
   ],
 };
 

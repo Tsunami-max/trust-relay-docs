@@ -5,16 +5,16 @@ title: "Testing Strategy"
 
 # Testing Strategy
 
-The project has substantial test coverage with 943+ backend tests, 228+ frontend tests, and 6 E2E specs. This page documents the testing approach and infrastructure.
+The project has substantial test coverage with 1,689+ backend tests, 547+ frontend tests, and 6 E2E specs. This page documents the testing approach and infrastructure.
 
 ## Test Counts
 
 | Layer | Tests | Runner | Notes |
 |-------|-------|--------|-------|
-| Backend | 943+ | pytest | Async mode, no `@pytest.mark.asyncio` needed |
-| Frontend | 228+ | Jest + RTL | 27 dashboard components + portal + utilities |
+| Backend | 1,689+ | pytest | Async mode, no `@pytest.mark.asyncio` needed |
+| Frontend | 547+ | Jest + RTL | 47 test suites covering dashboard, portal, entity-network, memory, and utilities |
 | E2E | 6 | Playwright | Cross-browser browser tests |
-| **Total** | **~1,177+** | | |
+| **Total** | **~2,236+** | | |
 
 ## Backend Testing
 
@@ -122,7 +122,7 @@ Several test files include live-gated tests that run against real external APIs 
 
 ### What Is Tested
 
-All 27 dashboard components have dedicated test files with rendering, interaction, and edge case coverage:
+All dashboard components have dedicated test files with rendering, interaction, and edge case coverage. The 37 test suites include:
 
 ```
 frontend/src/__tests__/
@@ -151,6 +151,10 @@ frontend/src/__tests__/
   RiskHeatmap.test.tsx           # Aggregated risk heatmap
   StatusBadge.test.tsx           # Case status badge
   StatusScreen.test.tsx          # Final status screen
+  MCCCard.test.tsx               # MCC classification with risk flags
+  InhoudingsplichtResultCard.test.tsx  # Social/tax debt verification
+  StatsHero.test.tsx             # Dashboard stats overview
+  EntityGraph.test.tsx           # Entity network 3D graph + provenance
 ```
 
 ### What Is Not Fully Tested
@@ -183,11 +187,11 @@ The project follows Golden Standard v6 coverage targets:
 |-------|--------|--------|--------|
 | Workflow state machine + activities | 90% | ~85% | Close |
 | FastAPI endpoints | 70% | ~75% | **Met** |
-| React components | 70% | ~70% | **Met** (27/27 dashboard components) |
+| React components | 70% | ~80% | **Met** (47 test suites, 547+ tests) |
 | Docling / MinIO integration | 70% | ~70% | Met |
 
 :::tip
-Phase 5 (frontend remediation) added 88+ new frontend tests, bringing total coverage from ~40% to ~70% for React components. All 27 dashboard components now have dedicated test files.
+Frontend remediation (Phases 5+) added 300+ new frontend tests, bringing total coverage from ~40% to ~80% for React components. All dashboard components now have dedicated test files across 37 test suites.
 :::
 
 ## Golden Standard Compliance
@@ -245,7 +249,7 @@ In CI, GitHub Actions service containers serve the same purpose with less overhe
 
 ### Frontend Component Coverage (Phase 5)
 
-All 27 dashboard components now have dedicated test files, up from partial coverage of 16 components. The 88+ new tests added in Phase 5 cover rendering, user interactions, edge cases, and accessibility.
+All dashboard components now have dedicated test files across 47 test suites (547+ tests), up from partial coverage of 16 components. Tests cover rendering, user interactions, edge cases, and accessibility.
 
 ## Future Testing Enhancements
 

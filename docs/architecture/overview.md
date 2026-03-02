@@ -27,7 +27,7 @@ graph TB
 
     subgraph Temporal["Temporal (Port 7233)"]
         Workflow["ComplianceCaseWorkflow"]
-        Activities["6 Activities"]
+        Activities["7 Activities"]
     end
 
     subgraph Storage["Data Layer"]
@@ -94,7 +94,7 @@ This table provides an honest assessment of each architectural area. The system 
 | Code Organization | **Strong** | Clear separation of concerns, routers decomposed, service layer uses DI |
 | Error Handling | Adequate | Custom exception hierarchy (`TrustRelayError` + subtypes), centralized logging, no silent swallows |
 | Security | Adequate | JWT auth with JWKS (PoC mode bypasses), portal token expiry (30-day TTL), IP-based rate limiting, dynamic CORS |
-| Frontend Architecture | Adequate | Custom hooks extracted, React Query caching, accessibility improvements, 228+ component tests |
+| Frontend Architecture | Adequate | Custom hooks extracted, React Query caching, accessibility improvements, 441+ component tests |
 | CI/CD | Adequate | GitHub Actions pipeline (4 jobs), health checks, multi-stage Docker builds |
 | Database | Adequate | SQLAlchemy ORM models (7 tables), Alembic configured (2 migrations), parameterized queries via `sqlalchemy.text()` |
 | Data Models | Adequate | Good Pydantic models for API, typed workflow state via TypedDicts |
@@ -128,11 +128,11 @@ The following items are planned for production hardening beyond the current PoC:
 
 | Item | Priority | Path Forward |
 |------|----------|-------------|
-| ORM query migration | Medium | ORM models and Alembic are in place. Migrating parameterized `text()` calls to ORM queries is a mechanical refactor with no behavioral change. |
+| ORM query migration | Low | ORM models and Alembic are in place. Most queries migrated; one raw SQL call remains for PostgreSQL sequence operations. |
 | Log aggregation | Medium | Structured JSON logging with correlation IDs, forwarded to ELK/Datadog. See [Deployment](/docs/architecture/deployment). |
 | PII classification | Medium | PII tags on model fields, encrypted columns for sensitive data, GDPR data subject request handling. |
 | Secret management | Low | Move from `.env` files to a managed secret store (AWS Secrets Manager, HashiCorp Vault). |
-| Testcontainers expansion | Low | Testcontainers configured for PostgreSQL; CI uses GitHub Actions service containers. Expand to cover all integration paths. |
+| Testcontainers expansion | Low | 20 integration tests using Testcontainers for PostgreSQL with macOS Docker Desktop support. CI uses GitHub Actions service containers. |
 
 ## Architecture Decision Records
 

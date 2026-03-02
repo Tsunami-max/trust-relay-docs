@@ -19,13 +19,13 @@ graph TD
     S --> MCC[MCC Classifier]
     MCC --> TG[Task Generator]
 
-    style DV fill:#1e3a5f,stroke:#38bdf8
-    style R fill:#1e3a5f,stroke:#38bdf8
-    style PV fill:#1e3a5f,stroke:#38bdf8
-    style AM fill:#1e3a5f,stroke:#38bdf8
-    style S fill:#1e3a5f,stroke:#38bdf8
-    style MCC fill:#1e3a5f,stroke:#38bdf8
-    style TG fill:#1e3a5f,stroke:#38bdf8
+    style DV fill:#2563eb,stroke:#38bdf8,color:#fff
+    style R fill:#2563eb,stroke:#38bdf8,color:#fff
+    style PV fill:#2563eb,stroke:#38bdf8,color:#fff
+    style AM fill:#2563eb,stroke:#38bdf8,color:#fff
+    style S fill:#2563eb,stroke:#38bdf8,color:#fff
+    style MCC fill:#2563eb,stroke:#38bdf8,color:#fff
+    style TG fill:#2563eb,stroke:#38bdf8,color:#fff
 ```
 
 ### Execution Order
@@ -66,11 +66,11 @@ graph TD
     PV --> SYN[Synthesis]
     AM --> SYN
 
-    style BA fill:#1e3a5f,stroke:#f59e0b
-    style KBO fill:#1e3a5f,stroke:#38bdf8
-    style GAZ fill:#1e3a5f,stroke:#38bdf8
-    style NBB fill:#1e3a5f,stroke:#38bdf8
-    style INH fill:#1e3a5f,stroke:#38bdf8
+    style BA fill:#2563eb,stroke:#f59e0b,color:#fff
+    style KBO fill:#2563eb,stroke:#38bdf8,color:#fff
+    style GAZ fill:#2563eb,stroke:#38bdf8,color:#fff
+    style NBB fill:#2563eb,stroke:#38bdf8,color:#fff
+    style INH fill:#2563eb,stroke:#38bdf8,color:#fff
 ```
 
 ### Belgian Data Sources

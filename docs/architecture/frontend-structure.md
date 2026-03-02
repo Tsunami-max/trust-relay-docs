@@ -21,6 +21,8 @@ frontend/src/
         page.tsx                      # Standalone PEPPOL lookup
       inhoudingsplicht/
         page.tsx                      # Standalone inhoudingsplicht check
+      memory/
+        page.tsx                      # Memory Admin (blocks, signals, archival, confidence)
     portal/
       [token]/
         page.tsx                      # Customer document upload portal
@@ -34,7 +36,7 @@ frontend/src/
     usePeppolVerify.ts                # PEPPOL verification trigger + result
 
   components/
-    dashboard/                        # 27 officer dashboard components
+    dashboard/                        # 27+ officer dashboard components + entity-network
     portal/                           # 7 customer portal components
     ui/                               # 25 shadcn/ui primitives + custom components
 
@@ -175,8 +177,8 @@ The application uses `@tanstack/react-query` for server state management via `Qu
 
 - Reduces redundant API calls on tab switches (stale-while-revalidate)
 - Provides automatic background refetching
-- Enables cache invalidation on mutations
-- Configurable stale times per query type
+- Enables cache invalidation on mutations (used by `useDecisionSubmit` and `usePeppolVerify`)
+- Configurable stale times per query type (e.g., 5-minute staleTime for PEPPOL results)
 
 ## Addressed Frontend Debt
 
@@ -186,7 +188,7 @@ The application uses `@tanstack/react-query` for server state management via `Qu
 | No custom hooks | Zero hooks, all logic inline | 5 hooks in `src/hooks/` |
 | No caching | Fresh API calls on every navigation | React Query with stale-while-revalidate |
 | CopilotKit duplication | Three separate configurations | Shared `CopilotKitProvider` in `providers.tsx` |
-| No component tests | 131 tests (utility + some components) | 228+ tests covering 27 dashboard components |
+| No component tests | 131 tests (utility + some components) | 547+ tests across 47 test suites covering all dashboard, portal, memory, and entity-network components |
 | No accessibility | No ARIA labels, no focus management | ARIA attributes, keyboard navigation, focus management |
 
 ## Future Enhancements
@@ -201,17 +203,19 @@ All 27 dashboard components have dedicated test files. Page-level components (`p
 
 ## CopilotKit + AG-UI Integration
 
-The AI assistant uses CopilotKit v1 with the AG-UI protocol:
+The AI assistant uses CopilotKit v2 APIs (ADR-0013) with the AG-UI protocol:
 
 ```
-Frontend (CopilotKit) <-> Next.js API route <-> FastAPI backend <-> PydanticAI agent
+Frontend (CopilotKit) <-> Next.js API route (CopilotRuntime) <-> FastAPI backend <-> PydanticAI agent
 ```
 
 Key integration details:
 
-- Agents registered via `agents__unsafe_dev_only` prop
-- Request routing splits between connect/handshake (direct to backend) and chat messages (through Next.js runtime)
-- Context passed via `useCopilotReadable` -- CopilotKit double-encodes values, requiring recursive JSON parsing on the backend
+- Agents registered server-side in `CopilotRuntime` (`frontend/src/app/api/copilotkit/route.ts`): `dashboard_assistant`, `dashboard_stats`, `portal_assistant`
+- Case detail page uses inline `CopilotChat` in a 2-column layout (380px sticky right panel, hidden on mobile)
+- Portal and dashboard list use `CopilotPopup` (floating bottom-right)
+- Context passed via `useCopilotReadable` -- injects workflow_id/portal_token as JSON
 - Error boundary class component wraps CopilotKit to prevent page crashes
+- Suggestion chips generated from `lib/chatSuggestions.ts` and passed as static suggestions
 
-See [ADR-0003](/docs/adr/) and [ADR-0004](/docs/adr/) for the full rationale.
+See [ADR-0003](/docs/adr/) and [ADR-0013](/docs/adr/) for the full rationale.

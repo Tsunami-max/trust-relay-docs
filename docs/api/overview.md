@@ -22,6 +22,7 @@ Trust Relay uses three authentication models depending on the endpoint group:
 | Endpoint Group | Auth Method | Details |
 |---|---|---|
 | **Case Management** (`/api/cases/*`) | None (PoC) | Officer endpoints are unauthenticated in the PoC. Production will add JWT/session auth. |
+| **Scan** (`/api/scan/*`) | None (PoC) | Tiered entity scanning endpoints. Same auth model as Case Management. |
 | **Customer Portal** (`/api/portal/*`) | Portal token | Each case generates a unique `portal_token` embedded in the portal URL. The token is the path parameter itself. |
 | **PEPPOL Verification** (`/v1/peppol/*`) | API key | `X-API-Key` header required. Keys are configured server-side with rate limits and requestor identity. |
 | **Feature Config** (`/api/config/*`) | None | Public read-only endpoint. |
@@ -78,6 +79,18 @@ Key operations:
 - Retrieve portal state (required documents, questions, follow-up tasks)
 - Upload documents to MinIO storage
 - Submit completed document packages
+
+### [Scan](/docs/api/scan)
+
+Tiered entity scanning for automated KYB compliance checks. Four depth levels from instant graph-based risk scoring to full compliance case investigation.
+
+**Prefix**: `/api/scan`
+
+Key operations:
+- Scan individual entities at configurable depth (Tier 0-3)
+- View scan history for any entity
+- Escalate entities to higher scan tiers
+- Batch scan entire portfolios with parallel execution
 
 ### [PEPPOL and External APIs](/docs/api/webhooks)
 

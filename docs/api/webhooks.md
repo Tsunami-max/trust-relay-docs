@@ -239,7 +239,7 @@ Retrieves the latest PEPPOL verification result linked to a specific compliance 
 
 Same shape as the PEPPOL Verify response (verification_id, input, result, checks, eui_coverage).
 
-**Error** `404`: No PEPPOL verification exists for this case.
+**Response** `200` (empty): Returns `null` if no PEPPOL verification exists for this case.
 
 ---
 

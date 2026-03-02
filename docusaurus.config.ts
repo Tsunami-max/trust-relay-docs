@@ -11,7 +11,7 @@ const config: Config = {
     v4: true,
   },
 
-  url: 'https://your-docusaurus-site.example.com',
+  url: 'https://trust-relay.pages.dev',
   baseUrl: '/',
 
   organizationName: 'trust-relay',
@@ -51,6 +51,9 @@ const config: Config = {
   ],
 
   themeConfig: {
+    mermaid: {
+      theme: {light: 'default', dark: 'dark'},
+    },
     image: 'img/trustrelay-social.jpg',
     colorMode: {
       respectPrefersColorScheme: true,
@@ -79,6 +82,12 @@ const config: Config = {
           sidebarId: 'apiSidebar',
           position: 'left',
           label: 'API Reference',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'strategySidebar',
+          position: 'left',
+          label: 'Strategy',
         },
         {
           href: 'https://github.com/Tsunami-max/trust-relay-workflow',
@@ -112,7 +121,7 @@ const config: Config = {
           items: [
             {
               label: 'Trust Relay',
-              href: 'https://trustrelay.io',
+              href: 'https://trustrelay.eu',
             },
             {
               label: 'GitHub',
@@ -121,15 +130,19 @@ const config: Config = {
           ],
         },
         {
-          title: 'Resources',
+          title: 'Strategy',
           items: [
             {
-              label: 'Temporal Workflows',
-              to: '/docs/architecture/temporal-workflows',
+              label: 'Why Trust Relay',
+              to: '/docs/why-trust-relay',
             },
             {
-              label: 'OSINT Pipeline',
-              to: '/docs/architecture/osint-pipeline',
+              label: 'Product Overview',
+              to: '/docs/product-overview',
+            },
+            {
+              label: 'Competitive Landscape',
+              to: '/docs/competitive-landscape',
             },
           ],
         },

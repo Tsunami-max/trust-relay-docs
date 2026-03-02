@@ -179,7 +179,7 @@ Temporal activities run in a separate worker process and must instantiate servic
 Two files define the entire Temporal integration:
 
 - **`compliance_case.py`** (401 lines) -- The `ComplianceCaseWorkflow` class with signals, queries, the main run loop, and audit logging
-- **`activities.py`** (470 lines) -- Six activity functions that bridge Temporal and the service/agent layers
+- **`activities.py`** -- Seven activity functions that bridge Temporal and the service/agent layers
 
 See [Temporal Workflows](/docs/architecture/temporal-workflows) for details.
 
@@ -280,7 +280,7 @@ This separation is a Temporal requirement: workflow code runs in a deterministic
 | Database | ORM models (7 tables), Alembic (2 migrations), parameterized queries | **Complete** |
 | Error handling | Custom exception hierarchy + structured logging | **Complete** |
 | Authentication | JWT with JWKS validation (PoC mode bypasses, production mode validates) | **Complete** |
-| Rate limiting | IP-based sliding window (100/min auth, 20/min unauth) | **Complete** |
+| Rate limiting | IP-based sliding window (600/min auth, 200/min unauth, configurable) | **Complete** |
 | Configuration | pydantic-settings with env-specific validation and per-agent model overrides | **Complete** |
 | Logging | Python logging to stdout | Production: structured JSON with correlation IDs |
 | Distributed rate limiting | In-memory sliding window | Production: Redis-backed for multi-instance |

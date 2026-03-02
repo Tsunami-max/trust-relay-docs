@@ -20,37 +20,39 @@ ADRs are immutable once accepted. If a decision is superseded, the original ADR 
 | [ADR-0005](./0005-state-snapshot) | STATE_SNAPSHOT over STATE_DELTA for AG-UI | Accepted | 2026-02-20 |
 | [ADR-0006](./0006-peppol-rest) | PEPPOL Verify as Synchronous REST API | Accepted | 2026-02-20 |
 | [ADR-0007](./0007-belgian-data-layer) | Belgian Data Layer, Country Routing, and PEPPOL UI | Implemented | 2026-02-23 |
-| ADR-0008 | Scraping Tool Selection (Hybrid Approach) | Implemented | 2026-02-23 |
-| ADR-0009 | OSINT Evidence Cache Strategy | Implemented | 2026-02-23 |
-| ADR-0010 | Pre-Enrichment at Case Creation | Implemented | 2026-02-24 |
-| ADR-0011 | Redis Caching for Inhoudingsplicht | Implemented | 2026-02-23 |
-| ADR-0012 | CompanyProfile SourcedFact Pattern | Implemented | 2026-02-24 |
+| ADR-0008 | Raw SQL via SQLAlchemy text() for Database Access | Superseded (ORM migration complete) | 2026-02-24 |
+| ADR-0009 | Minimal Error Handling with Silent Recovery for PoC | Superseded (exception hierarchy implemented) | 2026-02-24 |
+| ADR-0010 | React useState/useEffect for Frontend State Management | Superseded by ADR-0014 | 2026-02-24 |
+| ADR-0011 | Authentication Deliberately Deferred for PoC | Superseded (JWT/JWKS implemented) | 2026-02-24 |
+| ADR-0012 | Hybrid Scraping Tool Selection per Data Source | Implemented | 2026-02-24 |
 | [ADR-0013](./0013-neo4j-knowledge-graph) | Neo4j Knowledge Graph (CQRS Read Layer) | Implemented | 2026-02-25 |
 | [ADR-0014](./0014-react-query-caching) | React Query for Frontend Caching | Implemented | 2026-02-25 |
+| [ADR-0015](./0015-tiered-scan-agent) | Tiered Scan Agent (Portfolio-Scale Entity Screening) | Implemented | 2026-02-27 |
+| [ADR-0016](./0016-compliance-memory-system) | Compliance Memory System | Accepted | 2026-03-01 |
 
 ## Implemented ADRs (Summaries)
 
-The following decisions have been implemented. ADRs 0008-0012 are documented in summary form below. ADRs 0013-0014 have full ADR pages.
+The following decisions have been implemented or superseded. ADRs 0008-0012 are documented in summary form below. ADRs 0013-0015 have full ADR pages.
 
-### ADR-0008: Scraping Tool Selection (Hybrid Approach)
+### ADR-0008: Raw SQL via SQLAlchemy text() for Database Access *(Superseded)*
 
-The Belgian OSINT agent uses a different scraping tool for each of its four data sources based on site characteristics: crawl4ai for the Belgian Gazette (static HTML with full-text and PDF extraction), a direct REST API for NBB financial accounts (public API), the existing BeautifulSoup scraper for KBO, and PEPPOL for inhoudingsplicht. This replaced the original plan (ADR-0007 sub-decision 3) to use BrightData MCP for all sources.
+Originally, the PoC used raw SQL via SQLAlchemy `text()` for database queries. This has been superseded by ORM model migration — all 7 tables have SQLAlchemy ORM models with Alembic migrations. One raw SQL call remains for PostgreSQL sequence operations.
 
-### ADR-0009: OSINT Evidence Cache Strategy
+### ADR-0009: Minimal Error Handling with Silent Recovery for PoC *(Superseded)*
 
-On follow-up iterations (iteration > 1), cached agent outputs from the initial investigation are loaded from MinIO rather than re-running expensive registry, person validation, and adverse media agents. Only the synthesis agent re-runs with cached data plus new documents and customer responses.
+Originally used "silent recovery" pattern with broad exception catching. Superseded by a structured `TrustRelayError` exception hierarchy with custom subtypes (`CaseNotFoundError`, `WorkflowError`, `ExternalServiceError`, etc.) and centralized logging.
 
-### ADR-0010: Pre-Enrichment at Case Creation
+### ADR-0010: React useState/useEffect for Frontend State Management *(Superseded by ADR-0014)*
 
-Case creation runs VIES validation, NorthData scraping, Crunchbase lookup, and website validation concurrently via `asyncio.gather` with a 10-second global timeout. Results are stored in the CompanyProfile and passed to the workflow as `additional_data`.
+Originally used plain React hooks (useState/useEffect) for data fetching. Superseded by React Query (`@tanstack/react-query`) via ADR-0014. Custom hooks (`useCaseDetail`, `useDecisionSubmit`, `usePeppolVerify`) now use `useQuery`/`useMutation` with cache invalidation.
 
-### ADR-0011: Redis Caching for Inhoudingsplicht
+### ADR-0011: Authentication Deliberately Deferred for PoC *(Superseded)*
 
-The inhoudingsplicht verification service uses Redis to cache results by enterprise number, avoiding redundant lookups when the same enterprise is checked by both the PEPPOL pipeline and the Belgian OSINT agent.
+Authentication has been implemented: JWT with JWKS validation in `deps/auth.py`, dual PoC/production mode, portal token expiry (30-day TTL), IP-based rate limiting, and API key authentication for PEPPOL.
 
-### ADR-0012: CompanyProfile SourcedFact Pattern
+### ADR-0012: Hybrid Scraping Tool Selection per Data Source
 
-A `CompanyProfile` model with `SourcedFact` entries tracks every data point with its source, timestamp, and evidence hash. When facts from different sources conflict, the system flags discrepancies for officer review rather than silently overwriting.
+Each Belgian data source uses the best scraping tool for its characteristics: crawl4ai for Gazette (static HTML), direct REST for NBB (public API), BeautifulSoup for KBO, PEPPOL for inhoudingsplicht.
 
 ## ADR Template
 
