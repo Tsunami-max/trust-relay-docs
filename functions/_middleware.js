@@ -42,6 +42,11 @@ export async function onRequest(context) {
   const { request, next, env } = context;
   const url = new URL(request.url);
 
+  // Allow the logo through so the login page can display it
+  if (url.pathname === '/img/trustrelay-logo-white.png') {
+    return next();
+  }
+
   // Handle login POST
   if (url.pathname === LOGIN_PATH && request.method === 'POST') {
     const formData = await request.formData();
@@ -91,7 +96,7 @@ function loginPage(redirectTo = '/', error = '') {
     body{background:#030B15;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
     .card{background:rgba(11,37,69,.6);border:1px solid rgba(45,212,191,.12);border-radius:16px;padding:48px 40px;width:100%;max-width:400px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
     .logo{text-align:center;margin-bottom:36px}
-    .logo img{height:32px;margin-bottom:12px}
+    .logo img{max-width:240px;height:auto;margin-bottom:16px}
     .logo p{color:rgba(255,255,255,.45);font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:500}
     label{display:block;color:rgba(255,255,255,.65);font-size:13px;font-weight:500;margin-bottom:8px}
     input{width:100%;background:rgba(3,11,21,.8);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#f1f5f9;font-size:15px;padding:12px 16px;outline:none;transition:border-color .2s}
