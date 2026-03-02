@@ -12,6 +12,7 @@ type FeatureItem = {
   icon: string;
   description: string;
   link: string;
+  accent?: 'teal' | 'mint';
 };
 
 const features: FeatureItem[] = [
@@ -21,6 +22,7 @@ const features: FeatureItem[] = [
     description:
       'Multi-round investigation workflows orchestrated by Temporal. Customer portal collects documents, AI agents investigate, officers decide, and the loop repeats until resolution — up to 5 iterations within a 60-day timeline.',
     link: '/docs/why-trust-relay',
+    accent: 'teal',
   },
   {
     title: 'AI-Powered OSINT',
@@ -28,6 +30,7 @@ const features: FeatureItem[] = [
     description:
       '13 specialized PydanticAI agents cross-reference uploaded documents against commercial registries, adverse media, financial databases, and government publications. Discrepancies are flagged with severity classification.',
     link: '/docs/architecture/osint-pipeline',
+    accent: 'mint',
   },
   {
     title: 'Compliance Memory',
@@ -35,6 +38,7 @@ const features: FeatureItem[] = [
     description:
       'AI that learns from every officer decision. Per-officer persistent memory captures institutional knowledge with a safety invariant: the system can add scrutiny but never suppress risk signals.',
     link: '/docs/architecture/compliance-memory',
+    accent: 'teal',
   },
   {
     title: 'Knowledge Graph',
@@ -42,6 +46,7 @@ const features: FeatureItem[] = [
     description:
       'Neo4j-powered entity network analysis reveals hidden connections: shared directors across shell companies, mail-drop addresses, phoenix patterns, and nominee structures — with full provenance.',
     link: '/docs/architecture/knowledge-graph',
+    accent: 'mint',
   },
   {
     title: 'EU-Native Architecture',
@@ -49,6 +54,7 @@ const features: FeatureItem[] = [
     description:
       'Self-hosted deployment with full data sovereignty. SHA-256 evidence chains, tamper-evident audit logs, and deterministic AI safety constraints — built for EU AI Act, AMLA, and GDPR from the ground up.',
     link: '/docs/architecture/security',
+    accent: 'teal',
   },
   {
     title: '4-Tier Cost Optimization',
@@ -56,13 +62,14 @@ const features: FeatureItem[] = [
     description:
       'Portfolio scanning at scale: clean entities cost $0.01, flagged entities get full investigation at $0.50. Projected 92-96% savings versus flat-rate screening for a typical 10,000-merchant portfolio.',
     link: '/docs/architecture/tiered-scanning',
+    accent: 'mint',
   },
 ];
 
-function FeatureCard({title, icon, description, link}: FeatureItem): ReactNode {
+function FeatureCard({title, icon, description, link, accent = 'teal'}: FeatureItem): ReactNode {
   return (
     <article className={clsx('col col--4', styles.featureCard)}>
-      <div className={styles.featureCardInner}>
+      <div className={clsx(styles.featureCardInner, styles[`featureCard--${accent}`])}>
         <div className={styles.featureIcon} aria-hidden="true">
           {icon}
         </div>
@@ -71,7 +78,7 @@ function FeatureCard({title, icon, description, link}: FeatureItem): ReactNode {
         </Heading>
         <p className={styles.featureDescription}>{description}</p>
         <Link className={styles.featureLink} to={link}>
-          Learn more
+          Learn more &rarr;
         </Link>
       </div>
     </article>
@@ -82,18 +89,22 @@ function HeroSection(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
     <header className={styles.hero}>
+      <div className={styles.heroBackground} aria-hidden="true">
+        <div className={styles.heroGlowTeal} />
+        <div className={styles.heroGlowMint} />
+      </div>
       <div className="container">
         <div className={styles.heroContent}>
           <img
-            src="/img/trustrelay-logo-full.png"
+            src="/img/trustrelay-logo-white.png"
             alt="Trust Relay"
             className={styles.heroLogo}
-            width={180}
-            height={180}
+            width={400}
+            height={91}
           />
           <span className={styles.heroBadge}>Investigation Orchestrator</span>
           <Heading as="h1" className={styles.heroTitle}>
-            {siteConfig.title}
+            Faster trust decisions.<br />Audit-ready evidence.
           </Heading>
           <p className={styles.heroSubtitle}>
             The compliance investigation platform that closes the loop.
@@ -103,12 +114,12 @@ function HeroSection(): ReactNode {
           </p>
           <nav className={styles.heroActions} aria-label="Quick navigation">
             <Link
-              className="button button--primary button--lg"
+              className={clsx('button button--lg', styles.buttonPrimary)}
               to="/docs/why-trust-relay">
               Why Trust Relay
             </Link>
             <Link
-              className="button button--outline button--lg"
+              className={clsx('button button--lg', styles.buttonOutline)}
               to="/docs/architecture/overview">
               Architecture
             </Link>
@@ -156,6 +167,9 @@ export default function Home(): ReactNode {
         <StatsSection />
         <section className={styles.features} aria-label="Key capabilities">
           <div className="container">
+            <Heading as="h2" className={styles.featuresHeading}>
+              Key Capabilities
+            </Heading>
             <div className="row">
               {features.map((feature) => (
                 <FeatureCard key={feature.title} {...feature} />

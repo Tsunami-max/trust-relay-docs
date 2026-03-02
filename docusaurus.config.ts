@@ -56,6 +56,7 @@ const config: Config = {
     },
     image: 'img/trustrelay-social.jpg',
     colorMode: {
+      defaultMode: 'dark',
       respectPrefersColorScheme: true,
     },
     navbar: {
@@ -63,6 +64,7 @@ const config: Config = {
       logo: {
         alt: 'Trust Relay Logo',
         src: 'img/trustrelay-logo.png',
+        srcDark: 'img/trustrelay-logo.png',
       },
       items: [
         {

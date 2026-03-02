@@ -1,7 +1,9 @@
 /**
- * Trust Relay — Professional teal color scheme
- * Matches the product dashboard theme.
+ * Trust Relay — Premium dark theme inspired by trustrelay.eu
+ * Deep navy palette, teal/mint accents, glass morphism
  */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   --ifm-color-primary: #0d9488;
@@ -25,32 +27,32 @@
   --ifm-color-primary-light: #4fdbca;
   --ifm-color-primary-lighter: #5eded0;
   --ifm-color-primary-lightest: #83e6db;
-  --ifm-background-color: #0f172a;
-  --ifm-background-surface-color: #1e293b;
+  --ifm-background-color: #030B15;
+  --ifm-background-surface-color: #0B2545;
   --docusaurus-highlighted-code-line-bg: rgba(45, 212, 191, 0.15);
 }
 
-/* Hero section styling */
-.hero--primary {
-  --ifm-hero-background-color: #0f172a;
-  --ifm-hero-text-color: #f8fafc;
-}
-
-.hero__subtitle {
-  color: #94a3b8;
-}
-
-/* Navbar refinements */
+/* Navbar
+   ========================================================================== */
 .navbar {
   box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 [data-theme='dark'] .navbar {
-  background-color: #0f172a;
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+  background-color: rgba(3, 11, 21, 0.85);
+  box-shadow: 0 1px 0 rgba(45, 212, 191, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-/* Sidebar category labels */
+/* Navbar logo — white version for dark mode */
+[data-theme='dark'] .navbar__logo img {
+  filter: brightness(0) invert(1);
+}
+
+/* Sidebar
+   ========================================================================== */
 .menu__list-item-collapsible .menu__link {
   font-weight: 600;
   text-transform: uppercase;
@@ -58,17 +60,62 @@
   letter-spacing: 0.05em;
 }
 
-/* Footer refinements */
+[data-theme='dark'] .menu {
+  background-color: transparent;
+}
+
+[data-theme='dark'] .menu__link:hover {
+  background: rgba(45, 212, 191, 0.06);
+}
+
+[data-theme='dark'] .menu__link--active {
+  background: rgba(45, 212, 191, 0.08);
+  border-left: 2px solid #2dd4bf;
+}
+
+/* Footer
+   ========================================================================== */
 .footer--dark {
-  background-color: #0f172a;
+  background: linear-gradient(180deg, #030B15 0%, #020810 100%);
+  border-top: 1px solid rgba(45, 212, 191, 0.06);
 }
 
-/* Code block refinements */
+.footer__title {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.footer__link-item {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.footer__link-item:hover {
+  color: #2dd4bf;
+}
+
+/* Doc pages — dark theme refinements
+   ========================================================================== */
+[data-theme='dark'] .docMainContainer_node_modules-\@docusaurus-theme-classic-lib-theme-DocPage-Layout-Main-styles-module,
+[data-theme='dark'] main {
+  background-color: #030B15;
+}
+
+[data-theme='dark'] article {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Code blocks
+   ========================================================================== */
 .prism-code {
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
 }
 
-/* Table styling */
+[data-theme='dark'] .prism-code {
+  background-color: #0B2545 !important;
+  border: 1px solid rgba(45, 212, 191, 0.08);
+}
+
+/* Tables
+   ========================================================================== */
 table {
   display: table;
   width: 100%;
@@ -81,16 +128,38 @@ table th {
 }
 
 [data-theme='dark'] table th {
-  background-color: rgba(45, 212, 191, 0.1);
+  background-color: rgba(45, 212, 191, 0.08);
   color: var(--ifm-color-primary-light);
 }
 
-/* Admonition (callout) refinements */
-.admonition {
-  border-radius: 0.5rem;
+[data-theme='dark'] table td {
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
-/* Responsive touch targets */
+[data-theme='dark'] table tr:nth-child(even) {
+  background-color: rgba(11, 37, 69, 0.4);
+}
+
+/* Admonitions (callouts)
+   ========================================================================== */
+.admonition {
+  border-radius: 0.75rem;
+}
+
+[data-theme='dark'] .admonition {
+  background: rgba(11, 37, 69, 0.5);
+  border-left-width: 3px;
+}
+
+/* TOC (table of contents)
+   ========================================================================== */
+[data-theme='dark'] .table-of-contents__link:hover,
+[data-theme='dark'] .table-of-contents__link--active {
+  color: #2dd4bf;
+}
+
+/* Touch targets & accessibility
+   ========================================================================== */
 .menu__link,
 .navbar__link,
 .footer__link-item {
@@ -99,7 +168,6 @@ table th {
   align-items: center;
 }
 
-/* Focus visible for keyboard navigation */
 a:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--ifm-color-primary);
@@ -107,7 +175,8 @@ button:focus-visible {
   border-radius: 2px;
 }
 
-/* Reduced motion support */
+/* Reduced motion
+   ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -117,4 +186,35 @@ button:focus-visible {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Scrollbar (dark mode)
+   ========================================================================== */
+[data-theme='dark'] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-track {
+  background: #030B15;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
+  background: rgba(45, 212, 191, 0.15);
+  border-radius: 4px;
+}
+
+[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(45, 212, 191, 0.3);
+}
+
+/* Selection
+   ========================================================================== */
+::selection {
+  background: rgba(13, 148, 136, 0.3);
+  color: inherit;
+}
+
+[data-theme='dark'] ::selection {
+  background: rgba(45, 212, 191, 0.25);
 }
