@@ -93,6 +93,7 @@ The graph is constructed from actual evidence gathered during the investigation 
 | One-shot verification — check once, decide | Iterative investigation with up to 5 rounds of evidence gathering |
 | Generic follow-up templates ("Please provide additional documents") | AI-generated tasks linked to specific findings with clear explanations |
 | Officer knowledge lost when staff turns over | System learns and retains institutional knowledge across the team |
+| Portfolio screening produces risk scores and alerts | [Portfolio Audit Mode](./portfolio-audit-mode.md) produces cited-evidence verification reports with cross-entity relationship analysis |
 | SaaS platforms with data stored in vendor infrastructure | Self-hosted deployment with full data sovereignty |
 
 ## Key Concepts
@@ -115,6 +116,8 @@ A few terms that appear throughout Trust Relay documentation, explained in plain
 
 - **Audit Trail** — A complete, tamper-evident record of every action taken during an investigation: when the case was created, when documents were uploaded, what each agent found, when the officer made a decision, and what that decision was. The audit trail is the artifact that regulators examine when assessing the quality of due diligence.
 
+- **Trust Capsule** — A self-contained, tamper-evident evidence pack for a single entity. Contains all investigation findings with SHA-256 content hashes, timestamped source citations, and the deterministic rule version that produced each finding. Trust Capsules are the atomic unit of evidence in Trust Relay — designed to be attached to regulatory reports, shared with counterparties, or archived as a permanent compliance record. In [Portfolio Audit Mode](./portfolio-audit-mode.md), every entity in a batch produces its own Trust Capsule, and the set is aggregated into a structured Independent Verification Report.
+
 ## Who It's For
 
 ### Payment Service Providers (PSPs)
@@ -125,11 +128,15 @@ A typical scenario: a new merchant submits their incorporation certificate and p
 
 For PSPs operating under PSD2 or similar regulations, the built-in MCC (Merchant Category Code) classification helps ensure merchants are categorized correctly from the start, reducing the risk of processing payments in prohibited categories.
 
+For portfolio-level oversight, [Portfolio Audit Mode](./portfolio-audit-mode.md) lets a PSP verify the entire merchant portfolio in a single batch — producing cited-evidence reports that demonstrate compliance quality across the book, not just for individually investigated cases.
+
 ### Banks and Financial Institutions
 
 For banks conducting KYB lifecycle management, Trust Relay provides regulatory-grade audit trails that link every decision to its supporting evidence. The knowledge graph reveals entity relationships that flat-file reviews miss — shared directors between applicant entities, address overlaps with previously flagged companies, or ownership structures that span multiple jurisdictions.
 
 The self-hosted deployment model means customer data never leaves the institution's infrastructure — a requirement for many European regulators. Every investigation step, every piece of evidence gathered, and every officer decision is recorded with timestamps and provenance information, ready for regulatory examination.
+
+With the AMLR raising the evidentiary bar for CDD across the EU from July 2027, institutions need more than screening results — they need cited, time-stamped verification evidence. [Portfolio Audit Mode](./portfolio-audit-mode.md) provides exactly this at portfolio scale, with cross-entity relationship analysis that reveals hidden connections between clients that individual case reviews cannot detect.
 
 ### Compliance Consultancies and Auditors
 
@@ -184,6 +191,7 @@ For those who want to understand what powers the platform without a computer sci
 If you are evaluating Trust Relay, here are the recommended next steps depending on your role:
 
 **For compliance officers and business stakeholders:**
+- Read [Portfolio Audit Mode](./portfolio-audit-mode.md) to understand how batch portfolio verification works — from CSV upload to cited-evidence reports.
 - Read the [Competitive Landscape](./competitive-landscape.md) to understand how Trust Relay compares to existing KYB platforms like Sumsub, Onfido, and Comply Advantage.
 
 **For technical evaluators and architects:**

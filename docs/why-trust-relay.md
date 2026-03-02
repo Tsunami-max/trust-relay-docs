@@ -170,6 +170,8 @@ Entities only consume expensive investigation resources when risk signals from c
 
 The economic logic is simple: most entities in a PSP portfolio are legitimate businesses that pass basic registry checks. Only a small percentage show risk signals that warrant expensive investigation. Flat-rate screening charges the same price for a clean bakery and a flagged shell company. Tiered scanning charges one cent for the bakery and fifty cents for the shell company.
 
+These economics are what make [Portfolio Audit Mode](./portfolio-audit-mode.md) possible. When a full portfolio of 10,000 entities can be investigated for ~$220 per cycle instead of $5,000, regular portfolio-wide verification becomes economically feasible — not just for annual reviews, but for continuous monitoring. And because the investigation runs at full depth (not just screening), it produces cited evidence and cross-entity relationship analysis, not just a list of screening hits.
+
 ---
 
 ### 6. Your Data, Your Infrastructure -- EU-Native Architecture
@@ -226,6 +228,7 @@ Three converging forces create the opportunity:
 | Multi-agent OSINT pipeline | Yes | No | No | No | No | No | Partial |
 | Document-to-OSINT cross-referencing | Yes | No | No | No | No | No | No |
 | Knowledge graph with provenance | Yes | No | No | No | No | No | No |
+| Portfolio verification with cited evidence | Yes | No | No | No | No | No | No |
 | Self-hosted / EU data sovereign | Yes | No | No | Partial | No | No | No |
 | Open source | Yes | No | No | No | No | No | No |
 | EU AI Act ready | Yes | Medium | Low | Medium | Low | Low | Medium |

@@ -67,6 +67,7 @@ The following comparison maps specific capabilities to the nearest competitor of
 | **Document cross-referencing** | Docling converts uploaded PDFs to Markdown, then AI agents compare extracted data against OSINT findings (registry data, adverse media, financial statements). Discrepancies flagged automatically. | No competitor combines document ingestion with OSINT cross-referencing in a single workflow. Sumsub does document verification (authenticity) but not content-to-OSINT comparison. | **Unique combination.** Document content extraction + OSINT comparison in an automated pipeline is not available from any competitor. |
 | **Customer portal** | Branded, token-authenticated document collection portal. Per-iteration document requirements. Follow-up task responses collected inline. No SDK integration required. | Sumsub: SDK-based verification flow embedded in client application. Dotfile: API-driven document collection. | **Different approach.** Trust Relay's portal serves compliance workflows (ongoing document collection across iterations). Sumsub's SDK serves onboarding (one-time verification). |
 | **AI investigation synthesis** | 13 PydanticAI agents in a DAG pipeline: document validation, registry lookup, person validation, adverse media search, financial health analysis, MCC classification, synthesis, and task generation. | Dotfile: AI agent for KYB decisions. ComplyAdvantage: ML-based entity resolution and risk scoring. | **More comprehensive pipeline.** Trust Relay runs a multi-agent investigation rather than single-model scoring. Trade-off: higher latency per investigation vs. sub-second screening. |
+| **[Portfolio verification with cited evidence](./portfolio-audit-mode.md)** | Batch CSV upload triggers 9-domain investigation across entire portfolio. Output: aggregated Independent Verification Report + individual Trust Capsules (SHA-256 hashed, source-cited). Cross-entity knowledge graph reveals relationship patterns across the batch. | ComplyAdvantage: batch screening with risk scores. Moody's: batch entity data delivery. Neither produces cited-evidence verification reports or cross-entity relationship analysis. | **Unique.** No competitor produces tamper-evident, source-cited evidence packs at portfolio scale with cross-entity graph analysis. Existing tools screen portfolios; Trust Relay investigates them. |
 
 ## Where Competitors Are Stronger
 
@@ -156,11 +157,12 @@ Tier 3: Full investigation ($0.50)
 
 ### What Trust Relay Owns
 
-Three layers where the platform provides defensible value:
+Four layers where the platform provides defensible value:
 
 1. **The workflow layer**: Temporal-orchestrated iterative compliance loops with durable state, customer portal, and officer decision management. No competitor offers this combination.
-2. **The graph layer**: Case-scoped knowledge graphs with ontology-driven entity resolution and N-hop risk propagation. Architecturally comparable to enterprise solutions but focused on per-investigation depth.
-3. **The Belgian depth**: Five integrated Belgian public data sources with automated financial ratio computation, gazette full-text analysis, and PEPPOL e-invoicing verification. Replicable pattern for country expansion.
+2. **The graph layer**: Case-scoped knowledge graphs with ontology-driven entity resolution and N-hop risk propagation. Architecturally comparable to enterprise solutions but focused on per-investigation depth. In [Portfolio Audit Mode](./portfolio-audit-mode.md), the graph spans the entire batch — revealing cross-entity patterns (shared directors, address overlaps, phoenix structures) that single-entity investigation cannot detect.
+3. **The evidence layer**: Trust Capsules with SHA-256 content hashes, timestamped source citations, and deterministic rule versions. No competitor produces tamper-evident, source-cited evidence packs at portfolio scale. Portfolio Audit Mode aggregates these into structured Independent Verification Reports designed for regulatory defensibility.
+4. **The Belgian depth**: Five integrated Belgian public data sources with automated financial ratio computation, gazette full-text analysis, and PEPPOL e-invoicing verification. Replicable pattern for country expansion.
 
 ### Country Expansion Playbook
 
@@ -225,7 +227,8 @@ The strongest differentiation points are:
 1. **Iterative compliance loops** -- no competitor offers Temporal-orchestrated multi-round investigation workflows
 2. **4-tier cost optimization** -- novel economic model for portfolio-scale KYB monitoring
 3. **Document-to-OSINT cross-referencing** -- unique combination of document ingestion and investigative comparison
-4. **Belgian regulatory depth** -- unmatched integration of Belgian public data sources with a replicable country expansion pattern
+4. **[Portfolio-scale cited-evidence verification](./portfolio-audit-mode.md)** -- batch investigation with tamper-evident Trust Capsules, cross-entity relationship graphs, and structured reports built for the AMLR evidence standards
+5. **Belgian regulatory depth** -- unmatched integration of Belgian public data sources with a replicable country expansion pattern
 
 The most significant gaps are:
 
