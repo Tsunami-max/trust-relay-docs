@@ -11,9 +11,12 @@ This document provides an honest, evidence-based analysis of the KYB compliance 
 
 ### KYB Market Size and Growth
 
-The global Know Your Business (KYB) verification market is valued at approximately **$3.7 billion in 2024** and projected to reach **$10.6 billion by 2033**, representing a compound annual growth rate (CAGR) of roughly **18%**. This growth is driven by:
+The global Know Your Business (KYB) verification market is valued at approximately **$3.7 billion in 2024** and projected to reach **$10.6 billion by 2033**, representing a compound annual growth rate (CAGR) of roughly **18%**. European RegTech funding rebounded **51% year-over-year in 2025**, reaching **$1.1 billion** across 122 deals, with mega-rounds ($100M+) returning after a complete absence in 2024.
 
-- **Regulatory escalation**: 6AMLD, FinCEN beneficial ownership rules, EU AML Package (AMLR/AMLD6), and MiCA crypto regulations all expanding KYB obligations
+This growth is driven by:
+
+- **Regulatory escalation**: The EU AML Package (AMLR/AMLD6) applies from July 2027, AMLA became operational in Frankfurt (July 2025) and will directly supervise 40 high-risk institutions from 2028, EU AI Act full enforcement hits August 2026, MiCA is now law across the EU
+- **Unprecedented enforcement**: Global AML fines surpassed **$6 billion by July 2025**. Danske Bank (EUR 1.8B), Commerzbank (EUR 1.5B), and Coinbase Ireland (EUR 21.46M for 30M+ unchecked transactions). EMEA enforcement rose **767% year-over-year**
 - **Digital payments expansion**: PSPs, neobanks, and marketplace platforms onboarding merchants at scale, each requiring KYB verification
 - **Fraud sophistication**: Shell company proliferation and synthetic identity schemes forcing deeper investigation beyond surface screening
 
@@ -24,6 +27,21 @@ The industry is transitioning from **periodic review** (annual re-checks) to **p
 - Automated workflow orchestration (not just one-time screening)
 - Tiered investigation depth (not every entity needs full due diligence)
 - Cost-efficient portfolio scanning (monitoring 10,000+ entities economically)
+
+### Regulatory Timeline — What's Coming
+
+The regulatory environment is converging on stricter evidence requirements, creating urgency for compliance platforms that produce audit-ready evidence rather than just screening results.
+
+| Milestone | Date | Impact |
+|---|---|---|
+| AMLA operational (Frankfurt) | July 2025 | Done. EU-wide AML supervision body active. |
+| EU AI Act prohibited practices + AI literacy | February 2025 | Done. Organizations must train staff on AI risks. |
+| **EU AI Act full enforcement (high-risk AI)** | **August 2, 2026** | **5 months away.** Penalties: EUR 35M or 7% global turnover. |
+| **AMLR beneficial ownership rules transposed** | **July 10, 2026** | **4 months away.** UBO register access requirements. |
+| **AMLR full application + AMLD6 transposition** | **July 10, 2027** | **16 months.** Evidence-standard CDD across all EU member states. |
+| AMLA direct supervision of 40 institutions | 2028 | AMLA will directly supervise the highest-risk entities. |
+
+The convergence of these deadlines creates a strategic window: organizations that invest in evidence-grade compliance platforms before July 2027 will be positioned when the new standards become mandatory. Organizations that wait will be retrofitting.
 
 ### The PSP Pain Point
 
@@ -51,8 +69,20 @@ Payment Service Providers face a specific economic challenge: a portfolio of **1
 
 | Competitor | Strengths | What They Don't Do |
 |---|---|---|
-| **Alloy** | pKYB pioneer (launched January 2026), workflow orchestration with decision engine, 200+ data source integrations, strong US market presence | No graph analysis layer, no document cross-referencing, no Belgian OSINT depth, no AI-driven investigation synthesis |
-| **Dotfile** | AI agent-based KYB (launched 2025), 1,000+ data source integrations, European focus, modern developer experience | No graph layer for entity discovery, no Belgian OSINT depth, single-pass AI (no iterative loops), no document-to-OSINT cross-referencing |
+| **Sinpex** (Munich) | EUR 10M Series A (January 2026, BlackFin Capital). End-to-end KYB lifecycle: document collection, UBO identification, risk assessment, AML screening, continuous reviews. OCR + LLM document extraction. Customers include Otto Payments, KfW, Bybit. Expanding to France and Netherlands. | No iterative compliance loop (multi-round with customer portal), no knowledge graph layer, no tiered cost optimization, no compliance memory, no standards mapping, no self-hosted option |
+| **Alloy** | pKYB pioneer (launched UK/Europe January 2026), workflow orchestration with decision engine, 200+ data source integrations, event-driven re-assessment, strong US market presence | No graph analysis layer, no document cross-referencing, no Belgian OSINT depth, no AI-driven investigation synthesis, no temporal entity intelligence |
+| **Dotfile** | "Autonomy" multi-agent AI (September 2025): central orchestrator + specialized review agents. 80+ financial institutions, EUR 8.5M total funding, 3x YoY revenue growth. Claims 95% reduction in KYB review time. Natural-language agent builder. | Single-pass AI (no iterative loops), no customer-facing document collection portal, no graph layer for entity discovery, no Belgian OSINT depth, no document-to-OSINT cross-referencing, "self-decisioning" approach may face regulatory skepticism |
+| **Condukt** (London/Porto) | $10M seed (November 2025, Lightspeed). Ex-Revolut founders. Already serving Wise, Tide, Mollie, Rakuten before public launch. Real-time data layer for perpetual KYB. | No investigation depth (monitoring focus, not investigation), no evidence chains, no knowledge graph, no Belgian regulatory depth, not self-hosted |
+
+### Belgian-Native Players
+
+| Competitor | Focus | How They Compare |
+|---|---|---|
+| **Complidata** (Flanders) | AI co-pilot for trade finance + fincrime compliance. Corporate KYC automation with UBO extraction and entity resolution. Listed on NICE Actimize marketplace. | Investigation automation within existing AML stacks, not full workflow orchestration. No iterative loops, no customer portal, no graph layer. |
+| **Neterium** (Brussels) | API-driven sanctions/watchlist screening. Jetscan (counterparty) + Jetflow (transaction volume). Partnered with SAS (December 2024) and OpenSanctions (February 2025). | Pure screening API. Fast and focused but not an investigation platform. Complementary to Trust Relay (could integrate as Tier 2 data source). |
+| **itsme** (Brussels) | Digital identity verification (Belfius, BNP Paribas Fortis, ING, CBC consortium). Belgium's national eID. | Identity verification, not KYB. Potential integration partner for biometric KYC within Trust Relay workflow. |
+
+**Key observation:** There is no Belgian-native KYB investigation orchestration platform. Belgian PSPs and banks use international platforms (Sumsub, ComplyAdvantage, Fenergo) or build in-house. Trust Relay fills this gap with deep Belgian OSINT integration (5 sources) and EU-native architecture.
 
 ## Where Trust Relay Differentiates
 
@@ -66,7 +96,10 @@ The following comparison maps specific capabilities to the nearest competitor of
 | **Graph entity discovery** | Neo4j knowledge graph with recursive N-hop traversal, E-VAL scoring for entity risk propagation, ontology-driven entity resolution across documents and registries. | ComplyAdvantage Golden Graph: 400M entity resolution graph. Moody's Orbis: ownership chain traversal. | **Architecturally comparable, smaller dataset.** Trust Relay's graph is case-scoped (built per investigation), not a pre-computed global graph. Trade-off: deeper per-case analysis vs. broader entity coverage. |
 | **Document cross-referencing** | Docling converts uploaded PDFs to Markdown, then AI agents compare extracted data against OSINT findings (registry data, adverse media, financial statements). Discrepancies flagged automatically. | No competitor combines document ingestion with OSINT cross-referencing in a single workflow. Sumsub does document verification (authenticity) but not content-to-OSINT comparison. | **Unique combination.** Document content extraction + OSINT comparison in an automated pipeline is not available from any competitor. |
 | **Customer portal** | Branded, token-authenticated document collection portal. Per-iteration document requirements. Follow-up task responses collected inline. No SDK integration required. | Sumsub: SDK-based verification flow embedded in client application. Dotfile: API-driven document collection. | **Different approach.** Trust Relay's portal serves compliance workflows (ongoing document collection across iterations). Sumsub's SDK serves onboarding (one-time verification). |
-| **AI investigation synthesis** | 13 PydanticAI agents in a DAG pipeline: document validation, registry lookup, person validation, adverse media search, financial health analysis, MCC classification, synthesis, and task generation. | Dotfile: AI agent for KYB decisions. ComplyAdvantage: ML-based entity resolution and risk scoring. | **More comprehensive pipeline.** Trust Relay runs a multi-agent investigation rather than single-model scoring. Trade-off: higher latency per investigation vs. sub-second screening. |
+| **AI investigation synthesis** | 13 PydanticAI agents with 37 tools in a DAG pipeline: document validation, registry lookup, person validation, adverse media search, financial health analysis, MCC classification, synthesis, and task generation. | Dotfile: AI agent for KYB decisions. ComplyAdvantage: ML-based entity resolution and risk scoring. | **More comprehensive pipeline.** Trust Relay runs a multi-agent investigation rather than single-model scoring. Trade-off: higher latency per investigation vs. sub-second screening. |
+| **Entity 360 — bi-temporal intelligence** | Every entity in the knowledge graph carries valid time (when a fact was true) and system time (when the system learned it). Officers see how entities changed over time — director appointments, address changes, ownership restructuring — on an interactive timeline. | No competitor offers bi-temporal entity views. ComplyAdvantage shows current state. Moody's Orbis shows ownership history but not temporal entity evolution. | **Unique.** No competitor combines bi-temporal entity tracking with investigation workflow. Temporal patterns (recent restructuring, rapid director changes) carry investigative meaning that static snapshots miss. |
+| **Regulatory standards mapping** | Every finding automatically mapped to AMLR, AMLD6, and EU AI Act articles. Standards coverage dashboard shows which regulatory requirements are satisfied by investigation evidence. | No competitor maps investigation findings to regulatory articles automatically. Compliance teams do this manually. | **Unique.** Turns every investigation into a regulatory readiness assessment. Addresses the AMLR evidentiary bar before it becomes mandatory (July 2027). |
+| **Intelligent compliance copilot** | 37 tools across 8 intelligence domains: case analysis, entity networks, temporal patterns, financial trends, regulatory standards, portfolio insights, compliance memory, and learning. Adaptive to officer experience level. | Lucinity Luci: summarizes findings. SymphonyAI Sensa: productivity improvement claims. Sumsub Summy: stateless. | **Architecturally unique.** No competitor combines domain-specific tools, institutional memory, proactive guidance, and adaptive experience levels. Others are chatbots; this is a domain expert. |
 | **[Portfolio verification with cited evidence](./portfolio-audit-mode.md)** | Batch CSV upload triggers 9-domain investigation across entire portfolio. Output: aggregated Independent Verification Report + individual Trust Capsules (SHA-256 hashed, source-cited). Cross-entity knowledge graph reveals relationship patterns across the batch. | ComplyAdvantage: batch screening with risk scores. Moody's: batch entity data delivery. Neither produces cited-evidence verification reports or cross-entity relationship analysis. | **Unique.** No competitor produces tamper-evident, source-cited evidence packs at portfolio scale with cross-entity graph analysis. Existing tools screen portfolios; Trust Relay investigates them. |
 
 ## Where Competitors Are Stronger
@@ -157,12 +190,14 @@ Tier 3: Full investigation ($0.50)
 
 ### What Trust Relay Owns
 
-Four layers where the platform provides defensible value:
+Six layers where the platform provides defensible value:
 
 1. **The workflow layer**: Temporal-orchestrated iterative compliance loops with durable state, customer portal, and officer decision management. No competitor offers this combination.
-2. **The graph layer**: Case-scoped knowledge graphs with ontology-driven entity resolution and N-hop risk propagation. Architecturally comparable to enterprise solutions but focused on per-investigation depth. In [Portfolio Audit Mode](./portfolio-audit-mode.md), the graph spans the entire batch — revealing cross-entity patterns (shared directors, address overlaps, phoenix structures) that single-entity investigation cannot detect.
-3. **The evidence layer**: Trust Capsules with SHA-256 content hashes, timestamped source citations, and deterministic rule versions. No competitor produces tamper-evident, source-cited evidence packs at portfolio scale. Portfolio Audit Mode aggregates these into structured Independent Verification Reports designed for regulatory defensibility.
-4. **The Belgian depth**: Five integrated Belgian public data sources with automated financial ratio computation, gazette full-text analysis, and PEPPOL e-invoicing verification. Replicable pattern for country expansion.
+2. **The graph and temporal intelligence layer**: Case-scoped knowledge graphs with bi-temporal entity tracking, ontology-driven entity resolution, and N-hop risk propagation. In [Portfolio Audit Mode](./portfolio-audit-mode.md), the graph spans the entire batch — revealing cross-entity patterns (shared directors, address overlaps, phoenix structures) that single-entity investigation cannot detect. The temporal dimension adds investigative context: when facts changed, how recently, and what the pattern of changes means.
+3. **The regulatory mapping layer**: Automatic linkage of investigation findings to AMLR, AMLD6, and EU AI Act articles. Standards coverage dashboards turn every investigation into a regulatory readiness assessment. This is structural, not optional — the mapping is built into the investigation pipeline, not added as a report template.
+4. **The intelligence layer**: An AI copilot with 37 specialized tools across 8 domains, adaptive to officer experience level, backed by persistent compliance memory. No competitor has a domain-expert copilot that learns from officer decisions and proactively surfaces cross-entity connections, temporal patterns, and standards gaps.
+5. **The evidence layer**: Trust Capsules with SHA-256 content hashes, timestamped source citations, and deterministic rule versions. No competitor produces tamper-evident, source-cited evidence packs at portfolio scale. Portfolio Audit Mode aggregates these into structured Independent Verification Reports designed for regulatory defensibility.
+6. **The Belgian depth**: Five integrated Belgian public data sources with automated financial ratio computation, gazette full-text analysis, and PEPPOL e-invoicing verification. Replicable pattern for country expansion.
 
 ### Country Expansion Playbook
 
@@ -220,15 +255,21 @@ The model is **less advantageous** when:
 
 ## Summary
 
-Trust Relay occupies a specific position in the KYB market: **deep investigation orchestration with cost-efficient portfolio scanning**. It is not a replacement for enterprise data providers (ComplyAdvantage, World-Check, Moody's) but rather a workflow layer that can integrate those providers within a tiered investigation pipeline.
+Trust Relay occupies a specific position in the KYB market: **deep investigation orchestration with cost-efficient portfolio scanning, temporal intelligence, and regulatory standards mapping**. It is not a replacement for enterprise data providers (ComplyAdvantage, World-Check, Moody's) but rather a workflow and intelligence layer that can integrate those providers within a tiered investigation pipeline.
+
+The market window is open but narrowing. Sinpex (EUR 10M), Dotfile (EUR 8.5M), and Condukt ($10M) are all moving toward investigation orchestration with significant funding. Trust Relay has 12-18 months before the category is crowded. The advantage: Trust Relay is architecturally further ahead on investigation depth, evidence chains, temporal intelligence, and regulatory mapping.
 
 The strongest differentiation points are:
 
-1. **Iterative compliance loops** -- no competitor offers Temporal-orchestrated multi-round investigation workflows
-2. **4-tier cost optimization** -- novel economic model for portfolio-scale KYB monitoring
-3. **Document-to-OSINT cross-referencing** -- unique combination of document ingestion and investigative comparison
-4. **[Portfolio-scale cited-evidence verification](./portfolio-audit-mode.md)** -- batch investigation with tamper-evident Trust Capsules, cross-entity relationship graphs, and structured reports built for the AMLR evidence standards
-5. **Belgian regulatory depth** -- unmatched integration of Belgian public data sources with a replicable country expansion pattern
+1. **Iterative compliance loops** -- no competitor offers Temporal-orchestrated multi-round investigation workflows with customer-facing document collection
+2. **Entity 360 with bi-temporal intelligence** -- no competitor tracks how entities change over time with valid/system time dimensions
+3. **Regulatory standards mapping** -- no competitor automatically maps investigation findings to AMLR, AMLD6, and EU AI Act articles
+4. **Intelligent compliance copilot** -- 37 tools across 8 domains, adaptive to officer experience, backed by persistent compliance memory. No competitor has a domain-expert copilot that learns from decisions
+5. **4-tier cost optimization** -- novel economic model for portfolio-scale KYB monitoring
+6. **Document-to-OSINT cross-referencing** -- unique combination of document ingestion and investigative comparison
+7. **[Portfolio-scale cited-evidence verification](./portfolio-audit-mode.md)** -- batch investigation with tamper-evident Trust Capsules, cross-entity relationship graphs, and structured reports built for the AMLR evidence standards
+8. **Self-hosted EU-native architecture** -- as EU Data Act, DORA, and AI Act converge, self-hosted deployment is becoming a competitive moat, not just a technical choice
+9. **Belgian regulatory depth** -- the only platform integrating all 5 Belgian public data sources. No Belgian-native KYB investigation platform exists.
 
 The most significant gaps are:
 
@@ -236,5 +277,6 @@ The most significant gaps are:
 2. **Data breadth** -- Belgian-focused vs. global entity coverage
 3. **Sanctions quality** -- web-based matching vs. regulatory-grade licensed data
 4. **Identity verification** -- no biometric KYC layer
+5. **Market traction** -- Condukt already serves Wise, Mollie, Rakuten before public launch; Sinpex has Otto Payments, KfW, Bybit
 
-The strategic path forward is to **own the workflow and graph layers** while integrating premium data providers (ComplyAdvantage, World-Check, Dow Jones) as pluggable data sources within the tiered pipeline.
+The strategic path forward is to **own the workflow, graph, and intelligence layers** while integrating premium data providers (ComplyAdvantage, World-Check, Dow Jones, Neterium) as pluggable data sources within the tiered pipeline. The "AI suggests, officer decides" model is the safest regulatory position as Dotfile's "self-decisioning" approach may face resistance from AMLA and national supervisors who expect human-in-the-loop for AML decisions.

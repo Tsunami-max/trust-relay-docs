@@ -63,7 +63,9 @@ When an officer opens a case, they see a real-time pipeline visualization — a 
 
 Investigation results are presented as a structured comparison: what the customer claimed on one side, what public records show on the other, with discrepancies highlighted by severity. Critical discrepancies (mismatched registration numbers, inactive company status) are visually distinct from minor ones (address formatting differences, transliteration variants between languages).
 
-A built-in AI assistant sits alongside the investigation results. Officers can ask questions in natural language: "What did we find about this company's directors?" or "Is this address discrepancy significant?" or "Show me all findings related to financial health." The assistant does not make decisions — the officer always has final authority — but it surfaces relevant context and suggests next actions based on institutional patterns the team has established over time.
+A built-in AI assistant sits alongside the investigation results — not a generic chatbot, but a domain-expert copilot with 37 specialized tools that understand the entire investigation context. Officers can ask questions in natural language: "What did we find about this company's directors?" or "Is this address discrepancy significant?" or "Show me all findings related to financial health." The assistant does not make decisions — the officer always has final authority — but it surfaces relevant context, suggests next actions based on institutional patterns, and proactively guides officers toward insights they would not know to ask about.
+
+The copilot adapts to the officer's experience level. A novice officer sees guided suggestions like "Review the 2 high-severity discrepancies before deciding." An experienced officer sees strategic prompts like "This entity's director also appears in another case — check cross-entity connections." The suggestions are dynamically generated from the case context, not static templates. They span eight intelligence domains: case urgency, entity networks, financial trends, regulatory standards, temporal patterns, portfolio insights, and compliance memory.
 
 ### The Customer Portal
 
@@ -75,7 +77,7 @@ The portal presents only what is needed for the current round: specific document
 
 Progress tracking shows customers exactly where they are in the process, reducing "Where does my application stand?" inquiries that consume officer time.
 
-### The Knowledge Graph
+### The Knowledge Graph and Entity 360
 
 Behind every investigation, Trust Relay builds a knowledge graph — a map of relationships between the entities involved in a case. Think of it as an interactive diagram where companies, people, addresses, and documents are connected by lines that represent real-world relationships: "is director of," "registered at," "filed by," "owns shares in."
 
@@ -83,16 +85,26 @@ This is not a static org chart. It is an interactive, explorable visualization t
 
 The graph is constructed from actual evidence gathered during the investigation — registry filings, corporate records, director listings, financial data. Each node and connection links back to its source document or registry entry, so officers can verify any relationship with one click. The graph grows as the investigation progresses; each round of evidence collection adds new nodes and edges.
 
+**Entity 360 — Temporal Intelligence.** Every entity in the graph carries a bi-temporal dimension: when a fact was true in the real world (valid time) and when the system first learned about it (system time). This means officers can see not just the current state of a company, but how it changed over time. A director appointed three days before the investigation, an address changed last month, an ownership structure restructured recently — these temporal patterns carry investigative meaning that a static snapshot misses. The Entity 360 view presents this as an interactive timeline, with each change linked to its source and timestamp.
+
+**Regulatory Standards Mapping.** Every investigation finding is automatically mapped to the regulatory articles it satisfies. An address verification maps to AMLR Article 19(1) on CDD identity verification. A beneficial ownership check maps to AMLD6 Article 30. The officer sees not just "what was found" but "which regulatory requirement this finding addresses." When a regulator asks "how do you demonstrate compliance with Article 19?", the answer is a structured list of findings with timestamps, sources, and evidence citations — assembled automatically during the investigation, not reconstructed afterward.
+
+**Financial Intelligence.** For entities with published financial statements — particularly Belgian companies whose filings are available through the National Bank of Belgium — the system computes key financial ratios (solvency, debt ratio, profitability) and tracks them across multiple filing years. Officers see trend lines, not just snapshots: a company with declining solvency over three years tells a different story than one with a single weak quarter. The AI assistant interprets these trends in context: "Revenue grew 15% year-over-year but profit margins are compressing — operating costs increased faster than revenue."
+
 ## What Makes It Different
 
 | Traditional Approach | Trust Relay Approach |
 |---|---|
 | Email-based document collection | Branded portal with targeted, finding-specific requests |
-| Manual registry searches across dozens of tabs | 13 AI agents search in parallel across registries, media, and financial sources |
+| Manual registry searches across dozens of tabs | 13 AI agents with 37 tools search in parallel across registries, media, and financial sources |
 | Spreadsheet case tracking | Workflow engine with complete audit trail and state management |
 | One-shot verification — check once, decide | Iterative investigation with up to 5 rounds of evidence gathering |
 | Generic follow-up templates ("Please provide additional documents") | AI-generated tasks linked to specific findings with clear explanations |
 | Officer knowledge lost when staff turns over | System learns and retains institutional knowledge across the team |
+| Static snapshot of company data | Entity 360 with bi-temporal timeline showing how facts changed over time |
+| Findings without regulatory context | Every finding mapped to AMLR, AMLD6, EU AI Act articles automatically |
+| Generic AI chatbots that answer questions | Domain-expert copilot that proactively surfaces insights across 8 intelligence domains |
+| Financial data as isolated numbers | Multi-year trend analysis with contextual interpretation |
 | Portfolio screening produces risk scores and alerts | [Portfolio Audit Mode](./portfolio-audit-mode.md) produces cited-evidence verification reports with cross-entity relationship analysis |
 | SaaS platforms with data stored in vendor infrastructure | Self-hosted deployment with full data sovereignty |
 
@@ -170,21 +182,25 @@ Document handling is language-aware. Certificates and filings in Dutch, French, 
 
 For those who want to understand what powers the platform without a computer science degree:
 
-- **13 specialized AI agents** — not one generic chatbot, but a team of purpose-built agents, each responsible for a specific part of the investigation (registry checks, adverse media, financial health, sanctions screening, and more). They work in parallel, the same way a team of analysts would divide the work.
+- **13 specialized AI agents with 37 tools** — not one generic chatbot, but a team of purpose-built agents, each responsible for a specific part of the investigation (registry checks, adverse media, financial health, sanctions screening, and more). They work in parallel, the same way a team of analysts would divide the work. The tools include entity network traversal, financial trend analysis, standards gap detection, and temporal intelligence.
+
+- **Intelligent compliance copilot** — the AI assistant that sits alongside investigation results is not a Q&A bot. It has 37 specialized tools spanning 8 intelligence domains: case analysis, entity networks, temporal patterns, financial trends, regulatory standards, portfolio insights, and compliance memory. It proactively suggests what to investigate next based on the officer's experience level and the case context.
 
 - **Durable workflow engine** — the same category of technology used by Netflix, Uber, and Stripe to run mission-critical processes. If a server restarts mid-investigation, the workflow picks up exactly where it left off. Nothing is lost.
 
-- **Knowledge graph** — a relationship database that maps how companies, people, addresses, and documents connect to each other. It surfaces patterns that spreadsheets and PDFs cannot.
+- **Knowledge graph with Entity 360** — a relationship database that maps how companies, people, addresses, and documents connect to each other, with a bi-temporal dimension tracking how facts change over time. It surfaces patterns that spreadsheets and PDFs cannot — and shows when those patterns emerged.
+
+- **Regulatory standards mapping** — every investigation finding is automatically linked to the regulatory articles it satisfies (AMLR, AMLD6, EU AI Act). Officers and auditors see coverage, not just findings.
 
 - **Document intelligence** — uploaded PDFs and scanned documents are converted into structured data that the AI agents can actually read and cross-reference, not just stored as files.
 
 - **Self-hosted deployment** — the entire platform runs on your infrastructure using standard containerization. Setup takes minutes, not months. No data leaves your environment.
 
-- **2,236 automated tests** — the system is continuously verified against a comprehensive test suite, covering the workflow engine, API layer, AI agents, and user interface.
+- **2,632+ automated tests** — the system is continuously verified against a comprehensive test suite (2,071 backend + 561 frontend), covering the workflow engine, 95 API endpoints, AI agents, and user interface.
 
 - **EU AI Act ready** — the architecture is designed with European regulatory requirements in mind, including data sovereignty, auditability, and the separation of human judgment from AI assistance.
 
-- **Compliance memory** — the system captures officer feedback, decision patterns, and corrections over time, building an institutional knowledge base that survives staff turnover and helps new officers make consistent, well-informed decisions from day one.
+- **Compliance memory** — the system captures officer feedback, decision patterns, and corrections over time, building an institutional knowledge base that survives staff turnover and helps new officers make consistent, well-informed decisions from day one. Officers teach rules in natural language; the system applies them automatically to future cases.
 
 ## What Happens Next
 

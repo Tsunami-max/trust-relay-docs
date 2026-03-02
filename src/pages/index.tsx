@@ -72,6 +72,30 @@ const features: FeatureItem[] = [
     link: '/docs/portfolio-audit-mode',
     accent: 'teal',
   },
+  {
+    title: 'Entity 360 — Temporal Intelligence',
+    icon: '\u{1F554}',
+    description:
+      'Bi-temporal view of every entity: see how facts changed over time and when the system learned about it. Director appointments, address changes, ownership shifts — all on an interactive timeline with full provenance.',
+    link: '/docs/why-trust-relay',
+    accent: 'mint',
+  },
+  {
+    title: 'Intelligent Compliance Copilot',
+    icon: '\u{1F4AC}',
+    description:
+      'An AI assistant with 37 specialized tools that guides officers through entity networks, standards gaps, financial trends, and regulatory mapping. Not a chatbot — a domain expert that knows your cases.',
+    link: '/docs/why-trust-relay',
+    accent: 'teal',
+  },
+  {
+    title: 'Regulatory Standards Mapping',
+    icon: '\u{2696}\u{FE0F}',
+    description:
+      'Every investigation finding automatically mapped to AMLR, AMLD6, and EU AI Act articles. Officers see not just what was found, but which regulatory requirement it satisfies — building audit-ready evidence by design.',
+    link: '/docs/why-trust-relay',
+    accent: 'mint',
+  },
 ];
 
 function FeatureCard({title, icon, description, link, accent = 'teal'}: FeatureItem): ReactNode {
@@ -144,19 +168,19 @@ function StatsSection(): ReactNode {
       <div className="container">
         <div className={styles.statsGrid}>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>88</span>
+            <span className={styles.statValue}>95</span>
             <span className={styles.statLabel}>API Endpoints</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>13</span>
-            <span className={styles.statLabel}>AI Agents</span>
+            <span className={styles.statValue}>37</span>
+            <span className={styles.statLabel}>AI Agent Tools</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>29</span>
+            <span className={styles.statValue}>38</span>
             <span className={styles.statLabel}>Services</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>2,236+</span>
+            <span className={styles.statValue}>2,632+</span>
             <span className={styles.statLabel}>Tests Passing</span>
           </div>
         </div>

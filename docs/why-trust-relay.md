@@ -85,7 +85,7 @@ A Temporal-orchestrated durable workflow manages the entire lifecycle. The nine-
 
 Up to 5 iterations within a 60-day bounded timeline. The entire state machine is enforced by Temporal -- if the system restarts mid-investigation, it resumes exactly where it left off. No lost state, no orphaned cases, no manual recovery.
 
-**Why nobody else has it:** Every competitor is either one-shot verification (Sumsub, Onfido, Trulioo) or ongoing monitoring (ComplyAdvantage, Hawk AI). None orchestrate multi-round investigation with a customer-facing collection portal. Sinpex (EUR 10M Series A, Munich) is the closest competitor in the investigation space, but lacks the iterative loop and integrated document collection.
+**Why nobody else has it:** Every competitor is either one-shot verification (Sumsub, Onfido, Trulioo), ongoing monitoring (ComplyAdvantage, Hawk AI), or perpetual KYB (Alloy, Condukt). None orchestrate multi-round investigation with a customer-facing collection portal. Sinpex (EUR 10M Series A, January 2026, BlackFin Capital) is the closest competitor in the investigation space with OCR + LLM document extraction and lifecycle management, but lacks the iterative loop and integrated document collection. Dotfile Autonomy (September 2025) has multi-agent AI but operates single-pass. Condukt ($10M seed, Lightspeed, November 2025) already serves Wise, Mollie, and Rakuten but focuses on perpetual monitoring, not investigation depth.
 
 Consider the current workflow at most compliance teams: officer finds a discrepancy, drafts an email asking for clarification, waits 3-5 days, receives a reply with an attachment, downloads it, opens it alongside the original finding, makes a note, realizes another document is needed, drafts another email. Trust Relay replaces that entire cycle with a structured, tracked, auditable process where the customer sees exactly what is needed and the officer sees exactly what was provided -- with AI cross-referencing happening automatically between rounds.
 
@@ -109,7 +109,7 @@ Each officer maintains their own memory space. Organizational policies are share
 
 **Safety invariant:** The system can ADD scrutiny but NEVER suppress risk signals. This constraint is enforced deterministically at the classification layer, not by LLM judgment. A JUDGMENT-type signal that increases scrutiny is always applied; a request to reduce scrutiny on a flagged entity is structurally impossible to encode.
 
-**Why nobody else has it:** SymphonyAI Sensa Copilot claims 70% productivity improvement but starts every investigation from zero. Sumsub Summy is stateless. Lucinity Luci summarizes findings intelligently but does not learn from officer decisions. Unit21 learns at the detection rule level (which patterns generate alerts), not at the officer judgment level (what those alerts mean in context). Every compliance AI on the market starts from scratch on every case.
+**Why nobody else has it:** SymphonyAI Sensa Copilot claims 70% productivity improvement but starts every investigation from zero. Sumsub Summy is stateless. Lucinity Luci summarizes findings intelligently but does not learn from officer decisions. Unit21 learns at the detection rule level (which patterns generate alerts), not at the officer judgment level (what those alerts mean in context). Dotfile Autonomy has multi-agent AI but operates single-pass with no persistent learning. Every compliance AI on the market starts from scratch on every case.
 
 ---
 
@@ -174,7 +174,58 @@ These economics are what make [Portfolio Audit Mode](./portfolio-audit-mode.md) 
 
 ---
 
-### 6. Your Data, Your Infrastructure -- EU-Native Architecture
+### 6. Entity 360 -- Temporal Intelligence That Reveals What Changed
+
+**Outcome:** Officers see not just what a company looks like today, but how it got there. A director appointed three days ago. An address changed last month. An ownership restructuring completed just before the application. These temporal patterns carry investigative meaning that a static snapshot misses — and Trust Relay surfaces them automatically.
+
+**How it works:** The knowledge graph operates with a bi-temporal model: valid time (when a fact was true in the real world) and system time (when Trust Relay first learned about it). Every entity relationship carries both dimensions. The Entity 360 view presents this as an interactive timeline, with each change linked to its source — a registry filing, a gazette publication, a document upload, a financial statement.
+
+An officer reviewing a Belgian BVBA sees: "Director Marc Dupont appointed 2026-01-15 (source: KBO/BCE). Previous director Pieter Janssens resigned 2025-12-20 (source: Belgian Gazette). Registered address changed from Antwerp to Brussels 2025-11-30 (source: KBO/BCE). Company legal form changed from VOF to BVBA 2024-06-01."
+
+The AI copilot interprets these patterns: "Three significant corporate changes in the last 90 days — director change, address change, and legal form conversion. This pattern is consistent with corporate restructuring, possibly to obscure prior history. Consider requesting explanation for the timing of these changes."
+
+**Why nobody else has it:** Screening platforms check the current state of a company. Registry databases show what was filed. Neither reconstructs the temporal narrative — the sequence of changes and what it means. Trust Relay's bi-temporal graph is architecturally unique: it tracks not just the facts, but when facts changed, creating an investigation timeline that tells a story.
+
+---
+
+### 7. Standards Mapping -- Every Finding Traced to Regulation
+
+**Outcome:** When a regulator asks "how do you demonstrate compliance with AMLR Article 19?", the answer is not a PowerPoint slide — it is a structured list of investigation findings with timestamps, sources, and evidence citations, assembled automatically during every investigation.
+
+**How it works:** Each investigation finding is automatically mapped to the regulatory articles it satisfies. The mapping covers three regulatory frameworks: the Anti-Money Laundering Regulation (AMLR, applicable from July 2027), the Anti-Money Laundering Directive (AMLD6), and the EU AI Act (high-risk system requirements, enforceable August 2026).
+
+An address verification maps to AMLR Article 19(1) on CDD identity verification. A beneficial ownership check maps to AMLD6 Article 30. The AI system's human oversight architecture maps to EU AI Act Article 14. The officer sees a standards coverage dashboard: which articles are covered by findings, which have gaps, and what additional evidence would close those gaps.
+
+The AI copilot uses this mapping proactively: "This investigation covers 8 of 12 AMLR CDD requirements for enhanced due diligence. The remaining gaps are: source of funds verification, purpose of business relationship, and ongoing monitoring plan. Consider adding follow-up tasks to address these before approval."
+
+**Why nobody else has it:** Compliance platforms produce findings. Regulatory compliance teams produce gap analyses. Nobody produces both simultaneously. Trust Relay's standards mapping turns every investigation into a regulatory readiness assessment — not as an afterthought, but as a structural property of the investigation itself.
+
+---
+
+### 8. Intelligent Compliance Copilot -- 37 Tools, 8 Domains
+
+**Outcome:** One compliance officer becomes as productive as ten. Not because the AI makes decisions — the officer always has final authority — but because the AI handles the cognitive overhead of connecting evidence across sources, remembering institutional knowledge, and surfacing the questions the officer should be asking but does not know to ask.
+
+**How it works:** The copilot is not a generic LLM answering questions about compliance. It is a specialized agent with 37 tools that can query the knowledge graph, analyze financial trends, check standards coverage, retrieve entity timelines, compare investigation iterations, access compliance memory, and synthesize multi-source evidence. The tools span 8 intelligence domains:
+
+| Domain | What It Does | Example |
+|---|---|---|
+| **Case Analysis** | Compare iterations, summarize findings, highlight changes | "Risk dropped from 0.42 to 0.28 after the customer provided updated address proof" |
+| **Entity Intelligence** | Traverse knowledge graph, find cross-entity connections | "This director also appears in another case — Borealis Capital, which was escalated for fraud indicators" |
+| **Temporal Analysis** | Surface how entities changed over time | "Three corporate changes in the last 90 days — unusual for an established company" |
+| **Financial Intelligence** | Analyze trends across filing years | "Revenue grew 15% but profit margins compressed — operating costs outpaced growth" |
+| **Standards & Regulatory** | Map findings to regulatory articles, identify gaps | "8 of 12 AMLR CDD requirements covered. Remaining gaps: source of funds, monitoring plan" |
+| **Portfolio Intelligence** | Cross-case patterns, portfolio-level insights | "Belgian BVBAs have a 23% higher escalation rate in your portfolio — consider enhanced scrutiny" |
+| **Compliance Memory** | Recall institutional knowledge, apply learned rules | "Based on a rule you taught: Belgian management companies with sole directors require live interview" |
+| **Memory & Learning** | Track what the system has learned, show maturity progression | "System has learned 3 procedures and processed 47 decision signals from your reviews" |
+
+The suggestions adapt to the officer's experience level. A novice officer gets guided prompts: "Review the 2 high-severity discrepancies before making a decision." An experienced officer gets strategic insights: "This entity pattern matches 3 prior escalations — check the knowledge graph for cross-entity connections."
+
+**Why nobody else has it:** Every compliance AI on the market is either a search tool (query data, get answers), a summarizer (read documents, produce summaries), or a chatbot (answer questions from a knowledge base). None of them combine domain-specific tools, institutional memory, proactive guidance, and adaptive experience levels in a single copilot. The 37-tool architecture means the copilot can perform actual investigation tasks — not just talk about them.
+
+---
+
+### 9. Your Data, Your Infrastructure -- EU-Native Architecture
 
 **Outcome:** When regulators ask "show me exactly why you approved this merchant," the answer is a tamper-evident evidence pack with SHA-256 content hashes, timestamped source citations, and deterministic rule versions. Not a screenshot of a dashboard. Not a PDF export from a SaaS vendor's portal.
 
@@ -183,11 +234,18 @@ These economics are what make [Portfolio Audit Mode](./portfolio-audit-mode.md) 
 Built for compliance with:
 
 - **EU AI Act Article 13** -- Explainability requirements for high-risk AI systems
+- **EU AI Act Article 14** -- Human oversight requirements (Trust Relay's "AI suggests, officer decides" architecture)
 - **AMLA** -- Auditable decision logs with full provenance chains
 - **AMLR** -- Evidence standards for compliance documentation
 - **GDPR** -- Data residency through self-hosted deployment
+- **EU Data Act** (enforceable September 2025) -- Data sovereignty beyond personal data
+- **DORA** (January 2025) -- Digital operational resilience for financial entities
 
-**Why this matters now:** EU AI Act high-risk system requirements become enforceable **August 2, 2026**. Non-compliance penalties reach up to **EUR 35 million or 7% of global annual turnover**, whichever is higher. Every US-based SaaS compliance vendor that uses AI for risk scoring or decision support will need to demonstrate explainability, human oversight, and data governance. Trust Relay's architecture -- self-hosted, auditable, with deterministic safety constraints -- is built for this regulatory environment from the ground up.
+**Why this matters now:** EU AI Act high-risk system requirements become enforceable **August 2, 2026** -- five months away. Non-compliance penalties reach up to **EUR 35 million or 7% of global annual turnover**. The AMLR applies directly from **July 10, 2027**. AMLA became operational in Frankfurt in July 2025 and will directly supervise 40 high-risk institutions from 2028.
+
+The enforcement environment has already shifted. In 2025 alone: Danske Bank EUR 1.8B, Commerzbank EUR 1.5B (sanctions), Coinbase Ireland EUR 21.46M (30M+ unchecked transactions). EMEA enforcement rose 767% year-over-year. Global AML fines surpassed $6 billion by July 2025.
+
+The convergence of EU Data Act, DORA, AMLR, and AI Act is creating a regulatory environment where self-hosted, auditable, evidence-grade platforms are not a preference but a requirement. US-based SaaS vendors face a structural disadvantage: the US CLOUD Act directly conflicts with EU data sovereignty requirements.
 
 The regulatory timing creates a strategic window. Established SaaS vendors will spend 12-18 months retrofitting explainability and data residency into architectures that were not designed for it. Trust Relay starts with these requirements as foundational constraints, not afterthoughts.
 
@@ -199,10 +257,15 @@ The regulatory timing creates a strategic window. Established SaaS vendors will 
 |---|---|---|
 | KYB market size (2024) | $3.7 billion | Market research consensus |
 | KYB market projected (2033) | $10.6 billion | 18% CAGR |
+| EU RegTech funding (2025) | $1.1 billion, +51% YoY | RegTech Analyst |
 | Global compliance spending | $274 billion annually | Industry estimates |
+| Global AML fines (2025, by July) | $6 billion+ | ComplyAdvantage |
+| EMEA enforcement increase (2025) | 767% year-over-year | Fenergo |
 | AML false positive rate | Up to 95% | Industry benchmark |
 | Financial crime detection rate | ~2% of global illicit flows | McKinsey / Interpol |
 | Banks with compliance staffing gaps | 43% | Deloitte 2025 |
+| EU AI Act full enforcement | August 2, 2026 (5 months) | EU AI Act text |
+| AMLR full application | July 10, 2027 (16 months) | AMLR text |
 | EU AI Act maximum fine | EUR 35M or 7% global turnover | EU AI Act text |
 
 The market is large, growing fast, and structurally inefficient. Spending increases year over year while detection rates remain flat. The gap is not in screening technology -- it is in investigation orchestration.
@@ -219,20 +282,25 @@ Three converging forces create the opportunity:
 
 ## Competitive Matrix
 
-| Capability | Trust Relay | Sinpex | Sumsub | Alloy | ComplyAdvantage | Unit21 | Lucinity |
-|---|---|---|---|---|---|---|---|
-| Iterative compliance loop | Yes | No | No | No | No | No | No |
-| Customer document portal | Yes | Unknown | No | No | No | No | No |
-| Officer-adaptive memory | Yes | No | No | No | No | Partial | No |
-| Safety invariant (no risk suppression) | Yes | No | N/A | N/A | N/A | No | N/A |
-| Multi-agent OSINT pipeline | Yes | No | No | No | No | No | Partial |
-| Document-to-OSINT cross-referencing | Yes | No | No | No | No | No | No |
-| Knowledge graph with provenance | Yes | No | No | No | No | No | No |
-| Portfolio verification with cited evidence | Yes | No | No | No | No | No | No |
-| Self-hosted / EU data sovereign | Yes | No | No | Partial | No | No | No |
-| Open source | Yes | No | No | No | No | No | No |
-| EU AI Act ready | Yes | Medium | Low | Medium | Low | Low | Medium |
-| Tiered cost optimization | Yes | No | No | No | No | No | No |
+| Capability | Trust Relay | Sinpex | Dotfile | Condukt | Alloy | ComplyAdvantage | Unit21 | Lucinity |
+|---|---|---|---|---|---|---|---|---|
+| Iterative compliance loop | Yes | No | No | No | No | No | No | No |
+| Customer document portal | Yes | Unknown | No | No | No | No | No | No |
+| Officer-adaptive memory | Yes | No | No | No | No | No | Partial | No |
+| Safety invariant (no risk suppression) | Yes | No | No | N/A | N/A | N/A | No | N/A |
+| Multi-agent OSINT pipeline (37 tools) | Yes | No | Yes (Autonomy) | No | No | No | No | Partial |
+| Document-to-OSINT cross-referencing | Yes | Partial | No | No | No | No | No | No |
+| Knowledge graph with provenance | Yes | No | No | No | No | No | No | No |
+| Entity 360 (bi-temporal intelligence) | Yes | No | No | No | No | No | No | No |
+| Regulatory standards mapping | Yes | No | No | No | No | No | No | No |
+| Intelligent copilot (8 domains) | Yes | No | No | No | No | No | No | Partial |
+| Financial trend analysis | Yes | No | No | No | No | Partial | No | No |
+| Portfolio verification with cited evidence | Yes | No | No | No | No | No | No | No |
+| Self-hosted / EU data sovereign | Yes | No | No | No | Partial | No | No | No |
+| Perpetual KYB | Partial | Partial | No | Yes | Yes | Yes | No | No |
+| Open source | Yes | No | No | No | No | No | No | No |
+| EU AI Act ready | Yes | Medium | Low | Low | Medium | Low | Low | Medium |
+| Tiered cost optimization | Yes | No | No | No | No | No | No | No |
 
 "Partial" indicates limited capability. "N/A" indicates the capability is not applicable to that vendor's product category. Competitor assessments based on publicly available product documentation as of early 2026.
 
@@ -252,7 +320,7 @@ Transparency about current limitations.
 
 **400M+ entity database.** Trust Relay investigates deeply, not broadly. ComplyAdvantage and Moody's Orbis have pre-computed global entity graphs with hundreds of millions of records. Trust Relay builds focused, case-scoped graphs per investigation. The trade-off is intentional but real -- broad entity coverage requires data licensing partnerships.
 
-**Production deployment history.** Trust Relay is at proof-of-concept stage. There are no production customers, no SOC 2 certification, no regulatory audit trail. What does exist: 2,236 automated tests (1,689 backend + 547 frontend), 29 service modules, 13 architectural decision records, and a codebase that demonstrates engineering discipline typically associated with later-stage products.
+**Production deployment history.** Trust Relay is at proof-of-concept stage. There are no production customers, no SOC 2 certification, no regulatory audit trail. What does exist: 2,632+ automated tests (2,071 backend + 561 frontend), 38 service modules, 95 API endpoints, 37 AI agent tools, 14 architectural decision records, and a codebase that demonstrates engineering discipline typically associated with later-stage products.
 
 **Global geographic coverage.** Currently deep in Belgium with EEA country routing architecture in place. The Belgian implementation (KBO, NBB, Gazette, PEPPOL, Inhoudingsplicht) establishes a repeatable pattern -- each new country requires 2-4 weeks to build country-specific registry scrapers and wire them into the routing layer. The architecture is designed for expansion, but today, deep OSINT coverage outside Belgium is limited. Thirty EEA countries are supported for basic entity creation and routing; five Belgian data sources are fully integrated.
 
@@ -266,13 +334,17 @@ Numbers that demonstrate execution maturity, not just vision:
 
 | Metric | Value |
 |---|---|
-| Automated tests | 2,236 (1,689 backend + 547 frontend) |
-| Backend service modules | 29 |
+| Automated tests | 2,632+ (2,071 backend + 561 frontend) |
+| Backend service modules | 38 |
+| AI agent tools | 37 (across dashboard, synthesis, task generator, memory admin agents) |
 | AI agents in investigation pipeline | 13 |
-| Architectural Decision Records | 13 |
+| API endpoints | 95 |
+| Pydantic model files | 14 |
+| Architectural Decision Records | 14 |
 | Database migrations | 4 (Alembic-managed) |
 | Belgian OSINT data sources | 5 (KBO, NBB, Gazette, PEPPOL, Inhoudingsplicht) |
 | External data integrations | 7+ (NorthData, BrightData, Tavily, VIES, OpenSanctions, Crunchbase, crawl4ai) |
+| Copilot intelligence domains | 8 (case, entity, temporal, financial, standards, portfolio, memory, learning) |
 | Workflow states in state machine | 11 |
 | Maximum investigation iterations | 5 per case |
 | Maximum case timeline | 60 days |
@@ -294,7 +366,9 @@ The codebase follows documented engineering standards (Golden Standard v6) with 
 
 Trust Relay exists because compliance investigation -- the actual work of determining whether an entity is trustworthy -- has been ignored by the technology market. Screening got faster. Monitoring got smarter. But the investigation workflow between "alert fired" and "decision made" is still manual, repetitive, and institutionally fragile.
 
-We built the system that closes that gap: durable investigation workflows, adaptive AI that accumulates institutional knowledge, document-to-OSINT cross-referencing, knowledge graphs with provenance, and tiered cost economics. Self-hosted, open source, EU-native.
+We built the system that closes that gap: durable investigation workflows, adaptive AI that accumulates institutional knowledge, document-to-OSINT cross-referencing, knowledge graphs with temporal intelligence, regulatory standards mapping, an intelligent copilot that makes one officer as productive as ten, and tiered cost economics. Self-hosted, open source, EU-native.
+
+The result is not incremental improvement. It is a fundamentally different approach to compliance. The officer is not drowning in browser tabs and email threads. The officer is reviewing structured evidence, guided by an AI that remembers what the team has learned, surfaces connections across entities, maps findings to regulatory requirements, and handles the evidence chase automatically. The officer focuses on judgment. The system handles everything else.
 
 The problems are real. The market is large. The timing is right. The engineering is demonstrably solid.
 
