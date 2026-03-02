@@ -60,11 +60,12 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'Trust Relay',
+      title: '',
       logo: {
-        alt: 'Trust Relay Logo',
-        src: 'img/trustrelay-logo.png',
-        srcDark: 'img/trustrelay-logo.png',
+        alt: 'Trust Relay',
+        src: 'img/trustrelay-logo-white.png',
+        srcDark: 'img/trustrelay-logo-white.png',
+        style: {height: '28px'},
       },
       items: [
         {
