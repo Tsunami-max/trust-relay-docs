@@ -4,12 +4,16 @@ sidebar_position: 5
 title: "ADR-0004: CopilotKit v1"
 ---
 
+:::warning Superseded
+This ADR has been superseded by [ADR-0013: CopilotKit v2 Migration](./0013-copilotkit-v2.md).
+:::
+
 # ADR-0004: CopilotKit v1 API with v2 Migration Plan
 
 | | |
 |---|---|
 | **Date** | 2026-02-20 |
-| **Status** | `Accepted` |
+| **Status** | `Superseded by ADR-0013` |
 | **Deciders** | Adrian (Trust Relay), Claude Code |
 
 ## Context

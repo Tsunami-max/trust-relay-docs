@@ -5,24 +5,43 @@ title: "Security"
 
 # Security Architecture
 
-This page documents the current security posture of Trust Relay. The system has been through a dedicated security remediation phase (Phase 4) that addressed the most critical gaps. Some items remain PoC-appropriate with documented paths to production hardening.
+This page documents the current security posture of Trust Relay. The system has been through a dedicated security remediation phase (Phase 4) and a subsequent multi-tenancy implementation (Pillar 0) that established Keycloak 26 as the sole authentication mechanism with Row Level Security across all tenant-scoped tables.
 
 ## Implemented Security Measures
 
-### Officer Authentication (JWT + JWKS)
+### Officer Authentication (Keycloak 26 + JWT/JWKS)
 
-Officer-facing API endpoints are protected by JWT-based authentication via the `get_current_user` dependency in `app/api/deps/auth.py`.
+Officer-facing API endpoints are protected by JWT-based authentication via the `get_current_user` dependency in `app/api/deps/auth.py`. Authentication is provided exclusively by Keycloak 26.
 
-**Dual-mode behavior:**
-- **PoC mode** (`APP_MODE=poc`): All requests are accepted without tokens. Returns a static dummy user `{"sub": "poc-user", "role": "officer"}`. This keeps development and testing frictionless.
-- **Production mode** (`APP_MODE=production`): Requires a valid `Authorization: Bearer <token>` header. The JWT is validated against the JWKS endpoint configured via `auth_jwks_url`. Issuer (`iss`) and audience (`aud`) claims are verified.
+**How it works:**
+- Every request requires a valid `Authorization: Bearer <token>` header
+- The JWT is validated against the Keycloak JWKS endpoint configured via `auth_jwks_url`
+- Issuer (`iss`) and audience (`aud`) claims are verified
+- JIT (Just-In-Time) user provisioning ensures database user records are created on first login via `_ensure_db_user()` using the `UserRepository`
 
 ```python
 # JWKS key rotation: keys are cached for 5 minutes
 _JWKS_TTL_SECONDS = 300
 ```
 
-The authentication module is OIDC-ready -- it can integrate with any identity provider (Auth0, Keycloak, Entra ID) that exposes a standard JWKS endpoint.
+**Role-Based Access Control (RBAC):** Four roles are defined in Keycloak and enforced by the backend:
+
+| Role | Permissions |
+|------|------------|
+| `super_admin` | Full system access, tenant management, user management |
+| `compliance_manager` | Manage officers, override automation tiers, review escalated cases |
+| `officer` | Create and investigate cases, make decisions, interact with copilot |
+| `auditor` | Read-only access to cases, audit trails, and investigation results |
+
+### Multi-Tenancy (Row Level Security)
+
+All 22 tenant-scoped database tables are protected by PostgreSQL Row Level Security (RLS) policies with `FORCE ROW LEVEL SECURITY` enabled. The session layer sets the tenant context on every database connection:
+
+- `get_session()` always sets the default tenant context
+- `get_tenant_session(tid)` provides explicit tenant-scoped access
+- `get_admin_session()` bypasses RLS for cross-tenant administrative operations
+
+This ensures complete data isolation between tenants at the database level, not just the application level.
 
 ### Portal Token Authentication with Expiry
 
@@ -151,10 +170,9 @@ All security-related configuration is managed via environment variables through 
 
 | Variable | Purpose | Default |
 |----------|---------|---------|
-| `APP_MODE` | PoC vs production (controls auth enforcement and debug endpoints) | `poc` |
-| `AUTH_JWKS_URL` | JWKS endpoint for JWT validation (production mode) | (empty) |
-| `AUTH_ISSUER` | Expected JWT issuer claim | (empty) |
-| `AUTH_AUDIENCE` | Expected JWT audience claim | (empty) |
+| `AUTH_JWKS_URL` | JWKS endpoint for Keycloak JWT validation | (Keycloak default) |
+| `AUTH_ISSUER` | Expected JWT issuer claim | (Keycloak realm URL) |
+| `AUTH_AUDIENCE` | Expected JWT audience claim | (Keycloak client ID) |
 | `PORTAL_TOKEN_TTL_DAYS` | Portal token expiry period | `30` |
 | `CORS_ORIGINS` | Comma-separated allowed CORS origins | `http://localhost:3001` |
 | `PEPPOL_MOCK_MODE` | Disables real PEPPOL API calls | `true` |
@@ -165,5 +183,5 @@ All security-related configuration is managed via environment variables through 
 | `DATABASE_URL` | PostgreSQL connection string | (local default) |
 
 :::note
-The `APP_MODE=poc` setting enables development-only endpoints (`/api/test/mock-modes`) for runtime mock mode toggling. In production mode (`APP_MODE=production`), these endpoints are automatically disabled.
+Development-only endpoints (`/api/test/mock-modes`) for runtime mock mode toggling are available in the development environment. These endpoints are disabled in production deployment.
 :::

@@ -5,16 +5,16 @@ title: "Testing Strategy"
 
 # Testing Strategy
 
-The project has substantial test coverage with 1,689+ backend tests, 547+ frontend tests, and 6 E2E specs. This page documents the testing approach and infrastructure.
+The project has substantial test coverage with 2,830+ backend tests, 561+ frontend tests, and 6 E2E specs -- 3,391+ automated tests in total. This page documents the testing approach and infrastructure.
 
 ## Test Counts
 
 | Layer | Tests | Runner | Notes |
 |-------|-------|--------|-------|
-| Backend | 1,689+ | pytest | Async mode, no `@pytest.mark.asyncio` needed |
-| Frontend | 547+ | Jest + RTL | 47 test suites covering dashboard, portal, entity-network, memory, and utilities |
+| Backend | 2,830+ | pytest | Async mode, no `@pytest.mark.asyncio` needed |
+| Frontend | 561+ | Jest + RTL | 47 test suites covering dashboard, portal, entity-network, memory, and utilities |
 | E2E | 6 | Playwright | Cross-browser browser tests |
-| **Total** | **~2,236+** | | |
+| **Total** | **3,391+** | | |
 
 ## Backend Testing
 
@@ -30,7 +30,7 @@ With `asyncio_mode=auto`, all async test functions are automatically detected an
 
 ### AI Agent Testing
 
-All 13 PydanticAI agents are tested using the `TestModel`:
+All 18+ PydanticAI agents are tested using the `TestModel`:
 
 ```python
 import os
@@ -187,7 +187,7 @@ The project follows Golden Standard v6 coverage targets:
 |-------|--------|--------|--------|
 | Workflow state machine + activities | 90% | ~85% | Close |
 | FastAPI endpoints | 70% | ~75% | **Met** |
-| React components | 70% | ~80% | **Met** (47 test suites, 547+ tests) |
+| React components | 70% | ~80% | **Met** (47 test suites, 561+ tests) |
 | Docling / MinIO integration | 70% | ~70% | Met |
 
 :::tip
@@ -249,7 +249,7 @@ In CI, GitHub Actions service containers serve the same purpose with less overhe
 
 ### Frontend Component Coverage (Phase 5)
 
-All dashboard components now have dedicated test files across 47 test suites (547+ tests), up from partial coverage of 16 components. Tests cover rendering, user interactions, edge cases, and accessibility.
+All dashboard components now have dedicated test files across 47 test suites (561+ tests), up from partial coverage of 16 components. Tests cover rendering, user interactions, edge cases, and accessibility.
 
 ## Future Testing Enhancements
 

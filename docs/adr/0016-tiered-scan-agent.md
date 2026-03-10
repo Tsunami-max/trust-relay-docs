@@ -1,10 +1,10 @@
 ---
-id: 0015-tiered-scan-agent
-sidebar_position: 16
-title: "ADR-0015: Tiered Scan Agent"
+id: 0016-tiered-scan-agent
+sidebar_position: 17
+title: "ADR-0016: Tiered Scan Agent"
 ---
 
-# ADR-0015: Tiered Scan Agent (Portfolio-Scale Entity Screening)
+# ADR-0016: Tiered Scan Agent (Portfolio-Scale Entity Screening)
 
 | | |
 |---|---|
@@ -18,7 +18,7 @@ The existing OSINT pipeline (5 LLM calls, 60-160 seconds per entity) was designe
 
 1. **Cost at scale**: A PSP onboarding 500 merchants per month cannot afford full OSINT investigations on every entity. At ~$0.15 per investigation (5 LLM calls), the monthly cost for 500 entities is $75 -- but the real cost is human: every investigation produces a multi-page report that a compliance officer must review. The vast majority of entities are low-risk and need only a lightweight check.
 
-2. **Risk contagion blindness**: The per-case model treats each entity in isolation. A director who appears across multiple merchant applications, or a company whose UBO is sanctioned in a different case, is invisible unless the officer manually cross-references. The Neo4j knowledge graph (ADR-0013) stores these relationships but has no automated mechanism to surface them proactively.
+2. **Risk contagion blindness**: The per-case model treats each entity in isolation. A director who appears across multiple merchant applications, or a company whose UBO is sanctioned in a different case, is invisible unless the officer manually cross-references. The Neo4j knowledge graph (ADR-0014) stores these relationships but has no automated mechanism to surface them proactively.
 
 Regulatory frameworks already define graduated due diligence levels. The EU's 4th and 5th Anti-Money Laundering Directives (AMLD4/5) distinguish between Simplified Due Diligence (SDD) for demonstrably low-risk entities, Customer Due Diligence (CDD) as the standard baseline, and Enhanced Due Diligence (EDD) for high-risk entities or those with complex ownership structures. A scan system should mirror this graduated approach rather than applying the same depth to every entity.
 

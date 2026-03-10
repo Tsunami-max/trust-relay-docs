@@ -5,6 +5,7 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Heading from '@theme/Heading';
 
+import {STATS} from '../constants/stats';
 import styles from './index.module.css';
 
 type FeatureItem = {
@@ -28,7 +29,7 @@ const features: FeatureItem[] = [
     title: 'AI-Powered OSINT',
     icon: '\u{1F50D}',
     description:
-      '13 specialized PydanticAI agents cross-reference uploaded documents against commercial registries, adverse media, financial databases, and government publications. Discrepancies are flagged with severity classification.',
+      '17+ specialized PydanticAI agents cross-reference uploaded documents against commercial registries, adverse media, financial databases, and government publications. Discrepancies are flagged with severity classification.',
     link: '/docs/architecture/osint-pipeline',
     accent: 'mint',
   },
@@ -84,7 +85,7 @@ const features: FeatureItem[] = [
     title: 'Intelligent Compliance Copilot',
     icon: '\u{1F4AC}',
     description:
-      'An AI assistant with 37 specialized tools that guides officers through entity networks, standards gaps, financial trends, and regulatory mapping. Not a chatbot — a domain expert that knows your cases.',
+      'An AI assistant with 40+ specialized tools that guides officers through entity networks, standards gaps, financial trends, and regulatory mapping. Not a chatbot — a domain expert that knows your cases.',
     link: '/docs/why-trust-relay',
     accent: 'teal',
   },
@@ -168,19 +169,19 @@ function StatsSection(): ReactNode {
       <div className="container">
         <div className={styles.statsGrid}>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>95</span>
+            <span className={styles.statValue}>{STATS.API_ENDPOINTS}</span>
             <span className={styles.statLabel}>API Endpoints</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>37</span>
+            <span className={styles.statValue}>{STATS.AI_AGENT_TOOLS}</span>
             <span className={styles.statLabel}>AI Agent Tools</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>38</span>
+            <span className={styles.statValue}>{STATS.SERVICE_MODULES}</span>
             <span className={styles.statLabel}>Services</span>
           </div>
           <div className={styles.statItem}>
-            <span className={styles.statValue}>2,632+</span>
+            <span className={styles.statValue}>{STATS.TOTAL_TESTS}</span>
             <span className={styles.statLabel}>Tests Passing</span>
           </div>
         </div>

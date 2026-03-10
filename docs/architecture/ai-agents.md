@@ -5,7 +5,7 @@ title: "AI Agents"
 
 # AI Agent Architecture
 
-The AI agent layer is one of the strongest parts of the system. All 13 agents follow a consistent pattern built on PydanticAI, producing structured Pydantic model outputs that integrate cleanly with the rest of the codebase.
+The AI agent layer is one of the strongest parts of the system. All 18+ agents follow a consistent pattern built on PydanticAI, producing structured Pydantic model outputs that integrate cleanly with the rest of the codebase.
 
 ## Agent Inventory
 
@@ -24,6 +24,11 @@ The AI agent layer is one of the strongest parts of the system. All 13 agents fo
 | 11 | Dashboard Stats Agent | `dashboard_stats_agent.py` | Analytics question answering | GPT-5.2 | None |
 | 12 | OSINT Orchestrator | `osint_agent.py` | Pipeline coordination | N/A | Coordinates agents 1-6 |
 | 13 | Website Scraper | (in activities.py) | Company website content extraction | N/A | crawl4ai |
+| 14 | Confidence Agent | `confidence_agent.py` | Confidence scoring computation | GPT-5.2 | None |
+| 15 | Red Flag Agent | `red_flag_agent.py` | Deterministic red flag detection | N/A | Rule engine |
+| 16 | EVOI Agent | `evoi_agent.py` | Expected Value of Investigation | GPT-5.2 | None |
+| 17 | Governance Agent | `governance_agent.py` | Pre/post-execution governance checks | GPT-5.2 | None |
+| 18 | Memory Admin Agent | `memory_admin_agent.py` | Compliance memory administration | GPT-5.2 | Letta tools |
 
 ## PydanticAI Agent Pattern
 

@@ -39,7 +39,7 @@ All frontend rendering is client-side. Next.js SSR/RSC capabilities are availabl
 | uvicorn | latest | ASGI server | Production-ready |
 
 :::note
-SQLAlchemy ORM models are defined for all 7 tables in `app/db/models.py`. Alembic is configured with async support and two migrations (initial schema + portal token expiry). The current query layer uses `sqlalchemy.text()` with parameterized queries. ORM query migration is planned as a follow-up refinement.
+SQLAlchemy ORM models are defined for all 19+ tables in `app/db/models.py`. Alembic is configured with async support and 14 migrations covering the full schema evolution (initial schema, portal token expiry, calibration, reasoning templates, alerts, tool invocations, governance checks, EVOI decisions, automation tiers, signal events, and more). The current query layer uses `sqlalchemy.text()` with parameterized queries. ORM query migration is planned as a follow-up refinement.
 :::
 
 ## Workflow Engine
@@ -58,7 +58,7 @@ Temporal was chosen over alternatives (Celery, custom state machines) for its du
 |-----------|---------|---------|----------|
 | PydanticAI | v1.60+ | Agent framework with structured outputs | Production-ready |
 | AG-UI Protocol | latest | Agent-to-UI communication standard | PoC -- emerging standard |
-| OpenAI GPT-4.1-mini / GPT-5.2 | latest | LLM for all 13 agents | Production-ready API |
+| OpenAI GPT-4.1-mini / GPT-5.2 | latest | LLM for all 18+ agents | Production-ready API |
 | MCP (Model Context Protocol) | latest | Tool integration (NorthData, BrightData, Tavily) | PoC -- Anthropic protocol |
 
 ### Per-Agent Model Configuration
@@ -82,7 +82,7 @@ All agents default to `openai:gpt-5.2` except the Belgian scraping agent which u
 | MinIO | latest | S3-compatible object storage for documents | Production-ready |
 | Redis | 8 (Alpine) | Cache layer (PEPPOL, inhoudingsplicht results) | Production-ready |
 
-### Database Schema (8 tables)
+### Database Schema (19+ tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -94,6 +94,17 @@ All agents default to `openai:gpt-5.2` except the Belgian scraping agent which u
 | `belgian_evidence` | SHA-256 hashed evidence from Belgian official sources |
 | `agent_executions` | Agent pipeline execution tracking for observability |
 | `signal_events` | Compliance memory signal capture (officer actions) |
+| `confidence_calibrations` | Confidence scoring calibration records |
+| `reasoning_templates` | Investigation reasoning template definitions |
+| `reasoning_template_conditions` | Conditional logic for reasoning templates |
+| `alerts` | Cross-case pattern detection alerts |
+| `tool_invocations` | Audited AI tool invocation records |
+| `governance_checks` | Pre/post-execution governance check results |
+| `evoi_decisions` | Expected Value of Investigation decision records |
+| `automation_tiers` | Per-officer automation tier assignments |
+| `automation_tier_overrides` | Compliance manager tier overrides |
+| `automation_tier_history` | Tier change audit history |
+| `express_queue_items` | Express queue items for automated approval |
 
 ## Scraping and Data Acquisition
 
@@ -112,11 +123,11 @@ Each data source uses the scraping tool best suited to its protection level. See
 
 | Technology | Purpose | Scope |
 |-----------|---------|-------|
-| pytest | Backend test runner | 1,689+ tests |
+| pytest | Backend test runner | 2,670+ tests |
 | Testcontainers | Isolated database containers for integration tests | 20 PostgreSQL integration tests |
 | respx | HTTP mock library for httpx | OSINT and scraping service tests |
-| PydanticAI TestModel | Deterministic AI agent testing | All 13 agents |
-| Jest | Frontend test runner | 547+ tests |
+| PydanticAI TestModel | Deterministic AI agent testing | All 18+ agents |
+| Jest | Frontend test runner | 561+ tests |
 | React Testing Library | Component testing | 47 test suites covering dashboard, portal, entity-network, memory |
 | Playwright | End-to-end browser testing | 6 E2E specs |
 

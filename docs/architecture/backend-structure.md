@@ -24,13 +24,23 @@ backend/
       graph.py              # Knowledge graph query endpoints (4 endpoints)
       peppol.py             # PEPPOL verification API (2 endpoints)
       inhoudingsplicht.py   # Inhoudingsplicht standalone check
+      scan.py               # Tiered entity scanning (Tier 0-3)
+      confidence.py         # Confidence scoring endpoints
+      reasoning.py          # Reasoning template endpoints
+      intelligence.py       # Cross-case intelligence endpoints
+      agents.py             # Agent registry and manifest endpoints
+      automation.py         # Supervised autonomy and automation tier endpoints
+      regulatory.py         # Regulatory radar and standards mapping endpoints
+      config.py             # Feature configuration endpoints
+      test.py               # Test/mock mode toggle endpoints
+      health.py             # Health check endpoints
       deps/                 # Shared FastAPI dependencies
-        auth.py             # JWT authentication (OIDC-ready, dual PoC/prod mode)
+        auth.py             # JWT authentication (Keycloak 26 JWKS)
         services.py         # DI singleton factories via lru_cache + Depends()
         rate_limiter.py     # IP-based sliding window rate limiter
         api_key_auth.py     # PEPPOL API key validation
 
-    agents/                 # 13 PydanticAI agent definitions
+    agents/                 # 18+ PydanticAI agent definitions
       osint_agent.py        # OSINT orchestrator (pipeline coordinator)
       registry_agent.py     # NorthData corporate registry
       belgian_agent.py      # Belgian 4-source investigation
@@ -57,6 +67,19 @@ backend/
       document_validation.py # Document validation result models
       inhoudingsplicht.py   # Inhoudingsplicht check models
       task_generation.py    # Task generation models
+      workflow_state.py     # Typed workflow state models
+      confidence.py         # Confidence scoring models
+      reasoning.py          # Reasoning template models
+      intelligence.py       # Cross-case intelligence models
+      agents.py             # Agent registry and manifest models
+      automation.py         # Supervised autonomy models
+      regulatory.py         # Regulatory radar models
+      scan.py               # Tiered scanning models
+      red_flag.py           # Red flag engine models
+      evoi.py               # Expected Value of Investigation models
+      governance.py         # Governance check models
+      signal_event.py       # Signal event models
+      tool_invocation.py    # Tool invocation audit models
 
     services/               # Business logic and external integrations
       graph_service.py      # Neo4j knowledge graph CRUD + queries
@@ -86,6 +109,29 @@ backend/
       risk_engine.py        # Risk score computation
       name_matching_service.py   # Fuzzy name matching
       website_validation_service.py  # Website content analysis
+      confidence_service.py      # Confidence scoring computation
+      confidence_calibration_service.py  # Calibration record management
+      reasoning_template_service.py  # Reasoning template CRUD
+      red_flag_service.py        # Red flag engine (deterministic rules)
+      intelligence_service.py    # Cross-case pattern detection
+      alert_service.py           # Alert generation and management
+      agent_registry_service.py  # Agent manifest registry
+      evoi_service.py            # Expected Value of Investigation
+      governance_service.py      # Pre/post-execution governance
+      tool_audit_service.py      # Tool invocation auditing
+      automation_service.py      # Supervised autonomy tier management
+      express_queue_service.py   # Express queue processing
+      learning_service.py        # Compliance learning system
+      letta_service.py           # Letta memory integration
+      signal_service.py          # Signal event processing
+      scan_service.py            # Tiered entity scanning
+      regulatory_service.py      # Regulatory standards mapping
+      whois_service.py           # WHOIS domain lookup
+      sanctions_service.py       # Sanctions screening
+      opensanctions_service.py   # OpenSanctions integration
+      financial_analysis_service.py  # Financial ratio analysis
+      entity_360_service.py      # Entity 360 temporal intelligence
+      standards_mapping_service.py   # Standards coverage mapping
 
     workflows/              # Temporal workflow and activity definitions
       compliance_case.py    # ComplianceCaseWorkflow (401 lines)
@@ -95,13 +141,25 @@ backend/
 
     db/
       database.py           # SQLAlchemy async engine + session factory
-      models.py             # SQLAlchemy ORM models (7 tables, DeclarativeBase)
+      models.py             # SQLAlchemy ORM models (27 tables, DeclarativeBase)
 
     alembic/                # Database migration management
       env.py                # Async migration runner
       versions/
-        001_initial_schema.py   # Initial schema migration
-        002_add_token_expiry.py # Portal token expiry column
+        001_initial_schema.py       # Initial schema migration
+        002_add_token_expiry.py     # Portal token expiry column
+        003_add_signal_events.py    # Signal events table
+        004_add_agent_executions.py # Agent execution tracking
+        005_core_tables.py          # Core table refinements
+        006_calibration.py          # Confidence calibration table
+        007_reasoning_templates.py  # Reasoning template tables
+        008_alerts.py               # Cross-case alerts table
+        009_tool_invocations.py     # Tool invocation audit table
+        010_governance_checks.py    # Governance check table
+        011_evoi_decisions.py       # EVOI decision table
+        012_automation_tiers.py     # Automation tier tables
+        013_signal_events_nullable_case_id.py  # Signal events schema update
+        014_express_queue.py        # Express queue table
 
     data/                   # Static reference data
       nace_to_mcc.py        # NACE-to-MCC mapping table
@@ -121,7 +179,7 @@ backend/
 
 ### API Layer (`app/api/`)
 
-FastAPI routers that handle HTTP requests, validate input, and delegate to Temporal or services. The case API is split into 5 focused routers:
+FastAPI routers that handle HTTP requests, validate input, and delegate to Temporal or services. The API is organized into 28 focused routers:
 
 | Router | Endpoints | Responsibility |
 |--------|-----------|---------------|
@@ -131,12 +189,27 @@ FastAPI routers that handle HTTP requests, validate input, and delegate to Tempo
 | `case_analysis.py` | 6 | Investigation results, tasks, company profile, AI brief |
 | `case_evidence.py` | 4 | Evidence panel, Belgian evidence, PEPPOL results |
 | `graph.py` | 4 | Knowledge graph queries (co-directorships, entity networks, fraud patterns) |
+| `portal.py` | 3 | Customer portal document upload and submission |
+| `agent.py` | 2 | CopilotKit AG-UI integration |
+| `dashboard.py` | 1 | Dashboard analytics |
+| `peppol.py` | 2 | PEPPOL verification API |
+| `inhoudingsplicht.py` | 1 | Inhoudingsplicht standalone check |
+| `scan.py` | 4 | Tiered entity scanning (Tier 0-3) |
+| `confidence.py` | 3 | Confidence scoring and calibration |
+| `reasoning.py` | 4 | Reasoning template CRUD |
+| `intelligence.py` | 3 | Cross-case pattern detection and alerts |
+| `agents.py` | 3 | Agent registry and manifests |
+| `automation.py` | 5 | Supervised autonomy tier management |
+| `regulatory.py` | 3 | Regulatory radar and standards mapping |
+| `config.py` | 1 | Feature configuration |
+| `test.py` | 2 | Mock mode toggles (development only) |
+| `health.py` | 1 | Health check |
 
 All officer-facing routers use the `get_current_user` authentication dependency and the IP-based rate limiter middleware.
 
 ### Agent Layer (`app/agents/`)
 
-13 PydanticAI agents, each following a consistent pattern:
+18+ PydanticAI agents, each following a consistent pattern:
 
 ```python
 agent = Agent(
@@ -154,7 +227,7 @@ See [AI Agents](/docs/architecture/ai-agents) for the complete inventory.
 
 ### Service Layer (`app/services/`)
 
-29 service modules encapsulating external integrations and business logic. Services are injected via FastAPI's `Depends()` pattern.
+63 service modules encapsulating external integrations and business logic. Services are injected via FastAPI's `Depends()` pattern.
 
 #### Dependency Injection
 
@@ -199,7 +272,7 @@ async def get_session():
 
 #### ORM Models (`app/db/models.py`)
 
-All 7 database tables have SQLAlchemy ORM models defined using `DeclarativeBase`:
+All 27 database tables have SQLAlchemy ORM models defined using `DeclarativeBase`. Key models include:
 
 | Model | Table | Key Fields |
 |-------|-------|-----------|
@@ -210,17 +283,38 @@ All 7 database tables have SQLAlchemy ORM models defined using `DeclarativeBase`
 | `PeppolApiKey` | `peppol_api_keys` | key_hash, rate_limit_per_minute, active |
 | `BelgianEvidence` | `belgian_evidence` | case_id (FK), source, data_hash, raw_data (JSONB) |
 | `AgentExecution` | `agent_executions` | case_id (FK), agent_name, status, duration_ms |
+| `SignalEvent` | `signal_events` | case_id (FK, nullable), signal_type, details (JSONB) |
+| `ConfidenceCalibration` | `confidence_calibrations` | case_id (FK), dimension scores, methodology |
+| `ReasoningTemplate` | `reasoning_templates` | template name, conditions, caps |
+| `Alert` | `alerts` | alert_type, severity, entity references |
+| `ToolInvocation` | `tool_invocations` | agent_name, tool_name, input/output hashes |
+| `GovernanceCheck` | `governance_checks` | check_type, result, case_id (FK) |
+| `EVOIDecision` | `evoi_decisions` | belief_state, recommended_action |
+| `AutomationTier` | `automation_tiers` | officer_id, template, country, tier level |
+| `AutomationTierOverride` | `automation_tier_overrides` | manager override records |
+| `AutomationTierHistory` | `automation_tier_history` | tier change audit trail |
+| `ExpressQueueItem` | `express_queue_items` | case_id, queue status, one-click approval |
 
 #### Migrations (Alembic)
 
 Database migrations are managed by Alembic with async support. The migration environment (`alembic/env.py`) uses `run_async` for async engine compatibility.
 
-Current migrations:
-- `001_initial_schema.py` -- Creates all 7 tables with indexes and constraints
+21 migrations covering the full schema evolution (001-014 core + pillars, 015-021 multi-tenancy and refinements):
+- `001_initial_schema.py` -- Creates initial tables with indexes and constraints
 - `002_add_token_expiry.py` -- Adds `expires_at` column to the `cases` table
+- `003`-`005` -- Signal events, agent executions, core table refinements
+- `006_calibration.py` -- Confidence calibration records
+- `007_reasoning_templates.py` -- Reasoning template and condition tables
+- `008_alerts.py` -- Cross-case pattern detection alerts
+- `009_tool_invocations.py` -- Tool invocation audit records
+- `010_governance_checks.py` -- Governance check results
+- `011_evoi_decisions.py` -- Expected Value of Investigation decisions
+- `012_automation_tiers.py` -- Supervised autonomy tier tables
+- `013_signal_events_nullable_case_id.py` -- Signal events schema update
+- `014_express_queue.py` -- Express queue for automated approval
 
 :::note
-ORM models are in place for all 7 tables. The current query layer uses parameterized `sqlalchemy.text()` calls. ORM query migration is a planned mechanical refactor that will not change query behavior.
+ORM models are in place for all 27 tables. Key modules (`admin.py`, `auth.py`) have been migrated to the ORM Repository pattern (`BaseRepository[T]`), with incremental migration of remaining modules underway. See [ADR-0008](/docs/adr/0008-raw-sql) for details.
 :::
 
 ### Exception Hierarchy (`app/exceptions.py`)
@@ -275,11 +369,11 @@ This separation is a Temporal requirement: workflow code runs in a deterministic
 
 | Area | Current State | Status |
 |------|--------------|--------|
-| API routing | Split into 5 focused routers | **Complete** |
+| API routing | Split into 28 focused routers | **Complete** |
 | Service layer | FastAPI `Depends()` injection via `lru_cache` singletons | **Complete** |
-| Database | ORM models (7 tables), Alembic (2 migrations), parameterized queries | **Complete** |
+| Database | ORM models (27 tables), Alembic (21 migrations), Repository pattern (incremental migration) | **Complete** |
 | Error handling | Custom exception hierarchy + structured logging | **Complete** |
-| Authentication | JWT with JWKS validation (PoC mode bypasses, production mode validates) | **Complete** |
+| Authentication | Keycloak 26 JWT with JWKS validation, 4 RBAC roles, multi-tenant RLS | **Complete** |
 | Rate limiting | IP-based sliding window (600/min auth, 200/min unauth, configurable) | **Complete** |
 | Configuration | pydantic-settings with env-specific validation and per-agent model overrides | **Complete** |
 | Logging | Python logging to stdout | Production: structured JSON with correlation IDs |

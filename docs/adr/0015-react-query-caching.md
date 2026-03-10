@@ -1,10 +1,10 @@
 ---
-id: 0014-react-query-caching
-sidebar_position: 15
-title: "ADR-0014: React Query Caching"
+id: 0015-react-query-caching
+sidebar_position: 16
+title: "ADR-0015: React Query Caching"
 ---
 
-# ADR-0014: React Query for Frontend Caching
+# ADR-0015: React Query for Frontend Caching
 
 | | |
 |---|---|

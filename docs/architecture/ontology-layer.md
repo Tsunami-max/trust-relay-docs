@@ -20,7 +20,7 @@ Without a formal ontology, TrustRelay has five structural problems (and a sixth 
 5. Entity identity is treated as static — property updates overwrite previous values, making historical state reconstruction and temporal fraud patterns (phoenix companies) structurally undetectable.
 6. TrustRelay has no mechanism to ingest the full lifecycle of a legal entity from official sources. Belgian entities publish every statutory change in the Belgisch Staatsblad / Moniteur Belge. The KBO/CBE publishes a monthly open-data CSV of all active entities. Neither is currently ingested, meaning the entity graph is a point-in-time snapshot from the moment of investigation — not the entity's actual evolution over years.
 
-The Ontology Layer resolves all six by establishing a formal, versioned, Neo4j-native schema with a Graphiti-powered bitemporal overlay and a three-phase Belgian Entity Lifecycle Pipeline.
+The Ontology Layer resolves all six by establishing a formal, versioned, Neo4j-native schema with native bi-temporal properties (`valid_at`/`invalid_at`/`created_at`/`expired_at`) on relationships and a three-phase Belgian Entity Lifecycle Pipeline.
 
 ---
 
@@ -180,7 +180,7 @@ Gazette-sourced facts follow the same pattern with `artifact_type: 'gazette-publ
 
 ## Versioned Fraud Motif Patterns
 
-Fraud patterns are stored as `Motif` nodes in the graph itself — with the detection Cypher in `cypher_pattern` and a temporal variant in `temporal_cypher_pattern` for patterns that require historical comparison via the Graphiti overlay.
+Fraud patterns are stored as `Motif` nodes in the graph itself — with the detection Cypher in `cypher_pattern` and a temporal variant in `temporal_cypher_pattern` for patterns that require historical comparison via native bi-temporal relationship properties.
 
 **Motifs are not ad-hoc queries. They are versioned, testable, and directly auditable:**
 
@@ -241,7 +241,7 @@ RETURN dissolved, active, p, addr,
 ```
 
 ```cypher
-// temporal_cypher_pattern (queries Graphiti invalidated edges)
+// temporal_cypher_pattern (queries bi-temporal invalidated edges)
 MATCH (dissolved:Entity)<-[r1:IS_DIRECTOR_OF]-(p:Person)-[r2:IS_DIRECTOR_OF]->(active:Entity)
 WHERE dissolved.status = 'dissolved' AND active.status = 'active'
   AND r1.invalid_at IS NOT NULL
@@ -306,12 +306,12 @@ RETURN p, addr, unique_entities,
 
 | Motif | Version | Key Signal | Temporal Variant |
 |-------|---------|-----------|-----------------|
-| `phoenix-company` | 1.0.0 | Director shared between dissolved + new entity | Yes — queries Graphiti invalidated edges + gazette dissolution/incorporation events |
+| `phoenix-company` | 1.0.0 | Director shared between dissolved + new entity | Yes — queries bi-temporal invalidated edges + gazette dissolution/incorporation events |
 | `mule-network` | 1.0.0 | 3-hop pass-through < 7 days, amount drift < 15% | No |
 | `circular-invoicing` | 1.0.0 | Closed PEPPOL invoice loop < 90 days | No |
 | `shared-director-maildrop` | 1.0.0 | ≥3 entities, 1 director, virtual address with > 10 co-tenants | No |
 | `dormant-reactivation` | 1.0.0 | No activity > 12 months, sudden new transactions | Yes — checks gazette publication history |
-| `change-of-control` | 1.0.0 | UBO change in last 6 months + high-value transactions | Yes — queries Graphiti for UBO tenure changes |
+| `change-of-control` | 1.0.0 | UBO change in last 6 months + high-value transactions | Yes — queries bi-temporal properties for UBO tenure changes |
 | `trade-based-ml` | 1.0.0 | PEPPOL invoice amounts inconsistent with declared NACE activity | No |
 | `circular-ownership` | 1.0.0 | Entity → subsidiary → Entity ownership loop | No |
 
@@ -344,7 +344,7 @@ flowchart LR
         NEW --> DIFF --> EP2
     end
 
-    BULK -->|"MERGE on kbo_number<br/>EvidenceArtifact created"| NEO["Neo4j<br/>Ontology Graph<br/>+ Graphiti overlay"]
+    BULK -->|"MERGE on kbo_number<br/>EvidenceArtifact created"| NEO["Neo4j<br/>Ontology Graph<br/>+ bi-temporal properties"]
     EP -->|"PUBLISHED_IN · IS_DIRECTOR_OF<br/>REGISTERED_AT updated"| NEO
     EP2 -->|"Dissolved / new / modified<br/>entities updated"| NEO
 
@@ -355,7 +355,7 @@ flowchart LR
 
 The KBO monthly CSV (free registration at kbopub.economie.fgov.be, no API key) contains enterprise numbers, legal forms, denominations (NL/FR/DE), addresses, officer links, NACE codes, and start dates for all ~1.2M active Belgian entities.
 
-Bulk-loaded via Graphiti's `add_episode_bulk()` with `EpisodeType.json` and `reference_time = extract_date`. Individual `add_episode()` is not used here — edge invalidation is not needed for the initial load of an empty graph.
+Bulk-loaded via Cypher `MERGE` with `created_at = datetime()` and `valid_at = extract_date`. Deterministic invalidation is not needed for the initial load of an empty graph — all relationships are created as currently valid.
 
 Belgian VAT number is derived deterministically from the KBO number: `BE` + digits = `BE0811631959` for KBO `0811631959`.
 
@@ -363,7 +363,7 @@ Belgian VAT number is derived deterministically from the KBO number: `BE` + digi
 
 ### Phase 2 — Gazette Ingestion
 
-Individual `add_episode()` calls (not bulk) with `reference_time = effective_date_of_change` (not publication date). Individual calls are required because Graphiti's edge-invalidation logic must fire: a director-resignation publication must mark the prior `:IS_DIRECTOR_OF` edge `invalid_at = resignation_effective_date`.
+Individual Cypher transactions with `valid_at = effective_date_of_change` (not publication date). Each gazette event triggers deterministic edge invalidation in `graph_service.py`: a director-resignation publication sets `invalid_at = resignation_effective_date` on the prior `:IS_DIRECTOR_OF` relationship via rule-based logic (no LLM involvement).
 
 Three research challenges (WP1 in the VLAIO project):
 
@@ -531,7 +531,7 @@ RETURN d.query_name, d.cypher_template, d.traversal_hops, d.expected_latency_ms
 
 The ontology layer is not a feature — it is an accumulated structural advantage that compounds over time.
 
-**1. Temporal compliance record from official sources.** No compliance platform ingests the Belgian Staatsblad at the gazette-publication level with bitemporal edge tracking. The temporal record of entity evolution — incorporated from official publications, going back years — is a data asset that cannot be reconstructed retroactively by a competitor who starts later. Every month of gazette ingestion widens the gap. This aligns with the temporal knowledge graph architecture described in [Graphiti: A Temporally Dynamic, Factual Graph RAG Approach](https://arxiv.org/abs/2501.13956) (Zep AI, arXiv:2501.13956, January 2025).
+**1. Temporal compliance record from official sources.** No compliance platform ingests the Belgian Staatsblad at the gazette-publication level with bitemporal edge tracking. The temporal record of entity evolution — incorporated from official publications, going back years — is a data asset that cannot be reconstructed retroactively by a competitor who starts later. Every month of gazette ingestion widens the gap. The native bi-temporal model ensures all temporal mutations are deterministic and fully auditable — no LLM involvement in fact storage.
 
 **2. Formal OWL/RDF alignment co-authored with PXL-Digital.** The Neo4j schema is maintained in alignment with a formal OWL/RDF ontology specification, co-authored with PXL-Digital under the VLAIO innovation funding program. This alignment document maps every Neo4j node label to an OWL class and every relationship type to an OWL object property. The result: TrustRelay can claim ISO-level formal semantic interoperability — a claim no startup-phase competitor has the academic infrastructure to make. The OWL/RDF alignment does not execute at runtime (no SPARQL, no reasoner); it is a specification-level mapping maintained alongside `OntologyVersion`, updated with each schema release.
 

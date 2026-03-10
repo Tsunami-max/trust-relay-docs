@@ -5,7 +5,7 @@ title: "Knowledge Graph"
 
 # Knowledge Graph
 
-TrustRelay stores all compliance knowledge in a **Neo4j property graph** backed by a **Graphiti bitemporal overlay**. This page covers the storage architecture, the primary-facts-only schema principle, the complete constraint/index set, sizing, and the CQRS separation that makes the graph safe to fail independently of the core workflow.
+TrustRelay stores all compliance knowledge in a **Neo4j property graph** with **native bi-temporal properties** on nodes and relationships. This page covers the storage architecture, the primary-facts-only schema principle, the complete constraint/index set, sizing, and the CQRS separation that makes the graph safe to fail independently of the core workflow.
 
 ---
 
@@ -28,7 +28,7 @@ flowchart LR
     end
 
     subgraph Read["Read Path"]
-        NEO["Neo4j<br/>Knowledge Graph<br/>+ Graphiti overlay"]
+        NEO["Neo4j<br/>Knowledge Graph<br/>+ bi-temporal properties"]
         GAPI["Ontology API"] -->|Cypher| NEO
         AGENT["Investigation Agents"] -->|MCP tools| NEO
         DASH["Officer Dashboard"] -->|REST| GAPI
@@ -42,7 +42,7 @@ flowchart LR
 | Transactional writes | PostgreSQL + MinIO | ACID, proven schema, existing tooling |
 | Analytical reads | Neo4j | Variable-length traversals in O(k) where k = matched subgraph size — independent of total graph size |
 | Synchronisation | GraphETL | Cypher `MERGE` on natural keys; processing the same case twice is idempotent |
-| Temporal bookkeeping | Graphiti overlay | Bitemporal edge lifecycle; see §Bitemporal Overlay below |
+| Temporal bookkeeping | Native bi-temporal properties | `valid_at`/`invalid_at` (valid-time) and `created_at`/`expired_at` (transaction-time) on relationships; see §Bitemporal Overlay below |
 
 **Fault isolation**: Neo4j availability has zero impact on the core compliance workflow. All graph operations are feature-flagged — when disabled, every method returns neutral values.
 
@@ -173,25 +173,23 @@ TrustRelay implements a two-layer bitemporal model.
 - `effective_from` / `effective_until` on `:REGISTERED_AT`
 - `incorporation_date` / `dissolution_date` on `Entity`
 
-**Transaction-time** is managed by [**Graphiti**](https://arxiv.org/abs/2501.13956) (Zep AI, arXiv:2501.13956, January 2025) — an open-source temporally-aware knowledge graph framework deployed as an overlay on the same Neo4j instance. Graphiti provides four timestamps per temporal edge (`created_at`, `expired_at`, `valid_at`, `invalid_at`) and automatic edge invalidation when contradictory facts arrive.
+**Transaction-time** is managed by **native bi-temporal properties** on Neo4j relationships. Each temporal relationship carries four timestamps: `valid_at`, `invalid_at` (valid-time from source data), `created_at`, `expired_at` (transaction-time from our system). Edge invalidation is deterministic and rule-based — e.g., "director not in KBO active list implies `invalid_at` = removal date."
 
 ```mermaid
 sequenceDiagram
     participant MCP as MCP Tool
     participant NEO as Neo4j (primary)
     participant DIFF as Diff Service
-    participant GR as Graphiti
 
     MCP->>NEO: MERGE entity / relationship
     NEO-->>DIFF: change detected (ProvenanceRecord diff)
-    DIFF->>GR: add_triplet(source_node, edge, target_node)<br/>valid_at = effective_date_of_change
-    GR->>NEO: write temporal edge<br/>auto-invalidate prior edge (expired_at + invalid_at)
-    Note over DIFF,GR: Async — MCP tool returns before diff completes
+    DIFF->>NEO: SET relationship.invalid_at = effective_date_of_change<br/>CREATE new relationship with valid_at = effective_date_of_change
+    Note over DIFF,NEO: Deterministic invalidation — no LLM involvement
 ```
 
-**What Graphiti provides**: four-timestamp edge lifecycle; automatic invalidation; hybrid retrieval (semantic + BM25 + graph traversal); MCP server for agent access to temporal queries.
+**What native bi-temporal provides**: four-timestamp relationship lifecycle; deterministic invalidation via rule-based logic in `graph_service.py`; point-in-time reconstruction via standard Cypher queries.
 
-**What is disabled**: LLM-based entity extraction; LLM-based contradiction detection; community subgraph generation. All fact extraction is deterministic — the diff service determines contradictions from registry data, not inference. This is consistent with the pattern discussed in [Graphiti issue #1193](https://github.com/getzep/graphiti/issues/1193).
+**Design principle**: All temporal mutations are rule-based (e.g., "director not in KBO active list implies set `invalid_at`"). No LLM is involved in fact storage or contradiction detection — the diff service determines contradictions from registry data deterministically. This ensures full determinism and auditability for compliance data.
 
 ### Point-in-time reconstruction
 
@@ -385,7 +383,7 @@ CREATE INDEX gazette_source_date_idx       IF NOT EXISTS FOR (g:GazettePublicati
 | Source | Nodes | Relationships | Notes |
 |--------|-------|---------------|-------|
 | Atlas investigation (per case) | ~200 + ~600 provenance | ~800 | ~600 ProvenanceRecord nodes per investigation (3 per property × ~200 properties) |
-| Graphiti temporal edges (per changed fact) | 0 | ~1 | Written to same Neo4j instance, separate label namespace |
+| Bi-temporal relationship updates (per changed fact) | 0 | ~1 | Invalidation of prior relationship + creation of new temporal relationship |
 | Belgian Entity Lifecycle Pipeline (per entity) | 5–10 | 10–20 | Entity + Address + Officers + GazettePublications |
 | **12-month projection at 500 investigations/month** | **~50K–200K** | **~200K–1M** | Comfortable on single Neo4j instance |
 | **Pipeline target (10,000 entities + gazette history)** | **~100K pipeline nodes** | **~200K pipeline rels** | Added to above |
@@ -408,7 +406,7 @@ The compliance domain is structurally a graph problem. Variable-length traversal
 | Fraud ring detection | Not feasible without manual enumeration | Triangle pattern query detects circular ownership automatically |
 | Risk contagion path | Recursive CTEs, uncertain depth, expensive | `*1..3` variable-length traversal, milliseconds |
 | Shared-address concentration | GROUP BY with JOIN on JSONB-extracted text | `MATCH (addr)<-[:REGISTERED_AT]-(e)` with COUNT |
-| Point-in-time entity reconstruction | Reconstruct from audit events across tables | Temporal Cypher on Graphiti overlay, single query |
+| Point-in-time entity reconstruction | Reconstruct from audit events across tables | Temporal Cypher on native bi-temporal properties, single query |
 | "Who directed this company 3 years ago?" | Not possible without snapshot tables | Bitemporal edge filter on `valid_at` / `invalid_at` |
 
 The key property of Neo4j's Labeled Property Graph model for this use case: traversal time is proportional to the size of the **matched subgraph**, not the total graph size. Co-directorship queries against 200K entities execute in the same time as against 2M entities, provided the matched director network is the same size. This is the structural property that makes query-time computation of derived signals viable and avoids the materialized-cache trap.

@@ -8,7 +8,7 @@ description: "What Trust Relay does and how it works — in plain language"
 
 ## In One Sentence
 
-Trust Relay is a compliance investigation platform that automates the full KYB (Know Your Business) due diligence lifecycle — from document collection to AI-powered investigation to officer decision — in a single, self-hosted system.
+Trust Relay is a trust lifecycle platform that covers the complete compliance chain — from entity identification and AI-powered investigation to continuous monitoring, pre-payment verification, and regulatory evidence generation — in a single, self-hosted system.
 
 ## The Problem
 
@@ -24,7 +24,7 @@ Worst of all, the institutional knowledge that officers build over years — whi
 
 ## How Trust Relay Works
 
-The system operates as a continuous loop between three participants: the compliance officer, the customer, and a team of 13 specialized AI agents. Rather than a linear process that runs once and produces a verdict, Trust Relay treats compliance investigation as an iterative conversation — each round sharpens the picture until the officer has enough evidence to make a confident decision.
+The system operates as a continuous loop between three participants: the compliance officer, the customer, and a team of 18+ specialized AI agents. Rather than a linear process that runs once and produces a verdict, Trust Relay treats compliance investigation as an iterative conversation — each round sharpens the picture until the officer has enough evidence to make a confident decision.
 
 A durable workflow engine orchestrates the entire process, ensuring nothing falls through the cracks and every step is recorded. Here is the flow:
 
@@ -32,7 +32,7 @@ A durable workflow engine orchestrates the entire process, ensuring nothing fall
 sequenceDiagram
     participant Officer as Compliance Officer
     participant System as Trust Relay
-    participant Agents as 13 AI Agents
+    participant Agents as 18+ AI Agents
     participant Customer as Customer Portal
 
     Officer->>System: 1. Creates case for new merchant
@@ -96,7 +96,7 @@ The graph is constructed from actual evidence gathered during the investigation 
 | Traditional Approach | Trust Relay Approach |
 |---|---|
 | Email-based document collection | Branded portal with targeted, finding-specific requests |
-| Manual registry searches across dozens of tabs | 13 AI agents with 37 tools search in parallel across registries, media, and financial sources |
+| Manual registry searches across dozens of tabs | 18+ AI agents with 37 tools search in parallel across registries, media, and financial sources |
 | Spreadsheet case tracking | Workflow engine with complete audit trail and state management |
 | One-shot verification — check once, decide | Iterative investigation with up to 5 rounds of evidence gathering |
 | Generic follow-up templates ("Please provide additional documents") | AI-generated tasks linked to specific findings with clear explanations |
@@ -106,7 +106,56 @@ The graph is constructed from actual evidence gathered during the investigation 
 | Generic AI chatbots that answer questions | Domain-expert copilot that proactively surfaces insights across 8 intelligence domains |
 | Financial data as isolated numbers | Multi-year trend analysis with contextual interpretation |
 | Portfolio screening produces risk scores and alerts | [Portfolio Audit Mode](./portfolio-audit-mode.md) produces cited-evidence verification reports with cross-entity relationship analysis |
+| AI confidence as a single opaque score | 4-dimension confidence scoring: Evidence Completeness, Source Diversity, Consistency, Historical Calibration |
+| Risk flagging mixed with AI interpretation | Deterministic Red Flag Engine: 10 condition types, zero LLM hallucination, version-controlled rule sets |
+| Cases investigated in isolation | Cross-case pattern detection: entity overlap, phoenix companies, temporal clusters, risk contagion |
+| Manual decision about when enough evidence exists | EVOI decision optimization: Bayesian belief states quantify when to stop investigating |
+| Same automation level for all officers | Supervised autonomy: 3 tiers earned per officer through demonstrated competence |
+| Static regulatory checklists | Regulatory Radar: 16 regulations, change tracking, retroactive impact analysis |
+| AI Act compliance as marketing claim | Art. 11-15 compliance built into architecture: immutable logs, mandatory dismiss reasons, evidence provenance |
 | SaaS platforms with data stored in vendor infrastructure | Self-hosted deployment with full data sovereignty |
+
+## The Intelligence Stack
+
+Beyond workflow orchestration, Trust Relay embeds a layered intelligence stack that makes every investigation smarter, safer, and more efficient than the last. These are not optional add-ons -- they are structural components that thread through the entire investigation pipeline.
+
+### Confidence Scoring — Know How Certain the AI Is
+
+Every investigation produces a 0-100 confidence score decomposed into four dimensions: **Evidence Completeness** (how much required evidence was gathered), **Source Diversity** (how many independent sources corroborate findings), **Consistency** (how well evidence agrees across sources), and **Historical Calibration** (how well past confidence scores predicted correct outcomes). Each dimension scores 0-25.
+
+This decomposition is the difference between "the AI is 72% confident" and "the AI gathered strong evidence from multiple sources, but there are contradictions between the registry data and the uploaded documents." The officer knows exactly where uncertainty lives and what to do about it.
+
+### Red Flag Engine — Deterministic Risk Detection
+
+Some compliance decisions are too important to leave to language model interpretation. Trust Relay's Red Flag Engine uses ten condition types and five action types to flag risks deterministically -- no LLM involved, no hallucination possible. Jurisdiction-specific compliance playbooks define the rules. Every rule set is version-controlled with a SHA-256 hash, so auditors can verify exactly which rules were in effect when a case was processed.
+
+Examples: a solvency ratio below 0.3 triggers a financial health flag. An address matching a known mail-drop list triggers an address verification task. A director change within 30 days of application triggers a temporal pattern alert. These rules fire with 100% reliability, complementing the AI agents' probabilistic analysis with a deterministic safety layer.
+
+### Cross-Case Pattern Detection — See the Portfolio, Not Just the Case
+
+Individual case investigation is blind to systemic risk. Trust Relay automatically detects patterns across the entire case portfolio: entities that appear in multiple cases, structural motifs like phoenix companies and circular ownership, temporal clusters of similar applications, and risk signals that propagate through shared connections in the knowledge graph.
+
+A compliance officer reviewing a single case cannot know that the same director appeared in a different case three months ago, or that five applications with the same registered agent arrived within two weeks. The cross-case pattern detector surfaces these connections automatically, turning isolated investigations into portfolio-level intelligence.
+
+### EVOI — Mathematical Investigation Optimization
+
+When should an investigation stop gathering evidence? Trust Relay answers this with Expected Value of Investigation (EVOI) -- a Bayesian framework that quantifies whether additional evidence is worth the cost. The system maintains a belief state for each entity (probability of clean, risky, or critical) and calculates the expected value of each possible next step, accounting for a 50x cost asymmetry between false negatives and false positives.
+
+The practical effect: the system never recommends approval until the probability of the entity being clean exceeds approximately 99%. Below that threshold, it identifies exactly which evidence would most efficiently resolve remaining uncertainty.
+
+### Supervised Autonomy — Earned, Not Configured
+
+Not all cases need the same level of human attention. Trust Relay offers three automation tiers: **Full Review** (officer reviews everything), **Guided Review** (system pre-fills recommendations, officer confirms), and **Express Approval** (low-risk cases auto-approved with one-click confirmation). The key difference from competitors: these tiers are *earned* per officer, per investigation template, per country, based on demonstrated decision quality.
+
+An officer who has made consistent, accurate decisions across 20+ Belgian KYB cases earns Guided Review for that specific combination. Express Approval requires an even longer track record plus a GovernanceEngine safety check confirming no high-risk signals. If decision quality degrades, the system automatically downgrades the officer's tier. A Compliance Manager can override in either direction.
+
+### Regulatory Radar — Proactive Compliance
+
+A living knowledge base covering 16 EU regulations, 67 articles, and 32 compliance obligations. When regulations change, the system identifies which active and historical cases are affected, performs retroactive impact analysis, and presents a compliance calendar with portfolio-level enforcement deadline tracking.
+
+This transforms compliance from "what does the new regulation require?" to "here are the 12 cases in your portfolio that do not yet meet the new standard, ranked by remediation urgency."
+
+---
 
 ## Key Concepts
 
@@ -130,6 +179,30 @@ A few terms that appear throughout Trust Relay documentation, explained in plain
 
 - **Trust Capsule** — A self-contained, tamper-evident evidence pack for a single entity. Contains all investigation findings with SHA-256 content hashes, timestamped source citations, and the deterministic rule version that produced each finding. Trust Capsules are the atomic unit of evidence in Trust Relay — designed to be attached to regulatory reports, shared with counterparties, or archived as a permanent compliance record. In [Portfolio Audit Mode](./portfolio-audit-mode.md), every entity in a batch produces its own Trust Capsule, and the set is aggregated into a structured Independent Verification Report.
 
+## The Trust Relay Product Suite
+
+Trust Relay operates as a suite of products that together cover the complete trust lifecycle: **identify → verify → monitor → pay → prove**. Each product is independently valuable, and each amplifies the value of the others through a shared evidence chain.
+
+### Atlas — Counterparty Investigation (Implemented)
+
+Everything described above — the iterative workflow, 18+ AI agents, knowledge graph, compliance copilot, confidence scoring, and the full intelligence stack — is Atlas. It is the investigation orchestration engine that establishes whether an entity is trustworthy. Atlas is production-ready today.
+
+### Sentry — Continuous Monitoring (Architecture Ready)
+
+Compliance verification is not a one-time event. Sentry extends Trust Relay into perpetual KYB — continuous monitoring that detects changes in entity state and triggers re-investigation when risk thresholds are exceeded. The signal capture pipeline, Regulatory Radar (16 EU regulations, 67 articles), and cross-case pattern detection are already operational. What remains is the continuous monitoring scheduler and external change-feed integrations.
+
+### Shield — Pre-Payment Verification (PRD Complete)
+
+Shield answers the question Atlas cannot: should we release the payment? It gates every payout through a policy engine that verifies the payee (IBAN-Name matching, open banking validation), evaluates policy rules (entity verification status, monitoring signals, transaction thresholds), and generates tamper-evident evidence linking the payment decision to the investigation that established trust. Driven by the EU Instant Payments Regulation (October 2025), PSD3/PSR fraud liability shift (2027-2028), and AMLR transaction monitoring obligations.
+
+### Ledger — Regulatory Evidence (PRD Complete)
+
+Ledger completes the lifecycle by generating structured, auditable evidence from Shield transactions. The first module targets Belgium's 10% solidarity contribution on physical precious metals capital gains — lot registers, FIFO calculations, and tax evidence capsules. The country plugin architecture is designed for rapid expansion across EU jurisdictions.
+
+For the full product vision with delivery phases and regulatory timeline, see the [Trust Lifecycle & Product Vision](./trust-lifecycle.md).
+
+---
+
 ## Who It's For
 
 ### Payment Service Providers (PSPs)
@@ -149,6 +222,16 @@ For banks conducting KYB lifecycle management, Trust Relay provides regulatory-g
 The self-hosted deployment model means customer data never leaves the institution's infrastructure — a requirement for many European regulators. Every investigation step, every piece of evidence gathered, and every officer decision is recorded with timestamps and provenance information, ready for regulatory examination.
 
 With the AMLR raising the evidentiary bar for CDD across the EU from July 2027, institutions need more than screening results — they need cited, time-stamped verification evidence. [Portfolio Audit Mode](./portfolio-audit-mode.md) provides exactly this at portfolio scale, with cross-entity relationship analysis that reveals hidden connections between clients that individual case reviews cannot detect.
+
+### High-Value Goods Dealers (HVG Vertical)
+
+AMLR 2024/1624 (effective July 2027) creates the first EU-wide AML rulebook for precious metals, precious stones, luxury goods, and art dealers. For the first time, these businesses face mandatory Customer Due Diligence, Enhanced Due Diligence, UBO verification, and Suspicious Transaction Reporting obligations.
+
+Trust Relay's HVG vertical combines the full trust lifecycle for this market. A precious metals dealer uses NP-KYC to verify customer identity (via eID Easy — itsme, Smart-ID, Belgian eID), Atlas to verify legal entity counterparties, Shield to gate payouts with HVG-specific rules (AMLR Article 80 cash payment ceiling of EUR 10,000), and Ledger to compute capital gains tax evidence for Belgian solidarity contribution obligations.
+
+The customer-facing onboarding portal — already built for Atlas KYB document collection — extends to support identity verification flows, CDD threshold-triggered document requests, and EDD escalation. Structured STR exports in CTIF-CFI format (Belgian Financial Intelligence Unit) enable regulatory reporting directly from investigation findings.
+
+For dealers currently handling compliance with spreadsheets and manual processes, Trust Relay replaces the entire compliance infrastructure with a system that scales from first customer to 25,000+ customers without proportional headcount growth. For the full HVG vertical design, see the [Trust Lifecycle](./trust-lifecycle.md#high-value-goods-dealers).
 
 ### Compliance Consultancies and Auditors
 
@@ -182,7 +265,7 @@ Document handling is language-aware. Certificates and filings in Dutch, French, 
 
 For those who want to understand what powers the platform without a computer science degree:
 
-- **13 specialized AI agents with 37 tools** — not one generic chatbot, but a team of purpose-built agents, each responsible for a specific part of the investigation (registry checks, adverse media, financial health, sanctions screening, and more). They work in parallel, the same way a team of analysts would divide the work. The tools include entity network traversal, financial trend analysis, standards gap detection, and temporal intelligence.
+- **18+ specialized AI agents with 37 tools** — not one generic chatbot, but a team of purpose-built agents, each responsible for a specific part of the investigation (registry checks, adverse media, financial health, sanctions screening, and more). They work in parallel, the same way a team of analysts would divide the work. The tools include entity network traversal, financial trend analysis, standards gap detection, and temporal intelligence.
 
 - **Intelligent compliance copilot** — the AI assistant that sits alongside investigation results is not a Q&A bot. It has 37 specialized tools spanning 8 intelligence domains: case analysis, entity networks, temporal patterns, financial trends, regulatory standards, portfolio insights, and compliance memory. It proactively suggests what to investigate next based on the officer's experience level and the case context.
 
@@ -196,15 +279,31 @@ For those who want to understand what powers the platform without a computer sci
 
 - **Self-hosted deployment** — the entire platform runs on your infrastructure using standard containerization. Setup takes minutes, not months. No data leaves your environment.
 
-- **2,632+ automated tests** — the system is continuously verified against a comprehensive test suite (2,071 backend + 561 frontend), covering the workflow engine, 95 API endpoints, AI agents, and user interface.
+- **3,391+ automated tests** — the system is continuously verified against a comprehensive test suite (2,830+ backend + 561+ frontend), covering the workflow engine, 95 API endpoints across 28 routers, AI agents, and user interface.
 
-- **EU AI Act ready** — the architecture is designed with European regulatory requirements in mind, including data sovereignty, auditability, and the separation of human judgment from AI assistance.
+- **4-dimension confidence scoring** — every investigation produces a 0-100 confidence score decomposed into Evidence Completeness, Source Diversity, Consistency, and Historical Calibration. Officers see exactly where uncertainty lives and what to do about it.
+
+- **Deterministic red flag engine** — 10 condition types, 5 action types, zero LLM hallucination. Jurisdiction-specific compliance playbooks with version-controlled, SHA-256 hashed rule sets. The safety-critical layer where no probabilistic interpretation is acceptable.
+
+- **Cross-case pattern detection** — automatic detection of entity overlap, structural motifs (phoenix companies, circular ownership), temporal clusters, and risk contagion across the full case portfolio. Surfaces systemic risk that single-case investigation cannot see.
+
+- **EVOI decision optimization** — Bayesian belief states with 50x false-negative cost asymmetry. Mathematically determines when enough evidence has been gathered and which additional evidence would most efficiently resolve uncertainty.
+
+- **Supervised autonomy** — three automation tiers (Full Review, Guided Review, Express Approval) earned per officer based on demonstrated competence. GovernanceEngine safety net prevents automation in high-risk scenarios. Tiers auto-downgrade if decision quality degrades.
+
+- **Regulatory Radar** — living knowledge base covering 16 EU regulations, 67 articles, 32 obligations. Change tracking with retroactive case impact analysis and compliance calendar.
+
+- **EU AI Act ready** — designed as a high-risk AI system under Annex III from day one. Immutable audit trails (Art. 12), mandatory dismiss reasons (Art. 14), full evidence provenance with model identification and chain-of-thought capture (Art. 11, 13), human oversight architecture (Art. 14), and historical calibration monitoring (Art. 15).
 
 - **Compliance memory** — the system captures officer feedback, decision patterns, and corrections over time, building an institutional knowledge base that survives staff turnover and helps new officers make consistent, well-informed decisions from day one. Officers teach rules in natural language; the system applies them automatically to future cases.
 
 ## What Happens Next
 
 If you are evaluating Trust Relay, here are the recommended next steps depending on your role:
+
+**For strategic decision makers:**
+- Read the [Trust Lifecycle & Product Vision](./trust-lifecycle.md) to understand the full product suite — Atlas, Sentry, Shield, Ledger — and the regulatory timeline driving each phase.
+- Read [Why Trust Relay](./why-trust-relay.md) to understand the competitive positioning and market opportunity.
 
 **For compliance officers and business stakeholders:**
 - Read [Portfolio Audit Mode](./portfolio-audit-mode.md) to understand how batch portfolio verification works — from CSV upload to cited-evidence reports.

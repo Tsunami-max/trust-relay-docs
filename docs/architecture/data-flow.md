@@ -7,7 +7,7 @@ title: "Data Flow"
 
 Trust Relay operates as an iterative compliance loop. A single case may go through multiple iterations, each time collecting new documents or responses from the customer and re-evaluating the investigation findings.
 
-## The 8-Step Compliance Loop
+## The 9-Step Compliance Loop
 
 ```mermaid
 sequenceDiagram
@@ -18,7 +18,7 @@ sequenceDiagram
     participant Portal as Customer Portal
     participant Customer as End Customer
     participant Docling as Docling (PDF to MD)
-    participant Agents as AI Agents (x7)
+    participant Agents as AI Agents (18+)
     participant Storage as MinIO + PostgreSQL
 
     Note over Officer,Storage: Step 1 - Case Creation
@@ -57,19 +57,21 @@ sequenceDiagram
     Agents->>Storage: Cache agent outputs for reuse
     Agents-->>Temporal: Investigation result + risk score
 
-    Note over Officer,Storage: Step 6 - Classification + Task Generation
-    Temporal->>Agents: Activity classify_mcc
-    Agents-->>Temporal: MCC code + risk tier
+    Note over Officer,Storage: Step 6 - Task Generation
     Temporal->>Agents: Activity generate_follow_up_tasks
     Agents-->>Temporal: AI-suggested follow-up tasks
 
-    Note over Officer,Storage: Step 7 - Officer Review
+    Note over Officer,Storage: Step 7 - Results Persisted
+    Temporal->>Storage: Persist investigation results + tasks
+    Note right of Temporal: Status transitions to REVIEW_PENDING
+
+    Note over Officer,Storage: Step 8 - Officer Review
     Dashboard->>API: GET /api/cases/{id}
     API->>Temporal: Query get_status
     Temporal-->>API: Full case state
     API-->>Dashboard: Investigation results + tasks + risk score
 
-    Note over Officer,Storage: Step 8 - Decision
+    Note over Officer,Storage: Step 9 - Decision
     Officer->>Dashboard: Approve / Reject / Escalate / Follow-up
     Dashboard->>API: POST /api/cases/{id}/decision
     API->>Temporal: Signal officer_decision
@@ -121,19 +123,23 @@ An AI agent validates each converted document against its requirement specificat
 
 The multi-agent OSINT pipeline runs four agents in a DAG pattern. See [OSINT Pipeline](/docs/architecture/osint-pipeline) for full details. Evidence is collected cumulatively across all iterations.
 
-### Step 6: MCC Classification + Task Generation
+### Step 6: Task Generation
 
-**Activities:** `classify_mcc`, `generate_follow_up_tasks`
+**Activity:** `generate_follow_up_tasks`
 
-The MCC classifier assigns a Merchant Category Code based on OSINT findings and company data. The task generator suggests follow-up actions for the officer based on the investigation results and any prior follow-up history.
+The task generator (PydanticAI agent) analyzes all investigation findings — OSINT results, document validation outcomes, MCC classification, and any prior follow-up history — and suggests specific follow-up actions for the officer.
 
-### Step 7: Officer Review
+### Step 7: Results Persisted → REVIEW_PENDING
+
+Investigation results, generated tasks, and supporting evidence are persisted to PostgreSQL and MinIO. The workflow status transitions to `REVIEW_PENDING`, making the case available for officer review in the dashboard.
+
+### Step 8: Officer Review
 
 **Endpoint:** `GET /api/cases/{id}` (triggers Temporal query)
 
 The dashboard displays investigation results, risk score, AI-generated tasks, MCC classification, and the full audit trail. The officer reviews all evidence in a tabbed interface.
 
-### Step 8: Decision
+### Step 9: Decision
 
 **Endpoint:** `POST /api/cases/{id}/decision`
 

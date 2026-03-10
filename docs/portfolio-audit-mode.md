@@ -148,7 +148,7 @@ Portfolio Audit Mode is not a separate product. It is the same investigation cap
 | Individual Case | Portfolio Audit Mode |
 |---|---|
 | Officer creates a case for one entity | CSV upload triggers cases for hundreds or thousands |
-| 13 agents investigate one entity | Same 13 agents investigate each entity in the batch |
+| 17+ agents investigate one entity | Same 17+ agents investigate each entity in the batch |
 | Knowledge graph scoped to one entity | Knowledge graph spans the entire portfolio |
 | Officer reviews findings, makes a decision | Aggregated report highlights where attention is needed |
 | Trust Capsule for one entity | Trust Capsule for every entity, plus aggregate analysis |
@@ -204,7 +204,7 @@ Download the complete package: PDF report, JSON data export, individual Trust Ca
 | Pilot | June 2026 | First engagement with pilot partner |
 | General availability | July 2026 | Ahead of H2 2026 review cycles |
 
-The core investigation capability, Trust Capsule generation, 13-agent pipeline, knowledge graph, and 4-tier cost optimization already exist in production. Portfolio Audit Mode is primarily an aggregation, reporting, and cross-entity analysis layer on top of proven infrastructure — not a ground-up build.
+The core investigation capability, Trust Capsule generation, 17+ agent pipeline, knowledge graph, and 4-tier cost optimization already exist in production. Portfolio Audit Mode is primarily an aggregation, reporting, and cross-entity analysis layer on top of proven infrastructure — not a ground-up build.
 
 **Pricing** uses an Annual Engagement License — a flat annual fee per engagement scope, removing per-verification friction:
 

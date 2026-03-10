@@ -1,10 +1,10 @@
 ---
-id: 0013-neo4j-knowledge-graph
-sidebar_position: 14
-title: "ADR-0013: Neo4j Knowledge Graph"
+id: 0014-neo4j-knowledge-graph
+sidebar_position: 15
+title: "ADR-0014: Neo4j Knowledge Graph"
 ---
 
-# ADR-0013: Neo4j Knowledge Graph (CQRS Read Layer)
+# ADR-0014: Neo4j Knowledge Graph (CQRS Read Layer)
 
 | | |
 |---|---|
