@@ -169,7 +169,7 @@ A few terms that appear throughout Trust Relay documentation, explained in plain
 
 - **Signal** — A piece of feedback from an officer's decision that the system can learn from. When an officer overrides a suggestion, dismisses a finding, or flags something the system missed, that action is recorded as a signal and used to improve future investigations for the entire team.
 
-- **Portal Token** — A secure, single-use link that gives a customer access to their specific case portal. No username or password is needed. The token identifies the case and controls what the customer can see and submit.
+- **Portal Token** — A cryptographically secure token (192-bit entropy, `pt_` prefix + 32 URL-safe characters) embedded in the portal URL that identifies the case and authenticates the customer. No username or password is needed. Tokens have a configurable expiry (default: 30 days) and are validated server-side on every portal request.
 
 - **Discrepancy** — A mismatch between what the customer provided and what public records show. Discrepancies are classified by severity: critical (wrong registration number, inactive company status), high (name or country mismatch), medium (address differences), and low (formatting or transliteration variants). Officers focus their attention on the highest-severity items first.
 
@@ -186,6 +186,11 @@ Trust Relay operates as a suite of products that together cover the complete tru
 ### Atlas — Counterparty Investigation (Implemented)
 
 Everything described above — the iterative workflow, 18+ AI agents, knowledge graph, compliance copilot, confidence scoring, and the full intelligence stack — is Atlas. It is the investigation orchestration engine that establishes whether an entity is trustworthy. Atlas is production-ready today.
+
+Atlas handles both **KYB (Know Your Business)** and **KYC (Know Your Customer)** onboarding:
+
+- **KYB** — legal entity due diligence via OSINT pipeline: commercial registry (KBO/BCE), Belgian Official Gazette, National Bank of Belgium, PEPPOL/inhoudingsplicht, adverse media, MCC classification, and knowledge graph enrichment.
+- **KYC** — natural person onboarding via the `kyc_natural_person` template: identity verification (itsme/eIDAS simulation; production integration with itsme Belgium planned), structured field validation (Belgian National Register Number mod97 check, Dutch BSN 11-proof, IBAN ISO 13616), and sanctions/PEP/adverse media screening.
 
 ### Sentry — Continuous Monitoring (Architecture Ready)
 

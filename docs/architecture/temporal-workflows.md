@@ -27,7 +27,7 @@ Temporal was chosen because the compliance loop has characteristics that map per
 
 ## ComplianceCaseWorkflow
 
-The workflow is defined in `backend/app/workflows/compliance_case.py` (401 lines).
+The workflow is defined in `backend/app/workflows/compliance_case.py`.
 
 ### Class Structure
 
@@ -89,6 +89,44 @@ Queries provide read-only access to workflow state without affecting execution:
 | `get_status` | Full state dict (status, iteration, results, tasks, audit events) | Dashboard `GET /api/cases/{id}` |
 
 The `get_status` query returns the complete workflow state, which the API layer transforms into the `CaseResponse` model for the frontend.
+
+### Extracted Helper Methods
+
+The `run` method delegates investigation work to three extracted helpers, keeping the main dispatch loop to approximately 10 lines:
+
+| Method | Purpose | Signature |
+|--------|---------|-----------|
+| `_run_kyc_investigation(input, doc_proc_result, _skipping, retry_policy)` | KYC natural person: `verify_identity` → `validate_fields` → `run_kyc_screening` | Returns `investigation_result: dict` |
+| `_run_kyb_investigation(input, _doc_proc_result, _skipping, retry_policy)` | KYB entity: OSINT → PEPPOL → MCC classification | Returns `investigation_result: dict` |
+| `_compute_and_store_confidence(input, investigation_result, _retry_policy)` | Confidence scoring via `compute_confidence_score` activity (shared, Pillar 1) | Returns `None` (appends to `self._state.confidence_scores`) |
+
+The KYC/KYB dispatch:
+
+```python
+is_kyc = workflow.patched("kyc-v1") and input.template_id == "kyc_natural_person"
+
+if is_kyc:
+    investigation_result = await self._run_kyc_investigation(...)
+else:
+    investigation_result = await self._run_kyb_investigation(...)
+
+# Shared for both paths
+await self._compute_and_store_confidence(...)
+```
+
+### Version Gates (`workflow.patched()`)
+
+Version gates ensure backward-compatible replay when new activities are added to a running workflow. Old workflow histories that pre-date a gate will skip that code path.
+
+| Gate key | What it enables |
+|----------|----------------|
+| `kyc-v1` | KYC vs KYB activity fork (`_run_kyc_investigation`) |
+| `fetch-answers-v1` | `fetch_case_answers` activity — reads portal-submitted answers from DB |
+| `confidence-score-v1` | `compute_confidence_score` activity (Pillar 1) |
+| `graph-etl-v1` | `populate_knowledge_graph` activity (KYB-only) |
+| `peppol-v1` | `run_peppol_verification` activity (Belgian cases) |
+| `peppol-cache-v1` | Reuse cached PEPPOL result across iterations |
+| `skip-docs-v1` | `signal_skip_documents` — allow officer to bypass document upload step |
 
 ### Main Run Loop
 
@@ -155,17 +193,32 @@ This means the customer can be asked to re-upload without officer intervention, 
 
 ## Activities
 
-Seven activities are defined in `backend/app/workflows/activities.py` (470 lines). Activities are the bridge between Temporal's deterministic sandbox and the outside world.
+Activities are defined in `backend/app/workflows/activities.py`. They are the bridge between Temporal's deterministic sandbox and the outside world.
 
 | Activity | Timeout | Purpose |
 |----------|---------|---------|
 | `process_documents` | 5 min | Download from MinIO, convert via Docling, store Markdown |
 | `validate_documents` | 3 min | AI agent validates documents against requirements |
-| `run_osint_investigation` | 10 min | Full OSINT pipeline (4 agents, cumulative evidence) |
-| `classify_mcc` | 2 min | MCC code classification agent |
+| `fetch_case_answers` | 10 sec | Read portal-submitted answers from PostgreSQL (KYC, best-effort) |
+| `verify_identity` | 2 min | itsme/eIDAS identity verification (KYC path) |
+| `validate_fields` | 1 min | NRN mod97, BSN 11-proof, IBAN ISO 13616 field checks (KYC path) |
+| `run_kyc_screening` | 10 min | Sanctions, PEP, adverse media screening (KYC path) |
+| `run_osint_investigation` | 30 min | Full OSINT pipeline (4 agents, cumulative evidence, KYB path) |
+| `run_peppol_verification` | 5 min | Belgian PEPPOL/inhoudingsplicht check (KYB, BE only, best-effort) |
+| `classify_mcc` | 2 min | MCC code classification agent (KYB path) |
+| `compute_confidence_score` | 30 sec | Pillar 1 confidence scoring (shared, best-effort) |
 | `generate_follow_up_tasks` | 2 min | Task suggestion agent |
+| `populate_knowledge_graph` | 3 min | Neo4j ETL (KYB-only, best-effort) |
+| `assign_automation_tier` | 30 sec | Supervised autonomy tier assignment (KYB-only, best-effort) |
 | `persist_audit_event` | 30 sec | Write audit event to PostgreSQL |
 | `scrape_company_website` | 2 min | Crawl company website, store in MinIO |
+| `consolidate_investigation_memory` | 60 sec | Post-resolution episodic memory (best-effort) |
+
+### `fetch_case_answers` — Workflow Input Immutability Pattern
+
+This activity solves a Temporal determinism constraint: the `signal_documents_submitted` signal must remain parameterless (signals cannot safely carry large payloads and changing signal signatures breaks replay). Customer answers submitted through the portal are instead persisted to PostgreSQL by the portal endpoint, then fetched by this activity immediately after the signal is received.
+
+**Error handling**: errors are silently swallowed (`except Exception: pass`). If the activity fails, the workflow falls back to the original `input.additional_data["answers"]` provided at case creation time. This is acceptable because KYC answers are also passed at creation for the initial submission, and the DB fetch is an authoritative refresh for follow-up iterations.
 
 ### Retry Policy
 

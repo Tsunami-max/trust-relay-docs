@@ -117,8 +117,8 @@ At creation time, the system runs concurrent pre-enrichment lookups (VIES, North
   "case_id": "case_a1b2c3d4e5f6",
   "workflow_id": "wf_f6e5d4c3b2a1",
   "status": "AWAITING_DOCUMENTS",
-  "portal_token": "pt_1234567890abcdef",
-  "portal_url": "http://localhost:3001/portal/pt_1234567890abcdef",
+  "portal_token": "pt_X7kB2mNpQrVsWzAc1dEfGhJu8yLo9",
+  "portal_url": "http://localhost:3001/portal/pt_X7kB2mNpQrVsWzAc1dEfGhJu8yLo9",
   "vies_enrichment": {
     "vies_valid": true,
     "vies_name": "ACME TRADING",
@@ -138,6 +138,10 @@ At creation time, the system runs concurrent pre-enrichment lookups (VIES, North
   "created_at": "2026-02-24T10:30:00Z"
 }
 ```
+
+:::info Portal Token Format
+The `portal_token` is generated with `secrets.token_urlsafe(24)` (192-bit entropy) and prefixed with `pt_`. The resulting token is 35 characters: `pt_` + 32 URL-safe base64 characters. This format replaced the previous 64-bit truncated UUID used in earlier versions.
+:::
 
 :::info
 Pre-enrichment results (`vies_enrichment`, `northdata_enrichment`, `crunchbase_enrichment`, `website_validation`) are best-effort. Any that fail or timeout are returned as `null`.
@@ -207,8 +211,8 @@ Returns the full case record including workflow state, investigation results, fo
   "template_id": "psp_merchant_onboarding",
   "current_iteration": 1,
   "max_iterations": 5,
-  "portal_token": "pt_1234567890abcdef",
-  "portal_url": "http://localhost:3001/portal/pt_1234567890abcdef",
+  "portal_token": "pt_X7kB2mNpQrVsWzAc1dEfGhJu8yLo9",
+  "portal_url": "http://localhost:3001/portal/pt_X7kB2mNpQrVsWzAc1dEfGhJu8yLo9",
   "documents": [],
   "follow_up_tasks": [],
   "investigation_results": [

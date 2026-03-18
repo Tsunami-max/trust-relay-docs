@@ -111,13 +111,38 @@ The customer opens the branded portal, sees the required document list (driven b
 
 Downloads uploaded files from MinIO, converts them to Markdown using IBM Docling, and stores the Markdown back to MinIO alongside the originals. This normalizes PDFs, DOCX, and images into a text format that AI agents can process.
 
-### Step 4: Document Validation
+### Step 4: Investigation Fork — KYC vs KYB
 
-**Activity:** `validate_documents`
+After document validation, the workflow inspects the `template_id` to determine which investigation pipeline to run. This fork is guarded by the `kyc-v1` version gate (`workflow.patched("kyc-v1")`).
 
-An AI agent validates each converted document against its requirement specification. For example, it checks that a file uploaded as "Certificate of Incorporation" actually contains incorporation details. If required documents fail validation, the workflow auto-generates re-upload tasks and loops back to Step 2 without requiring officer intervention.
+**KYB path** (all templates except `kyc_natural_person`) — the standard flow:
 
-### Step 5: OSINT Investigation
+1. `run_osint_investigation` — multi-agent OSINT pipeline (Belgian or international)
+2. `run_peppol_verification` — Belgian companies only, best-effort
+3. `classify_mcc` — Merchant Category Code classification
+
+**KYC path** (`template_id == "kyc_natural_person"`) — natural person onboarding:
+
+1. `verify_identity` — itsme/eIDAS simulation (production integration planned); extracts identity verification result and findings
+2. `validate_fields` — Belgian NRN mod97, Dutch BSN 11-proof, IBAN ISO 13616; each field check produces zero or more findings
+3. `run_kyc_screening` — sanctions hit, PEP match, adverse media screening
+
+The activities `populate_knowledge_graph` and `assign_automation_tier` are explicitly **KYB-only** (`if not is_kyc:`). Natural persons do not have company graph data and do not participate in the automation tier system.
+
+See `backend/app/workflows/compliance_case.py` — `_run_kyc_investigation()` and `_run_kyb_investigation()`.
+
+### Step 4b: Answer Pipeline (KYC)
+
+Portal-submitted answers (NRN, date of birth, nationality, IBAN) follow a 4-part data flow:
+
+1. **Frontend submit**: the portal includes `answers` alongside `task_responses` in the `POST /api/portal/{token}/submit` request body
+2. **Backend persistence**: the portal endpoint merges answers into `additional_data.answers` via `jsonb_set` in PostgreSQL (not replaced — merged)
+3. **Workflow fetch**: after `signal_documents_submitted` is received, the `fetch_case_answers` activity reads the updated answers from the database (guarded by `fetch-answers-v1` version gate)
+4. **Workflow merge**: fresh answers are merged into `input.additional_data["answers"]`, making them available to `validate_fields` and `run_kyc_screening`
+
+The signal itself remains parameterless (Temporal determinism requirement). Answers travel through the database, not the signal payload.
+
+### Step 5: OSINT Investigation (KYB)
 
 **Activity:** `run_osint_investigation`
 

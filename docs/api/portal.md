@@ -161,6 +161,12 @@ Signals the Temporal workflow that the customer has finished uploading documents
   "task_responses": {
     "followup_addr_confirm": "Yes, the registered address is correct as of January 2026.",
     "followup_explain_discrepancy": "The previous address was our warehouse location."
+  },
+  "answers": {
+    "date_of_birth": "1985-04-12",
+    "nationality": "BE",
+    "national_register_number": "85041212345",
+    "iban": "BE68539007547034"
   }
 }
 ```
@@ -168,6 +174,13 @@ Signals the Temporal workflow that the customer has finished uploading documents
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `task_responses` | object | No | Key-value map of follow-up task IDs to customer responses. Stored in MinIO as `task_responses.json` for audit trail. |
+| `answers` | object | No | Key-value map of question IDs to customer answers. Used for KYC field validation (NRN, date of birth, nationality, IBAN). |
+
+**Answer persistence**: The backend merges submitted answers into the case's `additional_data.answers` column using `jsonb_set`. This is a merge operation — existing answers are preserved and new values are added or overridden per key. After the `signal_documents_submitted` signal is sent to the Temporal workflow, the `fetch_case_answers` activity reads the updated answers from PostgreSQL, making them available to the KYC investigation pipeline.
+
+:::info KYC Answer Flow
+For KYC cases (`template_id = "kyc_natural_person"`), answers provided here are the primary input for field validation (Belgian NRN mod97 check, Dutch BSN 11-proof, IBAN ISO 13616) and screening (date of birth, nationality for sanctions/PEP lookup). The signal itself remains parameterless for Temporal determinism — answers travel through the database, not the signal payload.
+:::
 
 **Response** `200`
 
@@ -203,11 +216,12 @@ sequenceDiagram
         P-->>C: Upload confirmation
     end
 
-    C->>P: POST /portal/{token}/submit
+    C->>P: POST /portal/{token}/submit (task_responses + answers)
     P->>M: Store task_responses.json
-    P->>T: Signal documents_submitted
+    P->>P: jsonb_set answers into additional_data.answers
+    P->>T: Signal documents_submitted (parameterless)
     T-->>P: Ack
     P-->>C: "Your application is being reviewed"
 
-    Note over T: Pipeline runs:<br/>Docling -> OSINT -> Task Gen
+    Note over T: Pipeline runs:<br/>fetch_case_answers -> Docling -> Investigation -> Task Gen
 ```

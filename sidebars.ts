@@ -62,6 +62,9 @@ const sidebars: SidebarsConfig = {
         'architecture/supervised-autonomy',
         'architecture/regulatory-radar',
         'architecture/session-diagnostics',
+        'architecture/case-intelligence',
+        'architecture/lex-regulatory-knowledge',
+        'architecture/prompt-management',
       ],
     },
     {
@@ -106,6 +109,16 @@ const sidebars: SidebarsConfig = {
     'api/automation',
     'api/regulatory',
     'api/diagnostics',
+    'api/case-intelligence',
+  ],
+  featuresSidebar: [
+    {
+      type: 'category',
+      label: 'Document Validation',
+      items: [
+        'features/belgian-eid-validation',
+      ],
+    },
   ],
   strategySidebar: [
     'why-trust-relay',
@@ -114,6 +127,7 @@ const sidebars: SidebarsConfig = {
     'portfolio-audit-mode',
     'competitive-landscape',
     'data-moat-strategy',
+    'vlaio-development-project',
   ],
 };
 

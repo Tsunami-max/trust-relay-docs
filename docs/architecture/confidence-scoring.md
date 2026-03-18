@@ -48,6 +48,26 @@ graph TD
 | LOW | 40-64 | Enhanced review recommended |
 | INSUFFICIENT | 0-39 | Additional investigation required |
 
+## Workflow Integration
+
+Confidence scoring is invoked through the `_compute_and_store_confidence()` helper method, which was extracted from the workflow's `run` method during the codebase hardening sweep (change I6). This helper is shared between the KYC and KYB investigation paths — both call it after their respective investigation activities complete.
+
+```python
+# Shared for both KYC and KYB paths
+await self._compute_and_store_confidence(
+    input, investigation_result, retry_policy
+)
+```
+
+The helper:
+1. Checks the `confidence-score-v1` version gate (skipped for old workflow histories)
+2. Calls the `compute_confidence_score` activity with a 30-second timeout
+3. Appends the result to `self._state.confidence_scores`
+4. Logs a `confidence_computed` audit event
+5. Swallows all exceptions (confidence scoring is best-effort — a scoring failure never blocks case progression)
+
+Prior to I6, confidence scoring was duplicated inline in both the KYC and KYB branches. Extracting it to `_compute_and_store_confidence()` eliminates the duplication and ensures both paths always score using identical logic.
+
 ## Key Components
 
 - **`confidence_engine.py`** — Core scoring engine with dimensional computation
