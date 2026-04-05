@@ -164,8 +164,8 @@ flowchart TD
 | Frontend | React + Blueprint.js + Vite | Next.js + shadcn/ui |
 | Migrations | Flyway (SQL-based) | Alembic (Python-based) |
 | LLM Gateway | OpenRouter | Direct API calls |
-| Observability | Langfuse (self-hosted) | Planned |
-| Auth | Keycloak (implemented) | Keycloak (deferred for PoC) |
+| Observability | Langfuse (self-hosted, always-on) | Langfuse + OpenTelemetry (profile flag) + 5 audit tables + diagnostics API |
+| Auth | Keycloak (implemented) | Keycloak (fully implemented: JWT/JWKS, RBAC, 4 roles, JIT provisioning) |
 | Workflow Engine | Temporal | Temporal |
 | Database | PostgreSQL + Neo4j | PostgreSQL + Neo4j |
 | Document Processing | None (investigation-focused) | IBM Docling + MinIO |

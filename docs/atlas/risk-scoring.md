@@ -271,9 +271,9 @@ Trust Relay adopted the EBA risk matrix concept from Atlas but diverged in sever
 | Aspect | Atlas (5 dimensions) | Trust Relay (5 dimensions) |
 |---|---|---|
 | Dimensions | Customer, Geographic, Product/Service, Delivery Channel, Transaction | Customer, Geographic, Product/Service, Delivery Channel, Transaction (same EBA basis, different factor decomposition) |
-| Aggregation | weighted_max: `max * 0.6 + avg * 0.4` | weighted_max with same formula, plus weighted_average and highest_dimension |
+| Aggregation | weighted_max, weighted_average, highest_dimension | Same three methods with identical weighted_max formula |
 | Determinism proofs | 4 SHA-256 hashes per evaluation | SHA-256 determinism proofs (same pattern) |
-| Schema management | YAML-defined, DB-versioned, draft/published/archived lifecycle | Config-driven with DB-backed versioning |
+| Schema management | YAML-defined, DB-versioned, draft/published/archived lifecycle | DB-backed versioning with draft/activate lifecycle, diff, audit trail, and recalculation API (9 endpoints) |
 | Reference data | Frozen snapshot at publish time via `ReferenceDataResolver` | 12 JSON reference datasets served via `reference_data_service` |
 | Factor input | Ontology mapper extracts from entities + 7 module reports + risk indicators | Direct extraction from investigation results |
 | Risk levels | 5 levels (clear/low/medium/high/critical) | 5 levels with same ranges |

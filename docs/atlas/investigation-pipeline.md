@@ -332,17 +332,18 @@ Each module's `ModuleOutput` includes a `tool_availability` metadata dict tracki
 
 | Aspect | Atlas | Trust Relay |
 |---|---|---|
-| **Modules** | 7 fixed modules + Summary | 13 agents with country-specific routing |
+| **Modules** | 7 fixed modules + Summary | 15 agents with country-specific routing |
 | **Execution** | All modules in parallel | Sequential phases: pre-investigation, gap analysis, customer docs, validation |
 | **Customer interaction** | None — pure OSINT investigation | Iterative loops — portal for document upload, officer review gates |
-| **Country routing** | Single pipeline for all countries | Country-specific agents (BE, FR, NL, RO, CZ, etc.) with registry-specific tooling |
+| **Country routing** | Single pipeline for all countries | Country-specific agents (BE, CH, CZ, DK, EE, FI, FR, NL, NO, RO) with 20 dedicated registry services |
 | **Tool integration** | LangChain tools + MCP adapters | PydanticAI tools + direct HTTP calls |
 | **Entity extraction** | Ontology populator (RDFLib, 14,700 lines) | Inline extraction within agent activities |
 | **Entity resolution** | Dedicated module (1,028 lines) | Entity matcher with blocking keys (ADR-0024) |
 | **Risk scoring** | Two-layer: rule-based + EBA matrix | EBA risk matrix with weighted-max aggregation (ADR-0020) |
 | **Graph sync** | Detached child workflow | 20-step ETL pipeline within workflow |
 | **Re-investigation** | Re-run any module subset | Follow-up loop back to document upload |
-| **Observability** | Langfuse (self-hosted, 5 containers) | Evidence bundles + audit log |
+| **Report generation** | WeasyPrint PDF export | WeasyPrint PDF: Compliance Report + Audit Ledger + Belgian Evidence |
+| **Observability** | Langfuse (self-hosted, 5 containers) | Langfuse + OpenTelemetry (profile flag) + evidence bundles + 5 audit tables + diagnostics API |
 | **Resilience** | PyBreaker + Tenacity per tool | Temporal retry policy at activity level |
 
 The fundamental architectural difference: Atlas is a **pure OSINT engine** — it investigates companies without any customer interaction. Trust Relay wraps investigation in a **compliance workflow** with customer document upload, officer review gates, iterative follow-up loops, and branded portals. The two systems are complementary: Atlas can serve as the OSINT investigation engine while Trust Relay manages the end-to-end compliance case lifecycle.

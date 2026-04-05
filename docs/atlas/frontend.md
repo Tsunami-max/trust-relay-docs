@@ -297,15 +297,15 @@ Trust Relay's frontend takes a fundamentally different architectural approach, o
 | **Framework** | React 18.2 SPA (client-side only) | Next.js 16 with SSR/RSC (server components) |
 | **UI Library** | Blueprint.js v5 (enterprise toolkit) | shadcn/ui + Tailwind CSS v4 (accessible, WCAG AA) |
 | **Build** | Vite | Next.js built-in (Turbopack) |
-| **State** | Zustand + React Query | React `useState`/`useEffect` + SWR-style fetching |
+| **State** | Zustand + React Query | React `useState`/`useEffect` + Axios |
 | **Auth** | Keycloak.js (client-side OIDC) | Keycloak JWT/JWKS (server-side validation) |
 | **Customer Portal** | No separate portal (analyst-only) | Branded portal with token-based access (`/portal/[token]`) |
 | **AI Assistant** | None | CopilotKit v2 inline chat + suggestions |
 | **Graph Viz** | Cytoscape.js (entity-centric) | ReactFlow (3 views: Network, Ownership Tree, Investigation Flow, 22 components) |
 | **Charts** | Recharts | Recharts + custom Risk Spider Chart |
-| **PDF** | @react-pdf/renderer (client-side) | Server-side PDF generation |
+| **PDF** | @react-pdf/renderer (client-side) | Server-side PDF generation (WeasyPrint: Compliance Report, Audit Ledger, Belgian Evidence) |
 | **Accessibility** | Blueprint.js defaults | WCAG AA enforced (4.5:1 contrast, 44px touch targets) |
 | **Loading States** | Blueprint.js Spinner | Skeleton loaders (no spinners) |
 | **Notifications** | Blueprint.js Toaster | Sonner toast (no alert boxes) |
-| **Page Count** | ~35+ pages | ~15 pages (focused on officer + customer workflows) |
+| **Page Count** | ~35+ pages | ~25 pages (officer dashboard, customer portal, admin) |
 | **Studio** | 6-tab unified workspace | Settings-based configuration |

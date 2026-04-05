@@ -234,6 +234,7 @@ const sidebars: SidebarsConfig = {
         'atlas/api-reference',
       ],
     },
+    'atlas/import-candidates',
   ],
 };
 

@@ -363,8 +363,8 @@ Trust Relay built its graph layer independently, sharing some patterns but diver
 |---|---|---|
 | Graph backend | Neo4j (primary) + Apache AGE (secondary) | Neo4j only |
 | Sync service | 1,144 lines, schema-driven (ADR-004) | 20-step ETL pipeline |
-| Graph methods | ~20 Cypher queries | 74 graph service methods |
-| API surface | ~30 endpoints (AGE + Neo4j + parity) | 32 graph endpoints |
+| Graph methods | ~20 Cypher queries | 79 graph service methods |
+| API surface | ~30 endpoints (AGE + Neo4j + parity) | 36 graph endpoints |
 | Query generation | Schema-driven CypherGenerator (854 lines) | Direct Cypher queries |
 | Parity checking | Dedicated ParityService with count + ID audit | Not implemented separately |
 | Event projections | EventProjector builds graph from domain events | Direct sync after investigation |

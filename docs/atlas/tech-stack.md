@@ -54,17 +54,17 @@ Atlas has a dedicated resilience layer for MCP tool calls:
 | **Tenacity** | Retry with exponential backoff | >=9.0.0 |
 | **SlowAPI** | Rate limiting on API endpoints | >=0.1.9 |
 
-Trust Relay handles retries at the Temporal activity level and does not currently use circuit breakers or explicit rate limiting middleware.
+Trust Relay handles retries at the Temporal activity level and uses rate limiting via configurable `rate_limit_skip_paths` settings. It does not currently use circuit breakers.
 
 ### Logging & Observability
 
 Atlas uses **Structlog** (>=24.1.0) for structured JSON logging and **Langfuse** (>=3.0.0, self-hosted) for LLM observability. The Langfuse deployment includes a ClickHouse backend (`clickhouse/clickhouse-server:24.3`), a dedicated MinIO instance for event storage, and a web worker — 5 containers in total just for observability.
 
-Trust Relay uses standard Python `logging` and does not yet have LLM-specific observability.
+Trust Relay has **Langfuse + OpenTelemetry** integration (`langfuse_service.py`) available behind a Docker Compose profile (`--profile observability`). When enabled, it provides the same trace visibility. Additionally, Trust Relay has comprehensive audit logging via 5 dedicated tables (AuditEvent, ToolInvocation, SignalEvent, FindingAnalysis, RiskConfigAudit), a diagnostics API with per-agent accuracy tracking, and a monitoring API with alert management.
 
 ### PDF Generation
 
-Atlas uses **WeasyPrint** (>=62.0) for generating PDF investigation reports from HTML/CSS templates. Trust Relay does not currently generate PDF reports.
+Atlas uses **WeasyPrint** (>=62.0) for generating PDF investigation reports from HTML/CSS templates. Trust Relay uses **IBM Docling** for document conversion (PDF/DOCX to Markdown) as part of its document processing pipeline, but does not generate investigation PDF reports from HTML templates like Atlas does.
 
 ### Other Notable Dependencies
 
@@ -122,7 +122,7 @@ Atlas includes geographic visualization for mapping company locations across jur
 
 ### Authentication
 
-Atlas integrates **keycloak-js v26** for frontend authentication. Trust Relay defers authentication for PoC (ADR-0011) but plans Keycloak integration for production.
+Both systems integrate **keycloak-js v26** for frontend authentication. Trust Relay has a fully implemented Keycloak stack: JWT validation with JWKS caching, RBAC via `require_role()` (4 roles: `super_admin`, `tenant_admin`, `officer`, `auditor`), JIT user provisioning from Keycloak claims, PKCE OAuth2 flow, and automatic token refresh. Keycloak 26.0 runs in Docker with realm auto-import and pre-configured bootstrap users.
 
 ### Other Frontend Libraries
 
@@ -179,7 +179,7 @@ Atlas deploys a **self-hosted Langfuse** stack for complete LLM observability:
 | `langfuse-clickhouse` | `clickhouse/clickhouse-server:24.3` | Columnar storage for traces |
 | `langfuse-minio` | `minio/minio:latest` | S3 storage for events/exports |
 
-This gives Atlas full trace visibility: token counts, latencies, cost tracking, prompt versioning, and evaluation scores. Trust Relay does not yet have LLM-specific observability but captures agent outputs through evidence bundles and audit logs.
+This gives Atlas full trace visibility: token counts, latencies, cost tracking, prompt versioning, and evaluation scores. Trust Relay has the same Langfuse + OpenTelemetry integration available (behind a `--profile observability` Docker flag) and additionally captures agent outputs through evidence bundles, 5 audit tables, a diagnostics API, and a monitoring API with alert management.
 
 ## Infrastructure Services
 
@@ -196,7 +196,7 @@ Trust Relay runs a single MinIO instance on ports 9000/9001.
 
 ### Authentication (Keycloak)
 
-Atlas runs **Keycloak 26.0** (`quay.io/keycloak/keycloak:26.0`) on port 8180 with its own PostgreSQL database. Keycloak is fully wired into both frontend and backend. Trust Relay plans Keycloak but defers it for PoC.
+Both systems run **Keycloak 26.0** (`quay.io/keycloak/keycloak:26.0`). Atlas runs it on port 8180; Trust Relay runs it on port 8180 as well (mapped from internal 8080). Both have Keycloak fully wired into frontend and backend with JWT validation, role-based access control, and JIT user provisioning. Trust Relay's implementation includes 4 hierarchical roles (`super_admin` > `tenant_admin` > `officer` > `auditor`), PKCE flow, and realm auto-import with pre-configured demo users.
 
 ## Architecture Diagram
 
@@ -266,12 +266,12 @@ graph TB
 | **Agent Framework** | LangChain 1.2.10 + LangGraph 1.0.10 | PydanticAI + AG-UI |
 | **Workflow Engine** | Temporal (temporalio >=1.4.0) | Temporal (temporalio >=1.9) |
 | **DB Access** | asyncpg + SQLAlchemy + Alembic | SQLAlchemy + asyncpg (Repository pattern) |
-| **Rate Limiting** | SlowAPI | None (PoC) |
+| **Rate Limiting** | SlowAPI | Configurable skip paths |
 | **Circuit Breakers** | PyBreaker | None |
 | **Retries** | Tenacity | Temporal retry policy |
 | **Logging** | Structlog (structured JSON) | Python logging |
-| **LLM Observability** | Langfuse (self-hosted, 5 containers) | Audit log + evidence bundles |
-| **PDF Generation** | WeasyPrint | None |
+| **LLM Observability** | Langfuse (self-hosted, 5 containers) | Langfuse + OpenTelemetry (profile flag) + 5 audit tables + diagnostics API |
+| **PDF Generation** | WeasyPrint (report export) | IBM Docling (document conversion) |
 | **Ontology** | RDFLib + JSON-LD (pyld) | N/A |
 | **React** | 18.2 | 19 |
 | **Meta-framework** | None (Vite SPA) | Next.js 16 |
@@ -280,12 +280,12 @@ graph TB
 | **Forms** | React Hook Form + Zod | Controlled components |
 | **Graph Viz** | Cytoscape.js | ReactFlow |
 | **Charts** | Recharts | Recharts |
-| **Auth (Frontend)** | keycloak-js v26 | Deferred (ADR-0011) |
-| **PostgreSQL** | 15 (Flyway, 100 migrations) | 16 (Alembic, 39 migrations) |
+| **Auth (Frontend)** | keycloak-js v26 | keycloak-js v26 (PKCE, RBAC, JIT provisioning) |
+| **PostgreSQL** | 15 (Flyway, 100 migrations) | 16 (Alembic, 44 migrations) |
 | **Neo4j** | 5.18 Community | 5.18 Community |
 | **Redis** | 7 | 7 |
 | **Object Storage** | MinIO x2 (docs + Langfuse) | MinIO x1 |
 | **LLM Gateway** | OpenRouter | Direct API (PydanticAI) |
 | **Primary Model** | claude-3.7-sonnet | claude-3.7-sonnet |
 | **Fast Model** | claude-3.5-haiku | claude-3.5-haiku |
-| **Docker Services** | ~15 containers | ~9 containers |
+| **Docker Services** | ~15 containers | ~11 containers |

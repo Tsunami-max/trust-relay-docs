@@ -562,21 +562,26 @@ Prefix: `/reference-data`
 
 ## How Trust Relay Compares
 
-Atlas has **300+ endpoints** across 28+ routers. Trust Relay has **150+ endpoints** across 20+ routers. The two systems emphasize different domains:
+Atlas has **300+ endpoints** across 28+ routers. Trust Relay has **275+ endpoints** across 43+ routers. The two systems emphasize different domains:
 
 | Domain | Atlas | Trust Relay |
 |--------|-------|-------------|
-| **Investigation** | 14 endpoints (crew transcripts, temporal activity) | Integrated into case workflow (pre-investigation, OSINT) |
-| **Risk** | 10 endpoints (portfolio, network, propagation) | EBA risk matrix + confidence scoring |
-| **Graph/Neo4j** | 30+ endpoints (sync, parity, retry queue, cleanup) | 32 endpoints (similar scope) |
+| **Investigation** | 14 endpoints (crew transcripts, temporal activity) | Case lifecycle routers (45+ endpoints) + Temporal 12-step workflow |
+| **Risk** | 10 endpoints (portfolio, network, propagation) | EBA risk matrix (860 lines) + risk configuration API (11 endpoints) + confidence scoring |
+| **Graph/Neo4j** | 30+ endpoints (sync, parity, retry queue, cleanup) | 36 endpoints (similar scope) |
 | **Ontology** | 25+ endpoints (resolution, reconciliation, enrichment) | Entity matching via survivorship service |
-| **Settings** | 80+ endpoints (MCP, prompts, agents, tools, models) | Settings via config files and DB |
-| **Workflow** | 25+ endpoints (schemas, execution, builder, documents) | Temporal workflow with 12-step state machine |
-| **Risk Matrix** | 20+ endpoints (schemas, evaluations, assignments, batch) | Inline EBA service |
-| **Data Providers** | 25+ endpoints (CRUD, coverage, freshness, enrichment) | Built-in OSINT agents |
-| **Portal** | Within workflow phases | Standalone branded portal (5+ endpoints) |
+| **Settings/Admin** | 80+ endpoints (MCP, prompts, agents, tools, models) | ~35 endpoints (prompts, risk config, branding, templates, tenant admin) |
+| **Workflow** | 25+ endpoints (schemas, execution, builder, documents) | Case lifecycle routers (45+ endpoints) + Temporal 12-step workflow |
+| **Risk Matrix** | 20+ endpoints (schemas, evaluations, assignments, batch) | EBA risk matrix service + configuration API (11 endpoints) |
+| **Reports** | Investigation report + PDF export | Compliance Report PDF + Audit Ledger PDF + Belgian Evidence PDF (WeasyPrint) |
+| **Data Providers** | 25+ endpoints (CRUD, coverage, freshness, enrichment) | 15 built-in OSINT agents + 20 country registry services |
+| **Portal** | Within workflow phases | Standalone branded portal (6 endpoints) |
+| **Monitoring** | Debug endpoints | Continuous monitoring (13 endpoints: baselines, alerts, deltas, schedules) |
 | **CopilotKit** | None | AG-UI + CopilotKit endpoints |
-| **Diagnostics** | Debug endpoints | Session diagnostics + confidence scoring |
-| **Lex** | None | Regulatory corpus endpoints |
-| **goAML** | None | SAR export endpoints |
+| **Diagnostics** | Debug endpoints | Session diagnostics + per-agent accuracy |
+| **Lex** | None | Regulatory corpus endpoints (9 endpoints) |
+| **goAML** | None | SAR export endpoints (10 endpoints) |
 | **Branding** | None | White-label branding endpoints |
+| **Regulatory** | None | Regulatory intelligence (13 endpoints: regulations, timeline, calendar, impact) |
+| **Memory** | None | Episodic memory (17 endpoints: teach, forget, recall) |
+| **Transactions** | None | Transaction ingestion + tax capsule (6 endpoints) |

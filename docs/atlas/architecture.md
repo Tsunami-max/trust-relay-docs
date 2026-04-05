@@ -513,8 +513,8 @@ At a high level, the main architectural differences are:
 | **Entity model** | Ontology-driven with versioned schemas and mutation queue | Simpler entity model, graph ETL with 20-step pipeline |
 | **Frontend framework** | Blueprint.js (Java-inspired component library) | shadcn/ui (Tailwind-based, modern React) |
 | **Database access** | Raw asyncpg with repository pattern | SQLAlchemy ORM with Alembic migrations |
-| **LLM observability** | Langfuse (self-hosted, with ClickHouse + MinIO) | Not yet implemented |
-| **Auth status** | Keycloak fully integrated with JWT middleware | Keycloak deferred for PoC |
+| **LLM observability** | Langfuse (self-hosted, always-on, ClickHouse + MinIO) | Langfuse + OpenTelemetry (profile flag) + 5 audit tables + diagnostics API + monitoring API |
+| **Auth status** | Keycloak fully integrated with JWT middleware | Keycloak fully integrated (JWT/JWKS, RBAC with 4 roles, JIT user provisioning, PKCE flow) |
 | **Customer portal** | Workflow Studio portal phases (dynamic) | Dedicated branded portal with token auth |
 | **Document processing** | None (investigation-only) | IBM Docling for document conversion + MinIO storage |
 

@@ -219,10 +219,10 @@ Trust Relay adopted the **EntityMatcher** and **SurvivorshipResolver** patterns 
 | Aspect | Atlas | Trust Relay |
 |---|---|---|
 | Schema format | YAML files with DB-backed activation | Pydantic models as code |
-| Survivorship | 7 strategies (most_recent, most_trusted, most_complete, most_specific, aggregate, canonical, first_non_null) | Trust-weighted scoring with protected fields |
+| Survivorship | 7 strategies (most_recent, most_trusted, most_complete, most_specific, aggregate, canonical, first_non_null) | Trust-weighted scoring with protected fields + aggregate, most_recent, most_complete strategies |
 | Entity resolution | Palantir-inspired golden records (ADR-010) | Blocking keys + trust-weighted merge |
 | Person matching | PersonMatcher with sorted name parts | Same pattern, simplified |
 | RDF support | Full rdflib integration with SPARQL traversal | Not implemented (Neo4j-only graph) |
 | Schema versions | 4 YAML versions, DB-activated | Single implicit version |
-| Protected fields | Provider authorization (SPEPWS/AMLRR) | Not yet implemented |
-| Address geocoding | Google Maps + Haversine clustering | Not yet implemented |
+| Protected fields | Provider authorization (SPEPWS/AMLRR) | Provider authorization (sanctions_resolver, pep_resolver, KBO, GLEIF) — fully implemented |
+| Address geocoding | Google Maps + Haversine clustering | Not yet implemented — **import candidate** |
