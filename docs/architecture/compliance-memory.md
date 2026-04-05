@@ -1,6 +1,17 @@
 ---
 sidebar_position: 16
 title: "Compliance Memory"
+components:
+  - app/agents/memory_admin_agent.py
+  - app/services/episodic_memory_service.py
+  - app/services/learning_service.py
+  - app/services/letta_policy_service.py
+  - app/services/letta_tools.py
+  - app/services/signal_capture_service.py
+  - app/services/signal_ingestion.py
+  - app/services/signal_ingestion_worker.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Compliance Memory System

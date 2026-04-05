@@ -2,6 +2,12 @@
 sidebar_position: 12
 title: Prompt Management
 description: Centralized prompt versioning with Jinja2 templates, DB-backed storage, admin API, and EU AI Act traceability
+components:
+  - app/prompts/registry.py
+tests:
+  - tests/test_prompts.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Prompt Management

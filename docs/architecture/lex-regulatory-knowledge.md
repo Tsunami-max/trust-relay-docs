@@ -1,12 +1,36 @@
 ---
 sidebar_position: 11
 title: Lex — Regulatory Knowledge Layer
-description: Full EU regulation text corpus with zero-hallucination citations, hybrid RAG search, and compliance tab enrichment
+description: 34-regulation corpus (EU + 7 national AML laws) with zero-hallucination citations, hybrid RAG search, and compliance tab enrichment
+components:
+  - app/services/lex/corpus_service.py
+  - app/services/lex/search_service.py
+  - app/services/lex/chunker.py
+  - app/services/lex/citation_verifier.py
+  - app/services/lex/copilot_tool.py
+  - app/services/lex/corpus_config.py
+  - app/services/lex/embedder.py
+  - app/services/lex/errors.py
+  - app/services/lex/ingest.py
+  - app/services/lex/pg_vector_store.py
+  - app/services/lex/query_service.py
+  - app/services/lex/types.py
+  - app/services/lex/fetchers/bwb_fetcher.py
+  - app/services/lex/fetchers/eurlex_fetcher.py
+  - app/services/lex/fetchers/finlex_fetcher.py
+  - app/services/lex/fetchers/html_fetcher.py
+  - app/services/lex/fetchers/legifrance_fetcher.py
+  - app/services/lex/fetchers/pdf_fetcher.py
+  - app/services/lex/fetchers/retsinformation_fetcher.py
+  - app/services/lex/fetchers/riigi_teataja_fetcher.py
+  - app/services/lex/parsers/regulation_parser.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Lex — Regulatory Knowledge Layer
 
-Lex gives Atlas the **actual text** of EU regulations. When an officer sees "AMLR Art.28 CDD Coverage — 85%", they can ask the copilot what Article 28 actually requires and receive an answer grounded in verbatim regulation text — with zero hallucinated citations.
+Lex gives Atlas the **actual text** of 34 EU regulations and national AML laws across 8 jurisdictions. When an officer sees "AMLR Art.28 CDD Coverage — 85%", they can ask the copilot what Article 28 actually requires and receive an answer grounded in verbatim regulation text — with zero hallucinated citations.
 
 ## The Problem
 
@@ -39,7 +63,7 @@ graph TB
     subgraph Consumers["Consumer Layer"]
         COP[Copilot<br/>40+ tools]
         CT[Compliance Tab<br/>Gap Analysis]
-        RR[Regulatory Radar<br/>16 regs, 67 articles]
+        RR[Regulatory Radar<br/>34 regs, 67+ articles]
     end
 
     subgraph Lex["Lex Service Layer"]
@@ -49,7 +73,7 @@ graph TB
     end
 
     subgraph Pipeline["Ingestion Pipeline"]
-        F[EURLexFetcher<br/>CELLAR REST API]
+        F[Multi-Source Fetchers<br/>eurlex, riigi_teataja,<br/>bwb, pdf, html]
         P[EURegulationParser<br/>BeautifulSoup]
         C[RegulatoryChunker<br/>hierarchy-aware]
         E[RegulatoryEmbedder<br/>3072 dimensions]
@@ -72,11 +96,15 @@ graph TB
     QS --> DB
     IS --> F
 
-    subgraph External["External"]
-        EUR[EUR-Lex CELLAR<br/>REST API<br/>no auth required]
+    subgraph External["External Sources"]
+        EUR[EUR-Lex CELLAR<br/>REST API]
+        NAT[National Gazettes<br/>Riigi Teataja, BWB,<br/>Gesetze-im-Internet]
+        PDF[Authority PDFs<br/>Fin-FSA, Finanstilsynet,<br/>NBB, FAU]
     end
 
     F --> EUR
+    F --> NAT
+    F --> PDF
 
     style QS fill:#7c3aed,color:#fff
     style CV fill:#059669,color:#fff
@@ -86,18 +114,75 @@ graph TB
 
 ## Regulatory Corpus
 
-Phase 1 ingests 8 EU regulations from EUR-Lex CELLAR (no registration, no API key):
+The corpus contains **34 regulations** across 7 ingestion waves, sourced from EUR-Lex CELLAR (EU regulations) and national official gazettes/authority websites (national AML transpositions).
 
-| Regulation | CELEX | Key Articles | Priority |
+### Wave 1 — Core EU Regulations (8)
+
+| Regulation | CELEX | Priority |
+|---|---|---|
+| **AMLR** (EU 2024/1624) — AML Regulation | 32024R1624 | Critical |
+| **AMLD6** (EU 2024/1640) — 6th AML Directive | 32024L1640 | Critical |
+| **EU AI Act** (EU 2024/1689) — AI harmonised rules | 32024R1689 | Critical |
+| **GDPR** (EU 2016/679) — Data protection | 32016R0679 | High |
+| **DORA** (EU 2022/2554) — Digital operational resilience | 32022R2554 | Medium |
+| **MiCA** (EU 2023/1114) — Crypto-assets | 32023R1114 | Medium |
+| **EU-IPR** (EU 2024/886) — Instant payments | 32024R0886 | High |
+| **PSD2** (EU 2015/2366) — Payment services | 32015L2366 | Medium |
+
+### Wave 2 — Financial Services & Digital Infrastructure (6)
+
+| Regulation | CELEX | Priority |
+|---|---|---|
+| **NIS2** (EU 2022/2555) — Cybersecurity | 32022L2555 | High |
+| **DSA** (EU 2022/2065) — Digital Services Act | 32022R2065 | Medium |
+| **MiFID II** (2014/65/EU) — Financial instruments | 32014L0065 | Medium |
+| **eIDAS 2** (EU 2024/1183) — Digital identity | 32024R1183 | Medium |
+| **CRD IV** (2013/36/EU) — Capital requirements | 32013L0036 | Medium |
+| **AMLA Reg** (EU 2024/1620) — AMLA establishment | 32024R1620 | Critical |
+
+### Wave 3 — Sustainability, Travel Rule & Payments (6)
+
+| Regulation | CELEX | Priority |
+|---|---|---|
+| **TFR** (EU 2023/1113) — Transfer of Funds / Travel Rule | 32023R1113 | High |
+| **CSDDD** (EU 2024/1760) — Corporate sustainability due diligence | 32024L1760 | Medium |
+| **CSRD** (EU 2022/2464) — Corporate sustainability reporting | 32022L2464 | Medium |
+| **Whistleblower** (EU 2019/1937) — Whistleblower protection | 32019L1937 | Medium |
+| **EMD2** (2009/110/EC) — Electronic money | 32009L0110 | Medium |
+| **SEPA** (EU 260/2012) — Credit transfers & direct debits | 32012R0260 | Medium |
+
+### Wave 4 — Fiscal Representatives & Taxation (4)
+
+| Regulation | CELEX | Priority |
+|---|---|---|
+| **VAT Directive** (2006/112/EC) — Common VAT system | 32006L0112 | High |
+| **DAC** (2011/16/EU) — Administrative cooperation in taxation | 32011L0016 | Medium |
+| **DAC7** (EU 2021/514) — Digital platform reporting | 32021L0514 | High |
+| **AMLD5** (EU 2018/843) — 5th AML Directive | 32018L0843 | High |
+
+### Wave 5 — Customs & Trade Compliance (3)
+
+The Union Customs Code trilogy — critical for entities acting as importer/exporter or holding AEO status.
+
+| Regulation | CELEX | Priority |
+|---|---|---|
+| **UCC** (EU 952/2013) — Union Customs Code | 32013R0952 | Critical |
+| **UCC-DA** (EU 2015/2446) — UCC Delegated Act | 32015R2446 | High |
+| **UCC-IA** (EU 2015/2447) — UCC Implementing Act | 32015R2447 | High |
+
+### Wave 6–7 — National AML Regulations (7)
+
+National transpositions of the EU AML Directives into domestic law. Each uses a jurisdiction-specific fetcher.
+
+| Regulation | Jurisdiction | Fetcher | Source |
 |---|---|---|---|
-| **AMLR** (EU 2024/1624) | 32024R1624 | Art. 15-73 (CDD, EDD, beneficial ownership) | Critical |
-| **AMLD6** (EU 2024/1640) | 32024L1640 | Art. 1-80 (institutional framework, FIU) | Critical |
-| **EU AI Act** (EU 2024/1689) | 32024R1689 | Art. 6-15, 50, Annex III (high-risk) | Critical |
-| **GDPR** (EU 2016/679) | 32016R0679 | Art. 5-6, 9, 13-14, 17, 22, 25 | High |
-| **DORA** (EU 2022/2554) | 32022R2554 | Art. 5-15 (ICT risk) | Medium |
-| **MiCA** (EU 2023/1114) | 32023R1114 | Art. 59-92 (AML for CASPs) | Medium |
-| **IPR** (EU 2024/886) | 32024R0886 | Art. 5c-5g (Verification of Payee) | Medium |
-| **PSD2** (EU 2015/2366) | 32015L2366 | Art. 97-98 (SCA), Art. 65-67 | Medium |
+| **EE-AML** — Estonian AML Prevention Act | EE | `riigi_teataja` | Riigi Teataja |
+| **FI-AML** — Finnish AML Act (444/2017) | FI | `pdf` | Fin-FSA |
+| **NL-Wwft** — Dutch Wwft | NL | `bwb` | wetten.overheid.nl |
+| **DK-AML** — Danish Hvidvaskloven | DK | `pdf` | Finanstilsynet |
+| **BE-AML** — Belgian AML Law (18 Sept 2017) | BE | `pdf` | NBB |
+| **CZ-AML** — Czech Act 253/2008 | CZ | `pdf` | FAU |
+| **DE-GwG** — German Geldwaschegesetz | DE | `html` | Gesetze-im-Internet |
 
 ## Ingestion Pipeline
 
@@ -105,13 +190,13 @@ Five-stage pipeline with component isolation — each stage has typed I/O contra
 
 ```mermaid
 graph LR
-    F["1. Fetcher<br/><i>CELLAR REST API</i>"]
+    F["1. Fetcher<br/><i>eurlex / riigi_teataja /<br/>bwb / pdf / html</i>"]
     P["2. Parser<br/><i>BeautifulSoup HTML</i>"]
     C["3. Chunker<br/><i>Hierarchy-aware</i>"]
     E["4. Embedder<br/><i>text-embedding-3-large</i>"]
     I["5. Indexer<br/><i>PgVectorStore</i>"]
 
-    F -->|"FetchedRegulation<br/>(raw HTML + SHA-256)"| P
+    F -->|"FetchedRegulation<br/>(raw content + SHA-256)"| P
     P -->|"ParsedRegulation<br/>(articles + hierarchy)"| C
     C -->|"RegulationChunk[]<br/>(context-prefixed)"| E
     E -->|"EmbeddedChunk[]<br/>(3072d vectors)"| I
@@ -122,6 +207,20 @@ graph LR
     style E fill:#059669,color:#fff
     style I fill:#dc2626,color:#fff
 ```
+
+### Multi-Source Fetcher Architecture
+
+The ingestion pipeline supports 5 fetcher types, selected per regulation via the `fetcher` field in `corpus_config.py`:
+
+| Fetcher | Source Type | Used By |
+|---|---|---|
+| `eurlex` | EUR-Lex CELLAR REST API (XHTML, no auth) | All 27 EU regulations |
+| `riigi_teataja` | Estonian official gazette HTML | EE-AML |
+| `bwb` | Dutch wetten.overheid.nl (Basis Wetten Bestand) | NL-Wwft |
+| `pdf` | PDF download + pypdf text extraction | FI-AML, DK-AML, BE-AML, CZ-AML |
+| `html` | Direct HTML scraping from official sites | DE-GwG |
+
+All fetchers produce the same `FetchedRegulation` output (raw content + SHA-256 hash), so the downstream parser, chunker, embedder, and indexer stages are source-agnostic.
 
 ### Context-Prefixed Chunking
 
@@ -264,7 +363,7 @@ Each card shows: regulation + article number, verification badge, verbatim quote
 
 **Level 1 — Inline Expansion:** Each gap item expands to show verbatim requirement, applicability reasoning, evidence guidance, verification badge.
 
-**Level 2 — Side Panel:** Full article text with highlighted relevant paragraph, hierarchy breadcrumb, cross-references, EUR-Lex source link, content hash, fetch timestamp.
+**Level 2 — Side Panel:** Full article text with highlighted relevant paragraph, hierarchy breadcrumb, cross-references, source link (EUR-Lex, national gazette, or authority PDF), content hash, fetch timestamp.
 
 ## VLAIO Alignment
 

@@ -259,15 +259,112 @@ The following matrix summarizes the intelligence capabilities that represent Tru
 
 **Why this matters:** These capabilities are not features that can be added as plugins. They require deep architectural integration -- EVOI depends on calibrated belief models and formal agent manifests, supervised autonomy requires per-officer competence tracking with governance safety nets, the GovernanceEngine must be provably independent of all LLM components, cross-case detection requires a unified entity graph across all investigations, confidence scoring threads through every agent output, and multi-tenant RLS requires database-level policy enforcement on every tenant-scoped table. Competitors would need to fundamentally redesign their investigation pipelines to replicate this stack.
 
+## Graph Visualization — Competitive Analysis (March 2026)
+
+The graph explorer is the visual proof that Trust Relay understands corporate networks and risk propagation. This section documents how competitors visualize entity relationships and where Trust Relay is advancing to best-in-class.
+
+Full research: [`docs/research/2026-03-30-graph-visualization-competitive-analysis.md`](https://github.com/Tsunami-max/trust-relay-workflow/blob/master/docs/research/2026-03-30-graph-visualization-competitive-analysis.md)
+
+### Industry Convergence: Three Visualization Paradigms
+
+Best-in-class compliance platforms offer **three switchable views** on the same entity data:
+
+| Paradigm | Purpose | Leaders |
+|---|---|---|
+| **Network Graph** | Entity relationships, cross-case connections, fraud motifs | Linkurious, Neo4j Bloom, Chainalysis Reactor |
+| **Sankey Flow Diagram** | Fund/transaction flows, inbound vs. outbound exposure | Lucinity (standout), Chainalysis Reactor |
+| **Hierarchical Ownership Tree** | UBO chains, degree of separation, ownership percentages | Dow Jones, NICE Actimize, Linkurious |
+
+### Key Competitive Patterns Identified
+
+| Pattern | Who Does It | What It Does | Trust Relay Status |
+|---|---|---|---|
+| **Right-click context menu** | Linkurious, Neo4j Bloom, Chainalysis | Expand neighbors, shortest path, hide, pin, annotate | **Implemented** |
+| **Risk donut segments** | Chainalysis (Exposure Wheel), Cambridge Intelligence SDK | Ring around node showing risk category breakdown | **Implemented** |
+| **Glyph badges** | Cambridge Intelligence, Linkurious | Small icons at node borders (sanctions shield, PEP crown, UBO indicator) | **Implemented** |
+| **Combo/group nodes** | Linkurious, Neo4j Bloom | Collapse subgraphs into single nodes for complexity management | **Implemented** |
+| **Property-based conditional styling** | Linkurious, Neo4j Bloom | Node color/size driven by data properties (risk score → color spectrum) | **Implemented** |
+| **One-click UBO expansion** | NICE Actimize | Single click reveals full beneficial ownership tree with percentages | **Implemented** |
+| **Node annotations → audit trail** | Chainalysis, Linkurious | Text notes on graph nodes that persist as formal investigation evidence | **Implemented** |
+| **Perspectives (switchable views)** | Neo4j Bloom, Linkurious | Compliance View / Ownership View / Investigation View on same graph | Partial (Standard/Enriched) |
+| **Adaptive zoom detail** | Neo4j Bloom, Linkurious | Labels hide at overview zoom, full detail at close zoom | **Implemented** |
+| **Network-level risk scoring** | NICE Actimize, Quantexa | Entire subgraphs scored, not just individual nodes | Partial (contagion detection) |
+
+### Trust Relay's Graph Differentiators
+
+While competitors focus on visualization, Trust Relay's graph has **architectural depth** that visualization layers surface:
+
+1. **Cross-case pattern detection** — 5 fraud motif detectors (phoenix, shared director, circular ownership, dormant reactivation, contagion) running across the entire case portfolio. Competitors analyze single cases.
+2. **Bi-temporal entity tracking** — every entity carries valid time (when fact was true) and system time (when system learned it). No competitor offers temporal entity evolution visualization.
+3. **EVOI-driven investigation** — graph traversal is not just visualization; it drives investigation depth decisions through formal decision theory.
+4. **Standards-mapped provenance** — every node and relationship carries `standards_refs` (GLEIF, EU-AMLR, BODS, UCC) linking graph data to regulatory requirements. No competitor maps graph properties to regulatory standards.
+5. **Deterministic motif detection** — all pattern detection is rule-based (no LLM), making it auditable and reproducible. Satisfies EU AI Act Art. 12 (automatic logging).
+
+### Graph Visualization — Implemented (March 2026)
+
+All 5 phases delivered. The Network Intelligence Hub at `/dashboard/network` is live.
+
+| Phase | Deliverables | Status |
+|---|---|---|
+| Phase 1 | Risk donut segments, glyph badges, right-click context menu, expand, perspectives | **Implemented** |
+| Phase 2 | Ownership Tree View, one-click UBO, OFAC 50% Rule coloring, degree-of-separation | **Implemented** |
+| Phase 3 | Investigation Flow View (Sankey SVG), shortest path, EVOI belief state visualization | **Implemented** |
+| Phase 4 | Node annotation layer → audit trail (RLS), graph snapshot export for SAR/STR | **Implemented** |
+| Phase 5 | Keyboard shortcuts, risk-based sizing toggle, zoom to fit, deprecation banner | **Implemented** |
+
+Trust Relay's graph visualization now matches or exceeds every competitor analyzed. The combination of visualization depth + architectural intelligence (cross-case detection, EVOI, bi-temporal, standards mapping) is unmatched. The Investigation Flow View with EVOI belief state visualization is a Trust Relay unique — no competitor visualizes the investigation process itself.
+
+---
+
+## Atlas Adoption — New Differentiators (March–April 2026)
+
+Trust Relay adopted 8 architectural patterns from a co-founder's parallel Atlas codebase ([full Atlas documentation](/docs/atlas/overview)). Three of these directly extend the competitive differentiation above. Since the initial adoption, Trust Relay has expanded significantly in areas where Atlas has no coverage — 11 European country registries, goAML export, Lex regulatory corpus, and the Network Intelligence Hub.
+
+### EBA/GL/2021/02 Risk Matrix with SHA-256 Audit
+
+The platform's risk scoring engine now implements the EBA Guidelines on risk factors (EBA/GL/2021/02) as a 5-dimension matrix: Customer (0.30 weight), Geographic (0.25), Product/Service (0.20), Delivery Channel (0.10), and Transaction (0.15). Aggregation uses `weighted_max` — if any single dimension exceeds 80, a floor boost is applied so that one critical dimension cannot be averaged away by lower-risk dimensions.
+
+Every result carries `input_hash` and `output_hash` (SHA-256 of canonical JSON). An auditor can verify that a stored risk result was produced from a specific input without re-running the scorer. The matrix version is captured in each result.
+
+*No competitor publishes a SHA-256 determinism proof for their risk scoring. Regulatory examination responses for AML investigations require reproducible results; Trust Relay's EBA matrix makes this structural.*
+
+*Implementation: `backend/app/services/eba_risk_matrix.py`*
+
+### Trust-Weighted Survivorship with Protected Fields
+
+When two data sources provide conflicting information about the same entity, the SurvivorshipResolver selects the winning value using a calibrated per-source trust hierarchy: government registries (KBO: 0.98, GLEIF: 0.97, NBB: 0.95) beat structured APIs (NorthData: 0.85) which beat web scraping (crawl4ai: 0.70) which beats LLM extraction (0.75).
+
+Protected fields — `is_sanctioned`, `is_pep`, `sanctions_details`, `pep_details` — can only be set by authorised sources regardless of trust score. When two sources differ by less than 0.02 trust, a `ConflictRecord` is written for human review rather than silently resolving. Every resolution decision is logged with value, source, trust score, timestamp, and reason.
+
+*No competitor exposes data conflict resolution with source-level trust provenance. Officers currently have no visibility into which source "won" a conflicting data field. Trust Relay's Conflicts Panel (Wave 5) surfaces every disagreement.*
+
+*Implementation: `backend/app/services/survivorship.py`*
+
+### LLM-as-Judge Investigation Quality Scoring
+
+Every investigation synthesis report is automatically scored on 4 dimensions by a second LLM acting as judge (GPT-4.1-mini for cost efficiency): Completeness (1–10), Accuracy (1–10), Formatting (1–10), Actionability (1–10). A score below 5.0 triggers automatic re-investigation before the case transitions to `REVIEW_PENDING`.
+
+The quality score is visible on the case detail page and stored in `additional_data.quality_scores`. This creates a measurable feedback loop: prompt changes and model tier switches can be evaluated by their impact on average quality scores.
+
+*No competitor applies automated quality measurement to AI-generated investigation reports. Without a quality score, there is no objective signal to distinguish a well-investigated case from a superficially formatted one.*
+
+*Implementation: `backend/app/services/quality_scorer.py`*
+
+Full documentation of all 8 adopted services: [Atlas Adoption Architecture](./architecture/atlas-adoption.md)
+
+For comprehensive documentation of the Atlas system itself: [Atlas Reference](/docs/atlas/overview)
+
+---
+
 ## Where Competitors Are Stronger
 
 Honest assessment of gaps where established competitors hold significant advantages.
 
 ### Data Breadth
 
-- **ComplyAdvantage**: 400M+ entities in a pre-computed graph vs. Trust Relay's Belgian-focused registry data
+- **ComplyAdvantage**: 400M+ entities in a pre-computed graph vs. Trust Relay's registry-by-registry approach
 - **Moody's Orbis**: 600M+ company profiles with global financial data
-- **Trust Relay gap**: Currently deep in Belgium, with EEA routing architecture in place but country-specific scrapers not yet implemented beyond Belgium
+- **Trust Relay progress**: Now covers 11 European countries (BE, FR, NL, CH, CZ, DK, EE, FI, NO, RO, SK) with 20 dedicated registry services calling official government APIs. Still not global — EEA routing architecture supports expansion, but each country requires building country-specific integrations.
 
 ### Sanctions and Watchlist Quality
 
@@ -279,7 +376,7 @@ Honest assessment of gaps where established competitors hold significant advanta
 
 - **Sumsub**: 220+ countries with localized verification flows
 - **ComplyAdvantage**: Global entity graph with multi-jurisdictional coverage
-- **Trust Relay gap**: Currently Belgium + EEA country routing. The architecture supports country expansion (the KBO/NBB/Gazette pattern can be replicated per country), but each country requires building country-specific scrapers and integrations.
+- **Trust Relay progress**: Now 11 European countries with dedicated government API integrations (BE, FR, NL, CH, CZ, DK, EE, FI, NO, RO, SK). The architecture supports further expansion — each new country requires its own registry service(s), but the country routing infrastructure, investigation pipeline, and graph ETL are country-agnostic. Remaining gaps: Southern Europe (IT, ES, PT, GR), Nordics (SE, IS), and non-EU markets.
 
 ### Regulatory Acceptance
 
@@ -455,7 +552,7 @@ The market window is open but narrowing. Sinpex (EUR 10M), Dotfile (EUR 8.5M), a
 | API routers | 29 |
 | Backend tests | 3,200+ |
 | Frontend tests | 650+ |
-| Alembic migrations | 20 |
+| Alembic migrations | 35 |
 | Docker services | 11 |
 | External data sources integrated | 15+ |
 | Regulations in knowledge base | 21 |

@@ -1,6 +1,14 @@
 ---
 sidebar_position: 20
 title: "Confidence Scoring"
+components:
+  - app/services/confidence_engine.py
+  - app/services/quality_scorer.py
+  - app/services/calibration_service.py
+tests:
+  - tests/test_confidence_engine.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Investigation Confidence Scoring (Pillar 1)

@@ -1,6 +1,14 @@
 ---
 sidebar_position: 7
 title: "Temporal Workflows"
+components:
+  - app/workflows/compliance_case.py
+  - app/workflows/activities.py
+  - app/worker.py
+tests:
+  - tests/test_workflow.py
+last_verified: 2026-03-31
+status: implemented
 ---
 
 # Temporal Workflows
@@ -213,6 +221,25 @@ Activities are defined in `backend/app/workflows/activities.py`. They are the br
 | `persist_audit_event` | 30 sec | Write audit event to PostgreSQL |
 | `scrape_company_website` | 2 min | Crawl company website, store in MinIO |
 | `consolidate_investigation_memory` | 60 sec | Post-resolution episodic memory (best-effort) |
+| `persist_workflow_state` | 30 sec | Sync Temporal in-memory state to PostgreSQL at `REVIEW_PENDING` and all terminal states (approve/reject/escalate/failed) |
+
+### `persist_workflow_state` — State Durability Pattern
+
+This activity was added to close a reliability gap: before its introduction, the workflow's in-memory state was authoritative but PostgreSQL reflected it only via the query response at request time. If the workflow was unexpectedly terminated between status transitions, the PostgreSQL record could become stale.
+
+`persist_workflow_state` is called at two points:
+1. **Before `REVIEW_PENDING`** — after investigation completes and before waiting for the officer decision
+2. **At all terminal states** — `APPROVED`, `REJECTED`, `ESCALATED`, and `FAILED`
+
+At each checkpoint it writes:
+- `status` — current workflow status string
+- `investigation_results` — serialised investigation result JSONB
+- `generated_tasks` — task list JSONB
+- `mcc_classification` — MCC result JSONB
+- `current_iteration` — integer iteration counter
+- `completed_at` — timestamp for terminal states
+
+This means the case list and case detail pages load immediately from PostgreSQL without requiring a live Temporal query, improving dashboard performance and resilience against Temporal server restarts.
 
 ### `fetch_case_answers` — Workflow Input Immutability Pattern
 

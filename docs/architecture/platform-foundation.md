@@ -1,6 +1,18 @@
 ---
 sidebar_position: 19
 title: "Platform Foundation"
+components:
+  - app/db/models.py
+  - app/db/database.py
+  - app/services/cache_service.py
+  - app/services/domain_events.py
+  - app/services/name_matching_service.py
+  - app/services/field_validation.py
+  - app/services/audit_service.py
+  - app/services/branding_service.py
+  - app/services/reference_data_service.py
+last_verified: 2026-03-31
+status: implemented
 ---
 
 # Platform Foundation (Pillar 0)
@@ -517,6 +529,9 @@ The editor supports both creating new templates (`POST`) and editing existing on
 | `tenants` | Tenant metadata, branding JSONB, config JSONB |
 | `users` | User accounts linked to Keycloak, role, MFA status |
 | `workflow_templates` | Template definitions with document requirements, questions, verification chains, and red flag rules |
+| `risk_configurations` | Versioned risk scoring configurations — EBA weights, reference dataset overrides, activation status. RLS-enforced per tenant. |
+| `risk_config_audit` | Immutable audit log for risk configuration activations and deactivations. RLS-enforced per tenant. |
+| `discrepancy_resolutions` | Officer-initiated resolutions of data discrepancies detected during investigation. RLS-enforced per tenant. |
 
 **Alembic Migrations:**
 
@@ -526,6 +541,8 @@ The editor supports both creating new templates (`POST`) and editing existing on
 | `016` | Add `tenant_id` FK to all 22 tenant-scoped tables |
 | `017` | Enable `FORCE ROW LEVEL SECURITY` and create isolation + admin bypass policies |
 | `018` | Extend `workflow_templates` with verification chain, red flag rules, confidence adjustments, regulatory framework; seed 3 Belgian system templates |
+| `026` | Add `risk_configurations` and `risk_config_audit` tables with RLS |
+| `027` | Add `discrepancy_resolutions` table with RLS |
 
 ## API Endpoints
 

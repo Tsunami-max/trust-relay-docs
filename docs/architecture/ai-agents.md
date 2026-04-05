@@ -1,11 +1,28 @@
 ---
 sidebar_position: 8
 title: "AI Agents"
+components:
+  - app/agents/osint_agent.py
+  - app/agents/synthesis_agent.py
+  - app/agents/registry_agent.py
+  - app/agents/adverse_media_agent.py
+  - app/agents/person_validation_agent.py
+  - app/agents/belgian_agent.py
+  - app/agents/belgian_scraping_agent.py
+  - app/agents/country_registry.py
+  - app/agents/dashboard_agent.py
+  - app/agents/dashboard_stats_agent.py
+  - app/agents/document_extractor.py
+  - app/agents/finding_debugger.py
+  - app/agents/models.py
+  - app/agents/sanctions_resolver_agent.py
+last_verified: 2026-03-31
+status: implemented
 ---
 
 # AI Agent Architecture
 
-The AI agent layer is one of the strongest parts of the system. All 18+ agents follow a consistent pattern built on PydanticAI, producing structured Pydantic model outputs that integrate cleanly with the rest of the codebase.
+The AI agent layer is one of the strongest parts of the system. All 25 agents and engines follow a consistent pattern built on PydanticAI, producing structured Pydantic model outputs that integrate cleanly with the rest of the codebase.
 
 ## Agent Inventory
 
@@ -20,15 +37,34 @@ The AI agent layer is one of the strongest parts of the system. All 18+ agents f
 | 7 | Document Validator | `document_validator.py` | Document-to-requirement validation | GPT-5.2 | None |
 | 8 | MCC Classifier | `mcc_classifier.py` | Merchant Category Code assignment | GPT-5.2 | NACE-to-MCC lookup (local) |
 | 9 | Task Generator | `task_generator.py` | Follow-up task suggestion | GPT-5.2 | None |
-| 10 | Dashboard Agent | `dashboard_agent.py` | CopilotKit AI assistant | GPT-5.2 | Case search, data retrieval |
+| 10 | Dashboard Agent | `dashboard_agent.py` | CopilotKit AI assistant | GPT-5.2 | Case search, data retrieval, **write tools** (see below) |
 | 11 | Dashboard Stats Agent | `dashboard_stats_agent.py` | Analytics question answering | GPT-5.2 | None |
 | 12 | OSINT Orchestrator | `osint_agent.py` | Pipeline coordination | N/A | Coordinates agents 1-6 |
 | 13 | Website Scraper | (in activities.py) | Company website content extraction | N/A | crawl4ai |
-| 14 | Confidence Agent | `confidence_agent.py` | Confidence scoring computation | GPT-5.2 | None |
-| 15 | Red Flag Agent | `red_flag_agent.py` | Deterministic red flag detection | N/A | Rule engine |
-| 16 | EVOI Agent | `evoi_agent.py` | Expected Value of Investigation | GPT-5.2 | None |
-| 17 | Governance Agent | `governance_agent.py` | Pre/post-execution governance checks | GPT-5.2 | None |
+| 14 | Confidence Engine | `services/confidence_engine.py` | 4-dimension confidence scoring (evidence completeness, source diversity, consistency, historical calibration) | N/A | Deterministic computation |
+| 15 | Red Flag Engine | `services/red_flag_engine.py` | Deterministic rule evaluation against findings, discrepancies, and metadata | N/A | Rule engine |
+| 16 | EVOI Engine | `services/evoi_engine.py` | Adaptive investigation depth via Expected Value of Investigation | N/A | Deterministic computation |
+| 17 | Governance Engine | `services/governance_engine.py` | 3-mechanism deterministic safety enforcement (pre-execution, post-execution, memory write) | N/A | Deterministic rules |
 | 18 | Memory Admin Agent | `memory_admin_agent.py` | Compliance memory administration | GPT-5.2 | Letta tools |
+| 19 | Scan Agent | `scan_agent.py` | Tiered entity scanning orchestrator (Tier 0-3: E-VAL, lightweight, standard, full) | N/A | Coordinates tier services |
+| 20 | Scan Synthesis Agent | `scan_synthesis_agent.py` | Risk narrative generation for Tier 2 scan results | GPT-5.2 | None |
+| 21 | Sanctions Resolver Agent | `sanctions_resolver_agent.py` | LLM-based disambiguation of fuzzy sanctions matches (0.80-0.95 similarity) | GPT-5.2 | None |
+| 22 | Case Intelligence Agent | `case_intelligence_agent.py` | Decision support via historical case comparison and pattern analysis (EU AI Act Art. 14 compliant) | GPT-5.2 | None |
+| 23 | Finding Debugger | `finding_debugger.py` | Root cause analysis when officer rejects a finding (prompt gap, hallucination, missing data) | GPT-5.2 | Investigation trace retrieval |
+| 24 | Document Extractor | `document_extractor.py` | Structured data extraction from Docling-converted documents (UBO ownership, director details) | GPT-4.1-mini | None |
+| 25 | Country Registry | `country_registry.py` | Country-specific registry provider abstraction routing to BE, CZ, EE, CH, FR, NL, NO, DK, FI agents | N/A | Provider dispatch |
+
+## Dashboard Agent Write Tools
+
+As of 2026-03-31, the `dashboard_agent` exposes three **write tools** that let officers take case actions through natural-language chat. These are registered on the CopilotKit `CopilotRuntime` server alongside the existing read tools.
+
+| Tool | Backend | Description |
+|------|---------|-------------|
+| `resolve_discrepancy` | `POST /api/cases/{id}/discrepancies/{discrepancy_id}/resolve` | Mark a data discrepancy as resolved with an explanation. Resolution is persisted to the `discrepancy_resolutions` table and appended to the case audit log. |
+| `add_case_note` | `POST /api/cases/{id}/notes` | Add a free-text compliance note to a case. Notes are stored with officer identity and timestamp. |
+| `submit_finding_feedback` | `POST /api/cases/{id}/findings/{finding_id}/feedback` | Submit officer feedback (accept / reject / flag) on an individual finding. Feeds into the Quality Scorer calibration loop. |
+
+The dashboard prompt template (`prompts/templates/dashboard.jinja2`) was updated with a **Case Actions** section describing when and how to invoke these tools. Each tool call is individually audited via the `tool_audit_service` (EU AI Act Art. 12 compliance — automatic logging of all AI operations).
 
 ## PydanticAI Agent Pattern
 

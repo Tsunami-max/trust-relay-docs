@@ -1,6 +1,17 @@
 ---
 sidebar_position: 23
 title: "Agentic OS Foundation"
+components:
+  - app/services/evoi_engine.py
+  - app/services/agent_registry.py
+  - app/services/governance_engine.py
+  - app/services/agent_manifests.py
+  - app/services/agent_progress_service.py
+  - app/services/model_tiers.py
+  - app/services/tool_audit_service.py
+  - app/services/langfuse_service.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Agentic OS Foundation (Pillar 3.5)

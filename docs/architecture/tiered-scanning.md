@@ -1,6 +1,11 @@
 ---
 sidebar_position: 16
 title: "Tiered Scanning"
+components:
+  - app/agents/scan_agent.py
+  - app/agents/scan_synthesis_agent.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Tiered Scanning Architecture

@@ -33,6 +33,10 @@ const config: Config = {
     locales: ['en'],
   },
 
+  plugins: [
+    './plugins/architecture-index',
+  ],
+
   presets: [
     [
       'classic',
@@ -51,6 +55,12 @@ const config: Config = {
   ],
 
   themeConfig: {
+    docs: {
+      sidebar: {
+        hideable: true,
+        autoCollapseCategories: true,
+      },
+    },
     mermaid: {
       theme: {light: 'default', dark: 'dark'},
     },
@@ -88,9 +98,27 @@ const config: Config = {
         },
         {
           type: 'docSidebar',
+          sidebarId: 'methodologySidebar',
+          position: 'left',
+          label: 'Methodology',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'atlasSidebar',
+          position: 'left',
+          label: 'Atlas Reference',
+        },
+        {
+          type: 'docSidebar',
           sidebarId: 'strategySidebar',
           position: 'left',
           label: 'Strategy',
+        },
+        {
+          type: 'docSidebar',
+          sidebarId: 'releasesSidebar',
+          position: 'left',
+          label: 'Releases',
         },
         {
           href: 'https://github.com/Tsunami-max/trust-relay-workflow',
@@ -117,6 +145,10 @@ const config: Config = {
               label: 'API Reference',
               to: '/docs/api/overview',
             },
+            {
+              label: 'Methodology',
+              to: '/docs/methodology/overview',
+            },
           ],
         },
         {
@@ -125,6 +157,10 @@ const config: Config = {
             {
               label: 'Trust Relay',
               href: 'https://trustrelay.eu',
+            },
+            {
+              label: 'Atlas Reference',
+              to: '/docs/atlas/overview',
             },
             {
               label: 'GitHub',

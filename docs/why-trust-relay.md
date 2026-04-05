@@ -429,7 +429,7 @@ Credibility in compliance is earned through honesty, not marketing claims. These
 
 **400M+ entity database.** Trust Relay investigates deeply, not broadly. ComplyAdvantage and Moody's Orbis have pre-computed global entity graphs with hundreds of millions of records. Trust Relay builds focused, case-scoped graphs per investigation. The trade-off is intentional but real -- broad entity coverage requires data licensing partnerships.
 
-**Production deployment history.** Trust Relay is at proof-of-concept stage. There are no production customers, no SOC 2 certification, no regulatory audit trail. What does exist: 3,391+ automated tests (2,830+ backend + 561+ frontend), 63 service modules, 95 API endpoints across 28 routers, 37 AI agent tools, 17 architectural decision records, and a codebase that demonstrates engineering discipline typically associated with later-stage products.
+**Production deployment history.** Trust Relay is at proof-of-concept stage. There are no production customers, no SOC 2 certification, no regulatory audit trail. What does exist: 4,176+ automated tests (4,117+ backend + 59 frontend), 116 service modules, 242 API endpoints across 41 routers, 37 AI agent tools, 17 architectural decision records, and a codebase that demonstrates engineering discipline typically associated with later-stage products.
 
 **Global geographic coverage.** Currently deep in Belgium with EEA country routing architecture in place. The Belgian implementation (KBO, NBB, Gazette, PEPPOL, Inhoudingsplicht) establishes a repeatable pattern -- each new country requires 2-4 weeks to build country-specific registry scrapers and wire them into the routing layer. The architecture is designed for expansion, but today, deep OSINT coverage outside Belgium is limited. Thirty EEA countries are supported for basic entity creation and routing; five Belgian data sources are fully integrated.
 
@@ -443,14 +443,14 @@ Numbers that demonstrate execution maturity, not just vision:
 
 | Metric | Value |
 |---|---|
-| Automated tests | 3,391+ (2,830+ backend + 561+ frontend) |
-| Backend service modules | 63 |
+| Automated tests | 4,176+ (4,117+ backend + 59 frontend) |
+| Backend service modules | 116 |
 | AI agent tools | 37 (across dashboard, synthesis, task generator, memory admin agents) |
 | AI agents in investigation pipeline | 18+ |
-| API endpoints | 95 |
-| Pydantic model files | 25 |
+| API endpoints | 242 |
+| Pydantic model files | 35 |
 | Architectural Decision Records | 17 |
-| Database migrations | 21 (Alembic-managed) |
+| Database migrations | 32 (Alembic-managed) |
 | Belgian OSINT data sources | 5 (KBO, NBB, Gazette, PEPPOL, Inhoudingsplicht) |
 | External data integrations | 7+ (NorthData, BrightData, Tavily, VIES, OpenSanctions, Crunchbase, crawl4ai) |
 | Copilot intelligence domains | 8 (case, entity, temporal, financial, standards, portfolio, memory, learning) |
@@ -458,7 +458,7 @@ Numbers that demonstrate execution maturity, not just vision:
 | Maximum investigation iterations | 5 per case |
 | Maximum case timeline | 60 days |
 
-The codebase follows documented engineering standards (Golden Standard v6) with explicit rules about test quality, coverage thresholds (90% for workflow layer, 70% for API and UI), and architectural decisions recorded before implementation. No mocking by default -- tests run against real databases via testcontainers. Temporal workflow tests use the official time-skipping test server.
+The codebase follows documented engineering standards (S4U Development Methodology) with explicit rules about test quality, coverage thresholds (90% for workflow layer, 70% for API and UI), and architectural decisions recorded before implementation. No mocking by default -- tests run against real databases via testcontainers. Temporal workflow tests use the official time-skipping test server.
 
 ---
 

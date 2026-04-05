@@ -1,6 +1,8 @@
 ---
 sidebar_position: 2
 title: "Tech Stack"
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Technology Stack
@@ -39,7 +41,7 @@ All frontend rendering is client-side. Next.js SSR/RSC capabilities are availabl
 | uvicorn | latest | ASGI server | Production-ready |
 
 :::note
-SQLAlchemy ORM models are defined for all 19+ tables in `app/db/models.py`. Alembic is configured with async support and 14 migrations covering the full schema evolution (initial schema, portal token expiry, calibration, reasoning templates, alerts, tool invocations, governance checks, EVOI decisions, automation tiers, signal events, and more). The current query layer uses `sqlalchemy.text()` with parameterized queries. ORM query migration is planned as a follow-up refinement.
+SQLAlchemy ORM models are defined for all 50 tables in `app/db/models.py`. Alembic is configured with async support and 32 migrations covering the full schema evolution (initial schema, portal token expiry, calibration, reasoning templates, alerts, tool invocations, governance checks, EVOI decisions, automation tiers, signal events, multi-tenancy RLS, diagnostics, finding intelligence, Lex knowledge layer, and more). The current query layer uses `sqlalchemy.text()` with parameterized queries. ORM query migration is planned as a follow-up refinement.
 :::
 
 ## Workflow Engine
@@ -82,7 +84,7 @@ All agents default to `openai:gpt-5.2` except the Belgian scraping agent which u
 | MinIO | latest | S3-compatible object storage for documents | Production-ready |
 | Redis | 8 (Alpine) | Cache layer (PEPPOL, inhoudingsplicht results) | Production-ready |
 
-### Database Schema (19+ tables)
+### Database Schema (50 tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -123,12 +125,12 @@ Each data source uses the scraping tool best suited to its protection level. See
 
 | Technology | Purpose | Scope |
 |-----------|---------|-------|
-| pytest | Backend test runner | 2,670+ tests |
+| pytest | Backend test runner | 4,117+ tests |
 | Testcontainers | Isolated database containers for integration tests | 20 PostgreSQL integration tests |
 | respx | HTTP mock library for httpx | OSINT and scraping service tests |
 | PydanticAI TestModel | Deterministic AI agent testing | All 18+ agents |
-| Jest | Frontend test runner | 561+ tests |
-| React Testing Library | Component testing | 47 test suites covering dashboard, portal, entity-network, memory |
+| Jest | Frontend test runner | 59 test files |
+| React Testing Library | Component testing | 59 test suites covering dashboard, portal, entity-network, memory |
 | Playwright | End-to-end browser testing | 6 E2E specs |
 
 ### Test Safety Mechanisms
@@ -162,3 +164,26 @@ Each data source uses the scraping tool best suited to its protection level. See
 :::tip Production Readiness
 Log aggregation (structured JSON logging with correlation IDs) and HTTPS termination (via reverse proxy) are planned for the production deployment phase. See [Deployment](/docs/architecture/deployment) for the full production roadmap.
 :::
+
+## Development Tool Stack
+
+Claude Code plugins, MCP servers, and LSP integrations that power the AI-driven development workflow.
+
+| Plugin | Purpose |
+|--------|---------|
+| Superpowers | Methodology lifecycle (12 skills, 25 agent types) |
+| code-review | Multi-agent PR review (5 parallel Sonnet agents) |
+| code-simplifier | Code bloat detection (3 review agents) |
+| typescript-lsp | Real-time TypeScript diagnostics |
+| pyright-lsp | Real-time Python type diagnostics |
+| serena | Symbol-level code navigation |
+| context7 | Up-to-date library documentation |
+| aikido | Security scanning (SAST, secrets detection) |
+| coderabbit | External AI code review |
+| codebase-memory-mcp | Persistent code knowledge graph |
+
+| Category | Details |
+|----------|---------|
+| MCP servers | 3 (Neo4j, Temporal, codebase-memory-mcp) + Aikido security |
+| LSP servers | 2 (TypeScript, Pyright) |
+| Cross-tool compatibility | AGENTS.md symlinked to CLAUDE.md (Linux Foundation Agentic AI Foundation standard) |

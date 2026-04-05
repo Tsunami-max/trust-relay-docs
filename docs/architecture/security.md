@@ -1,6 +1,8 @@
 ---
 sidebar_position: 5
 title: "Security"
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Security Architecture

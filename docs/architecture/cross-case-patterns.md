@@ -1,6 +1,11 @@
 ---
 sidebar_position: 22
 title: "Cross-Case Patterns"
+components:
+  - app/services/graph_service.py
+  - app/services/alert_service.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Cross-Case Pattern Detection (Pillar 3)

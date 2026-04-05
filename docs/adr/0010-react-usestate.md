@@ -9,12 +9,8 @@ title: "ADR-0010: React useState/useEffect"
 | | |
 |---|---|
 | **Date** | 2025-12-15 |
-| **Status** | `Superseded by ADR-0015` |
+| **Status** | `Accepted (PoC)` |
 | **Deciders** | Adrian Birlogeanu |
-
-:::warning Superseded
-This ADR has been superseded by [ADR-0015: React Query Caching](./0015-react-query-caching.md).
-:::
 
 ## Context
 

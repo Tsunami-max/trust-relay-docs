@@ -1,6 +1,11 @@
 ---
 sidebar_position: 26
 title: "Session Diagnostics"
+components:
+  - app/services/diagnostic_service.py
+  - app/services/failure_classifier.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Session-Based Investigation Diagnostics

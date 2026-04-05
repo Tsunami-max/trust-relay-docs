@@ -8,7 +8,7 @@ description: "Full-text EU regulation corpus, hybrid semantic search, and zero-h
 
 > No competitor offers a queryable regulatory text corpus integrated with an active investigation workflow. Lex is the layer that makes this possible.
 
-The Lex module ingests, structures, indexes, and serves the full text of EU and Belgian national regulations. It makes these regulations queryable by the Copilot, connects them to the Regulatory Radar, enriches gap analysis with verbatim article text, and verifies that every cited article actually exists in the corpus before delivery to the officer.
+The Lex module ingests, structures, indexes, and serves the full text of 34 EU regulations and national AML laws across 8 jurisdictions (EU, BE, CZ, DE, DK, EE, FI, NL). It makes these regulations queryable by the Copilot, connects them to the Regulatory Radar, enriches gap analysis with verbatim article text, and verifies that every cited article actually exists in the corpus before delivery to the officer.
 
 This is not a standalone regulatory intelligence product. It is a knowledge layer that enriches capabilities that already exist. The Copilot gains a new intelligence domain. The Radar gains grounded text. The evidence chain gains regulatory article citations with source links. The gap analysis gains the ability to quote the exact law that a finding violates.
 
@@ -28,7 +28,7 @@ Lex closes this gap. The Copilot can now answer regulatory questions with verbat
 
 | Metric | Value |
 |---|---|
-| Regulations indexed | 24 |
+| Regulations indexed | 34 |
 | Articles indexed | ~2,005 |
 | Embedded chunks | ~2,124 |
 | Embedding model | OpenAI `text-embedding-3-large` |
@@ -40,36 +40,89 @@ Lex closes this gap. The Copilot can now answer regulatory questions with verbat
 
 ## Regulations Covered
 
-### EU Direct Regulations (Phase 1)
+### Wave 1 — Core EU Regulations (8)
 
-| Short Name | Full Title | CELEX | Key Articles |
+| Short Name | Full Title | CELEX | Priority |
 |---|---|---|---|
-| AMLR | Anti-Money Laundering Regulation (EU 2024/1624) | 32024R1624 | Art. 15–73: CDD, EDD, beneficial ownership, reporting |
-| AMLD6 | 6th Anti-Money Laundering Directive (EU 2024/1640) | 32024L1640 | Art. 1–80: institutional framework, FIU, supervision |
-| EU AI Act | Artificial Intelligence Act (EU 2024/1689) | 32024R1689 | Art. 6–15, 50, Annex III: high-risk systems, transparency |
-| GDPR | General Data Protection Regulation (EU 2016/679) | 32016R0679 | Art. 5–6, 9, 13–14, 17, 22, 25, 30, 35 |
-| DORA | Digital Operational Resilience Act (EU 2022/2554) | 32022R2554 | Art. 5–15: ICT risk, incident reporting, testing |
-| MiCA | Markets in Crypto-Assets Regulation (EU 2023/1114) | 32023R1114 | Art. 59–92: AML provisions for CASPs |
-| EU IPR | EU Instant Payments Regulation (EU 2024/886) | 32024R0886 | Art. 5c–5g: Verification of Payee |
-| PSD2 | Payment Services Directive 2 (EU 2015/2366) | 32015L2366 | Art. 97–98 (SCA), Art. 65–67 (AISP/PISP) |
+| AMLR | Anti-Money Laundering Regulation (EU 2024/1624) | 32024R1624 | Critical |
+| AMLD6 | 6th Anti-Money Laundering Directive (EU 2024/1640) | 32024L1640 | Critical |
+| EU AI Act | Artificial Intelligence Act (EU 2024/1689) | 32024R1689 | Critical |
+| GDPR | General Data Protection Regulation (EU 2016/679) | 32016R0679 | High |
+| DORA | Digital Operational Resilience Act (EU 2022/2554) | 32022R2554 | Medium |
+| MiCA | Markets in Crypto-Assets Regulation (EU 2023/1114) | 32023R1114 | Medium |
+| EU-IPR | EU Instant Payments Regulation (EU 2024/886) | 32024R0886 | High |
+| PSD2 | Payment Services Directive 2 (EU 2015/2366) | 32015L2366 | Medium |
 
-### Belgian National Legislation (Phase 1)
+### Wave 2 — Financial Services & Digital Infrastructure (6)
 
-| Short Name | Full Title | Source | Key Provisions |
+| Short Name | Full Title | CELEX | Priority |
 |---|---|---|---|
-| WitWas | Belgian AML Law, 18 September 2017 | Justel/Belgisch Staatsblad | Art. 7–46 (CDD), Art. 47–65 (CTIF-CFI reporting) |
-| WVV/CSA | Belgian Companies & Associations Code | Justel | Art. 5:1–5:164 (BV/SRL), UBO register obligations |
-| UBO KB | UBO Register Royal Decree, 30 July 2018 | Justel | Full text: UBO declaration obligations |
+| NIS2 | Network and Information Security Directive (EU 2022/2555) | 32022L2555 | High |
+| DSA | Digital Services Act (EU 2022/2065) | 32022R2065 | Medium |
+| MiFID II | Markets in Financial Instruments Directive (2014/65/EU) | 32014L0065 | Medium |
+| eIDAS 2 | European Digital Identity Framework (EU 2024/1183) | 32024R1183 | Medium |
+| CRD IV | Capital Requirements Directive (2013/36/EU) | 32013L0036 | Medium |
+| AMLA Reg | AMLA Establishment Regulation (EU 2024/1620) | 32024R1620 | Critical |
 
-### Additional Regulations (Phases 2+)
+### Wave 3 — Sustainability, Travel Rule & Payments (6)
+
+| Short Name | Full Title | CELEX | Priority |
+|---|---|---|---|
+| TFR | Transfer of Funds / Travel Rule Regulation (EU 2023/1113) | 32023R1113 | High |
+| CSDDD | Corporate Sustainability Due Diligence Directive (EU 2024/1760) | 32024L1760 | Medium |
+| CSRD | Corporate Sustainability Reporting Directive (EU 2022/2464) | 32022L2464 | Medium |
+| Whistleblower | Whistleblower Protection Directive (EU 2019/1937) | 32019L1937 | Medium |
+| EMD2 | Electronic Money Directive (2009/110/EC) | 32009L0110 | Medium |
+| SEPA | SEPA Credit Transfer & Direct Debit Regulation (EU 260/2012) | 32012R0260 | Medium |
+
+### Wave 4 — Fiscal Representatives & Taxation (4)
+
+| Short Name | Full Title | CELEX | Priority |
+|---|---|---|---|
+| VAT Directive | Common System of Value Added Tax (2006/112/EC) | 32006L0112 | High |
+| DAC | Administrative Cooperation in Taxation (2011/16/EU) | 32011L0016 | Medium |
+| DAC7 | Digital Platform Reporting Directive (EU 2021/514) | 32021L0514 | High |
+| AMLD5 | 5th Anti-Money Laundering Directive (EU 2018/843) | 32018L0843 | High |
+
+### Wave 5 — Customs & Trade Compliance (3)
+
+The Union Customs Code trilogy — critical for KYB entities that act as importer/exporter or hold AEO status.
+
+| Short Name | Full Title | CELEX | Priority |
+|---|---|---|---|
+| UCC | Union Customs Code (EU 952/2013) | 32013R0952 | Critical |
+| UCC-DA | UCC Delegated Act — detailed rules (EU 2015/2446) | 32015R2446 | High |
+| UCC-IA | UCC Implementing Act — implementation rules (EU 2015/2447) | 32015R2447 | High |
+
+### Wave 6 — National AML Regulations (4)
+
+National transpositions of AMLD into domestic law. Each uses a jurisdiction-specific fetcher to retrieve from the national official gazette or supervisory authority.
+
+| Short Name | Full Title | Jurisdiction | Fetcher | Source |
+|---|---|---|---|---|
+| EE-AML | Estonian Money Laundering and Terrorist Financing Prevention Act | EE | `riigi_teataja` | Riigi Teataja (official gazette) |
+| FI-AML | Finnish Act on Preventing Money Laundering and Terrorist Financing (444/2017) | FI | `pdf` | Fin-FSA English translation |
+| NL-Wwft | Dutch Wet ter voorkoming van witwassen en financieren van terrorisme | NL | `bwb` | wetten.overheid.nl |
+| DK-AML | Danish Act on Measures to Prevent Money Laundering (Hvidvaskloven) | DK | `pdf` | Finanstilsynet English translation |
+
+### Wave 7 — National AML Regulations (3)
+
+Additional national AML laws from PDF publications on official supervisory authority websites.
+
+| Short Name | Full Title | Jurisdiction | Fetcher | Source |
+|---|---|---|---|---|
+| BE-AML | Belgian Law of 18 September 2017 on Prevention of Money Laundering | BE | `pdf` | NBB English coordination |
+| CZ-AML | Czech Act No. 253/2008 on Measures against Legitimisation of Proceeds of Crime | CZ | `pdf` | FAU English translation |
+| DE-GwG | German Geldwaschegesetz (GwG) — Anti-Money Laundering Act | DE | `html` | Gesetze-im-Internet (official) |
+
+### Not Yet Implemented
 
 | Short Name | Status |
 |---|---|
-| AMLA Technical Standards | In scope — Phase 2 (AMLA consultations started Feb 2026) |
-| CSDDD (EU 2024/1760) | In scope — Phase 2 (supply chain due diligence) |
-| PSD3/PSR | In scope — Phase 2 (when adopted) |
-| Dutch Wwft | In scope — Netherlands expansion |
-| German GwG | In scope — Germany expansion |
+| PSD3/PSR | In scope — when adopted |
+| AMLA Technical Standards | In scope — AMLA consultations started Feb 2026 |
+| WVV/CSA (Belgian Companies Code) | In scope — Belgian expansion |
+| UBO KB (Belgian UBO Royal Decree) | In scope — Belgian expansion |
 
 ---
 
@@ -78,15 +131,18 @@ Lex closes this gap. The Copilot can now answer regulatory questions with verbat
 ### Ingestion Pipeline (5 Stages)
 
 ```
-Source (EUR-Lex CELLAR / Justel)
+Sources (EUR-Lex CELLAR / National Gazettes / Authority PDFs / HTML)
     │
-    ▼ Stage 1: Fetch
+    ▼ Stage 1: Fetch (multi-source)
     │  EURLexFetcher — CELLAR REST API, content negotiation (XHTML → Formex fallback)
-    │  BelgianLegislationFetcher — Justel ELI URL construction + HTML scraping
+    │  RiigiTeataja fetcher — Estonian Riigi Teataja (EE-AML)
+    │  BWB fetcher — Dutch wetten.overheid.nl (NL-Wwft)
+    │  PDF fetcher — downloads PDF, extracts text via pypdf (FI-AML, DK-AML, BE-AML, CZ-AML)
+    │  HTML fetcher — scrapes official HTML pages (DE-GwG)
     │  SHA-256 hash of raw content for change detection
     │
     ▼ Stage 2: Parse
-    │  EURegulationParser — extracts article hierarchy from EUR-Lex HTML class conventions
+    │  EURegulationParser — extracts article hierarchy from HTML class conventions
     │  Handles: titles, chapters, sections, articles, paragraphs, sub-points, annexes, recitals
     │  Cross-reference detection: internal (Art. 28(1)(a)) and external (Directive 2024/1640)
     │
@@ -180,7 +236,7 @@ Target coverage: 100% (106/106 articles linked). Current status after bridge: 10
 
 `/dashboard/admin/lex` — accessible to Compliance Managers and System Administrators. Shows:
 
-- All 24 regulations with article counts and last ingestion timestamp
+- All 34 regulations with article counts and last ingestion timestamp
 - Per-regulation re-ingest button (for updates when regulations are amended)
 - Bridge status and coverage percentage
 - Ingestion log with error details for failed operations
@@ -234,7 +290,7 @@ Triggers a fresh fetch + parse + chunk + embed + index cycle for the named regul
 POST /api/v1/lex/ingest-all
 ```
 
-Runs `ingest` for all 24 configured regulations in parallel (rate-limited). Long-running — expect 5–15 minutes. Returns a summary with counts per regulation and any errors encountered.
+Runs `ingest` for all 34 configured regulations in parallel (rate-limited). Long-running — expect 5–15 minutes. Returns a summary with counts per regulation and any errors encountered.
 
 ### Corpus statistics
 
@@ -300,6 +356,6 @@ Because Lex serves text that compliance officers use to justify risk assessments
 | Full input provenance | Every Lex response records which chunks were retrieved and at what similarity score |
 | Immutable audit trail | `lex_ingestion_log` is append-only; ingestion operations are never deleted |
 | Content integrity | SHA-256 hash stored at fetch time; change detection alerts on update |
-| Source traceability | Every article includes the EUR-Lex ELI URI for independent verification |
+| Source traceability | Every article includes a source URL (EUR-Lex ELI, national gazette, or authority PDF) for independent verification |
 
 These constraints satisfy EU AI Act Art. 12 (automatic logging), Art. 13 (transparency), and the AML directive requirements for documented risk-based methodology.

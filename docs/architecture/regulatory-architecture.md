@@ -2,6 +2,10 @@
 sidebar_position: 28
 title: "Regulatory Compliance Architecture"
 description: "How Trust Relay's architecture ensures compliance with EU AI Act, GDPR, and AML regulations by design"
+components:
+  - app/services/regulatory_radar_service.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Regulatory Compliance Architecture

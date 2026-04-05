@@ -1,6 +1,16 @@
 ---
 sidebar_position: 14
 title: "Knowledge Graph"
+components:
+  - app/services/graph_service.py
+  - app/services/graph_etl.py
+  - app/api/graph.py
+  - app/services/pattern_engine.py
+  - app/services/recursive_discovery_service.py
+tests:
+  - tests/test_graph_service.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Knowledge Graph

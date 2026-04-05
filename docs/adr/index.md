@@ -27,9 +27,9 @@ ADRs are immutable once accepted. If a decision is superseded, the original ADR 
 | [ADR-0012](./0012-hybrid-scraping) | Hybrid Scraping Tool Selection per Data Source | Implemented | 2026-01-15 |
 | [ADR-0013](./0013-copilotkit-v2) | CopilotKit v2 Migration | Accepted (supersedes ADR-0004) | 2026-02-01 |
 | [ADR-0014](./0014-neo4j-knowledge-graph) | Neo4j Knowledge Graph (CQRS Read Layer) | Implemented | 2026-02-25 |
-| [ADR-0015](./0015-react-query-caching) | React Query for Frontend Caching | Implemented | 2026-02-25 |
-| [ADR-0016](./0016-tiered-scan-agent) | Tiered Scan Agent (Portfolio-Scale Entity Screening) | Implemented | 2026-02-27 |
-| [ADR-0017](./0017-compliance-memory-system) | Compliance Memory System | Accepted | 2026-03-01 |
+| [ADR-0015](./0015-session-diagnostics) | Session-Based Investigation Diagnostics | Accepted | 2026-03-08 |
+| [ADR-0016](./0016-shared-regulatory-corpus) | Shared Regulatory Corpus Without Tenant RLS | Accepted | 2026-03-17 |
+| [ADR-0017](./0017-trust-capsule) | Trust Capsule Cryptographic Architecture | Accepted | 2026-03-19 |
 
 ## ADR Template
 

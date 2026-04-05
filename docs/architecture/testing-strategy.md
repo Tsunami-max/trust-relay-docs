@@ -1,20 +1,22 @@
 ---
 sidebar_position: 13
 title: "Testing Strategy"
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Testing Strategy
 
-The project has substantial test coverage with 2,830+ backend tests, 561+ frontend tests, and 6 E2E specs -- 3,391+ automated tests in total. This page documents the testing approach and infrastructure.
+The project has substantial test coverage with 4,117+ backend tests, 59 frontend test files, and 6 E2E specs -- 4,176+ automated tests in total. This page documents the testing approach and infrastructure.
 
 ## Test Counts
 
 | Layer | Tests | Runner | Notes |
 |-------|-------|--------|-------|
-| Backend | 2,830+ | pytest | Async mode, no `@pytest.mark.asyncio` needed |
-| Frontend | 561+ | Jest + RTL | 47 test suites covering dashboard, portal, entity-network, memory, and utilities |
+| Backend | 4,117+ | pytest | 241 test files, async mode, no `@pytest.mark.asyncio` needed |
+| Frontend | 59 | Jest + RTL | 59 test suites covering dashboard, portal, entity-network, memory, and utilities |
 | E2E | 6 | Playwright | Cross-browser browser tests |
-| **Total** | **3,391+** | | |
+| **Total** | **4,176+** | | |
 
 ## Backend Testing
 
@@ -122,7 +124,7 @@ Several test files include live-gated tests that run against real external APIs 
 
 ### What Is Tested
 
-All dashboard components have dedicated test files with rendering, interaction, and edge case coverage. The 37 test suites include:
+All dashboard components have dedicated test files with rendering, interaction, and edge case coverage. The 59 test suites include:
 
 ```
 frontend/src/__tests__/
@@ -181,22 +183,22 @@ e2e/
 
 ## Coverage Targets
 
-The project follows Golden Standard v6 coverage targets:
+The project follows S4U Development Methodology coverage targets:
 
 | Layer | Target | Actual | Status |
 |-------|--------|--------|--------|
 | Workflow state machine + activities | 90% | ~85% | Close |
 | FastAPI endpoints | 70% | ~75% | **Met** |
-| React components | 70% | ~80% | **Met** (47 test suites, 561+ tests) |
+| React components | 70% | ~80% | **Met** (59 test suites) |
 | Docling / MinIO integration | 70% | ~70% | Met |
 
 :::tip
-Frontend remediation (Phases 5+) added 300+ new frontend tests, bringing total coverage from ~40% to ~80% for React components. All dashboard components now have dedicated test files across 37 test suites.
+Frontend remediation (Phases 5+) brought total coverage from ~40% to ~80% for React components. All dashboard components now have dedicated test files across 59 test suites.
 :::
 
-## Golden Standard Compliance
+## S4U Development Methodology Compliance
 
-The project's Golden Standard v6 mandates specific testing practices:
+The project's S4U Development Methodology mandates specific testing practices:
 
 ### No Mocking by Default
 
@@ -249,7 +251,7 @@ In CI, GitHub Actions service containers serve the same purpose with less overhe
 
 ### Frontend Component Coverage (Phase 5)
 
-All dashboard components now have dedicated test files across 47 test suites (561+ tests), up from partial coverage of 16 components. Tests cover rendering, user interactions, edge cases, and accessibility.
+All dashboard components now have dedicated test files across 59 test suites, up from partial coverage of 16 components. Tests cover rendering, user interactions, edge cases, and accessibility.
 
 ## Future Testing Enhancements
 

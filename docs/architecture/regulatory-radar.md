@@ -1,6 +1,14 @@
 ---
 sidebar_position: 25
 title: "Regulatory Radar"
+components:
+  - app/services/regulatory_radar_service.py
+  - app/api/regulatory.py
+  - app/services/regulatory_impact_service.py
+  - app/services/regulatory_knowledge_service.py
+  - app/services/rule_evaluation_service.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Regulatory Radar (Pillar 5)

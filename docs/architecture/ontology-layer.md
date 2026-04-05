@@ -1,6 +1,10 @@
 ---
 sidebar_position: 15
 title: "Ontology Layer"
+components:
+  - app/services/graph_ontology_data.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Ontology Layer

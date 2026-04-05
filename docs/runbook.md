@@ -181,7 +181,7 @@ cd backend
 alembic upgrade head
 ```
 
-This applies all migrations in sequence. As of this writing there are 25 migrations covering the core schema, all feature pillars, the RLS policies for multi-tenancy, and the Lex regulatory knowledge layer tables.
+This applies all migrations in sequence. As of this writing there are 32 migrations covering the core schema, all feature pillars, the RLS policies for multi-tenancy, and the Lex regulatory knowledge layer tables.
 
 Expected output ends with something like:
 

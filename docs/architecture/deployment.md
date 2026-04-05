@@ -1,6 +1,8 @@
 ---
 sidebar_position: 12
 title: "Deployment"
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Deployment

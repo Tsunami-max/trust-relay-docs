@@ -2,6 +2,18 @@
 sidebar_position: 27
 title: "EVOI Engine"
 description: "Expected Value of Investigation — adaptive investigation depth using decision theory"
+components:
+  - app/services/evoi_engine.py
+  - app/models/evoi.py
+  - app/services/agent_registry.py
+  - app/services/network_scan_service.py
+tests:
+  - tests/test_evoi_engine.py
+  - tests/test_network_investigation.py
+  - tests/test_network_scan_service.py
+  - tests/test_pillar35_integration.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # EVOI Engine
@@ -305,3 +317,86 @@ Because `p_critical=0.15`, governance forces full pipeline execution regardless.
 **Step 4: Network EVOI**
 
 The knowledge graph reveals a UBO connection (weight=0.9) to another entity. Network EVOI = `0.9 * avg_uncertainty * 100 - 0.008` = positive. The connected entity is assigned to `tier_2` investigation.
+
+## Recursive Network Investigation
+
+EVOI now drives fully autonomous recursive network scanning after the primary investigation completes. Rather than evaluating only the entities already present in the knowledge graph, the engine reaches out to NorthData `relatedCompanies` to discover the full corporate network around the subject entity.
+
+### Network Discovery Phase
+
+After primary OSINT investigation, the engine calls NorthData to extract `relatedCompanies` for the subject entity. For well-connected entities this can yield a substantial network — the Bolloré group, for example, surfaces 22 connected entities in a single NorthData response. Each connection carries an `euId` (NorthData's European entity identifier) that is passed as the registration ID for subsequent lookups, significantly improving match quality compared to name-only queries.
+
+Each discovered connection is evaluated using Network EVOI with the same connection weights as single-entity evaluation:
+
+| Relationship | Weight |
+|---|---|
+| UBO / parent company | 0.9 |
+| Director (shared governance) | 0.8 |
+| Shared address | 0.5 |
+| Shared industry / sector | 0.3 |
+
+Connections with a positive Network EVOI score receive an `"investigate"` decision; others are tagged `"skip"` and recorded in the audit trail with the reason.
+
+### Per-Entity Lightweight Scan
+
+For each entity receiving an `"investigate"` decision, the engine executes a parallelized lightweight scan consisting of three concurrent checks:
+
+1. **NorthData company lookup** — status, directors, related companies at the next depth level
+2. **OpenSanctions screening** — fuzzy name match against the 831K-entity local database
+3. **Jurisdiction risk evaluation** — FATF grey/blacklist + EU high-risk third countries
+
+This scan takes approximately 35–60 seconds for 16 entities, with the NorthData component rate-limited to a 2-second interval between requests (global rate limiter shared across all concurrent scans).
+
+Results per entity include: `company_status`, list of `directors`, `sanctions_status`, and `jurisdiction_risk` classification.
+
+### Depth-1 Recursive Expansion
+
+Once depth-0 entities are scanned, the engine collects the `relatedCompanies` discovered from those scans and evaluates them as depth-1 candidates. Network EVOI is re-computed at `depth + 1`, meaning the evaluation naturally produces lower scores (higher cost relative to marginal information gain) as distance from the primary entity increases.
+
+### Safety Controls
+
+The recursive expansion is bounded by hard safety limits:
+
+| Control | Value | Purpose |
+|---|---|---|
+| `max_network_depth` | 2 | Maximum hops from primary entity |
+| Budget ceiling | `evoi_network_budget_multiplier × primary_cost` | Prevents unbounded spend |
+| Deduplication | Set-based entity ID tracking | Prevents re-scanning entities already visited |
+| Rate limiting | 2-second NorthData interval | Respects API terms and prevents throttling |
+
+### Cross-Network Corroboration
+
+After all scanned entities are collected, the engine runs a corroboration analysis across the full network:
+
+- **Shared directors**: the same natural person appearing as director at multiple network entities raises the governance concentration flag. Each shared director contributes +10 to compound risk.
+- **Jurisdiction concentration**: multiple entities registered in high-risk jurisdictions compound the risk assessment. A jurisdiction hit contributes +30 to compound risk.
+- **Dissolved entities**: entities with status `terminated`, `dissolved`, or equivalent contribute +20 to compound risk. This pattern is a known indicator of layered shell structures used for sanctions evasion.
+- **Unknown status**: entities whose status cannot be determined (often due to opaque offshore registrations) contribute +15 to compound risk.
+- **Sanctions escalation**: any entity with an active sanctions hit contributes +50 to compound risk and automatically escalates the parent case.
+
+### Compound Risk Scoring
+
+The compound risk score (0–100 scale) aggregates contributions from all corroboration signals:
+
+```
+compound_risk = min(100,
+    jurisdiction_hits × 30 +
+    dissolved_count × 20 +
+    unknown_count × 15 +
+    sanctions_hits × 50 +
+    shared_directors × 10
+)
+```
+
+A score of 0–25 is LOW, 26–60 is MEDIUM, and 61–100 is HIGH.
+
+### Network Risk Assessment Output
+
+The final output of the recursive network investigation is a `NetworkRiskAssessment` containing:
+
+- **Recommendation**: one of `BLOCK` (score ≥ 60, sanctions hit), `EDD` (Enhanced Due Diligence, score ≥ 25), or `SDD` (Standard Due Diligence)
+- **Key concerns**: structured list of the specific corroboration signals that drove the score
+- **Entities scanned**: count and summary of all network entities evaluated
+- **Audit trail**: every Network EVOI decision persisted to `evoi_decisions` with depth, connection weight, compound score, and recommendation
+
+HIGH-severity network findings cascade to the parent case investigation result, surfacing in the officer dashboard alongside primary findings. Progress messages are emitted during the scan and displayed in the pipeline DAG as a dedicated "Network Scan" step.

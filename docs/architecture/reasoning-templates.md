@@ -1,6 +1,11 @@
 ---
 sidebar_position: 21
 title: "Reasoning Templates"
+components:
+  - app/services/reasoning_service.py
+  - app/services/reasoning_template_registry.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Compliance Reasoning Templates (Pillar 2)

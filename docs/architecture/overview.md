@@ -1,6 +1,8 @@
 ---
 sidebar_position: 1
 title: "Architecture Overview"
+last_verified: 2026-03-31
+status: implemented
 ---
 
 # Architecture Overview
@@ -21,7 +23,7 @@ graph TB
 
     subgraph Backend["FastAPI Backend (Port 8002)"]
         API["REST API Layer"]
-        Agents["18+ PydanticAI Agents"]
+        Agents["25 PydanticAI Agents"]
         Services["Service Layer"]
     end
 
@@ -86,17 +88,17 @@ This table provides an honest assessment of each architectural area. The system 
 | Area | Rating | Notes |
 |------|--------|-------|
 | Workflow Layer | **Strong** | Clean Temporal state machine, well-defined signals/queries, proper retry policies, typed workflow state |
-| AI Agents | **Strong** | 18+ PydanticAI agents with consistent patterns, structured outputs, mock mode system |
+| AI Agents | **Strong** | 25 PydanticAI agents with consistent patterns, structured outputs, mock mode system |
 | Configuration | **Strong** | pydantic-settings with per-agent model overrides, feature flags, mock mode toggles |
 | API Client (Frontend) | **Strong** | Well-typed Axios client, comprehensive endpoint coverage |
 | UI Library | **Strong** | 25 shadcn/ui primitives, consistent dark theme |
-| API Layer | **Strong** | Split into 21 focused routers + DI via FastAPI `Depends()` pattern |
+| API Layer | **Strong** | Split into 41 focused routers + DI via FastAPI `Depends()` pattern |
 | Code Organization | **Strong** | Clear separation of concerns, routers decomposed, service layer uses DI |
 | Error Handling | Adequate | Custom exception hierarchy (`TrustRelayError` + subtypes), centralized logging, no silent swallows |
 | Security | Adequate | JWT auth with JWKS (PoC mode bypasses), portal token expiry (30-day TTL), IP-based rate limiting, dynamic CORS |
-| Frontend Architecture | Adequate | Custom hooks extracted, React Query caching, accessibility improvements, 561+ component tests |
+| Frontend Architecture | Adequate | Custom hooks extracted, React Query caching, accessibility improvements, 59 test files |
 | CI/CD | Adequate | GitHub Actions pipeline (4 jobs), health checks, multi-stage Docker builds |
-| Database | Adequate | SQLAlchemy ORM models (19+ tables), Alembic configured (14 migrations), parameterized queries via `sqlalchemy.text()` |
+| Database | Adequate | SQLAlchemy ORM models (53 tables), Alembic configured (27+ migrations), parameterized queries via `sqlalchemy.text()` |
 | Data Models | Adequate | Good Pydantic models for API, typed workflow state via TypedDicts |
 | Knowledge Graph | Adequate | Neo4j integration for cross-case analytics (CQRS: PostgreSQL writes, Neo4j reads) |
 
@@ -106,7 +108,7 @@ The following items were identified as technical debt and have been remediated:
 
 | Item | Was | Now | Phase |
 |------|-----|-----|-------|
-| Monolithic API | `cases.py` with 23 endpoints in 1,500 lines | Split into 21 routers: `case_crud`, `case_decisions`, `case_documents`, `case_analysis`, `case_evidence`, `portal`, `agent`, `dashboard`, `graph`, `peppol`, `inhoudingsplicht`, `scan`, `confidence`, `reasoning`, `intelligence`, `agents`, `automation`, `regulatory`, `config`, `test`, `health` | Phase 2 |
+| Monolithic API | `cases.py` with 23 endpoints in 1,500 lines | Split into 41 routers across `app/api/` | Phase 2 |
 | No DI | 52 inline service instantiations | FastAPI `Depends()` pattern via `app/api/deps/services.py` with `lru_cache` singletons | Phase 2 |
 | Silent exception swallows | ~70 bare `except: pass` blocks | Exception hierarchy (`TrustRelayError` + subtypes) with structured logging | Phases 1-2 |
 | No authentication | Dashboard API fully open | JWT authentication with JWKS validation (PoC mode bypasses, production mode validates) | Phase 4 |
@@ -120,7 +122,7 @@ The following items were identified as technical debt and have been remediated:
 | No caching | Fresh API calls on every navigation | React Query (`@tanstack/react-query`) with `QueryClientProvider` | Phase 5 |
 | No custom hooks | Zero custom hooks | `useAsyncData` shared hook + 4 domain-specific hooks | Phase 5 |
 | Untyped workflow state | Internal state uses raw `dict` | TypedDicts for workflow state | Phase 2 |
-| No ORM models | All queries via `sqlalchemy.text()` | SQLAlchemy ORM models (19+ tables) + Alembic migrations (14 migrations) | Phase 3 |
+| No ORM models | All queries via `sqlalchemy.text()` | SQLAlchemy ORM models (50 tables) + Alembic migrations (32 migrations) | Phase 3 |
 
 ## Production Roadmap
 

@@ -2,6 +2,10 @@
 sidebar_position: 10
 title: Case Intelligence
 description: AI-driven Decision Support Panel that synthesizes similar cases, applicable rules, and officer corrections into actionable intelligence
+components:
+  - app/agents/case_intelligence_agent.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Case Intelligence

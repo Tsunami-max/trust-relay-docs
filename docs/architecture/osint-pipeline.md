@@ -1,6 +1,28 @@
 ---
 sidebar_position: 9
 title: "OSINT Pipeline"
+components:
+  - app/agents/osint_agent.py
+  - app/agents/synthesis_agent.py
+  - app/agents/adverse_media_agent.py
+  - app/agents/person_validation_agent.py
+  - app/agents/registry_agent.py
+  - app/agents/document_validator.py
+  - app/agents/task_generator.py
+  - app/agents/mcc_classifier.py
+  - app/services/osint_service.py
+  - app/services/osint_mock_data.py
+  - app/services/adverse_media_service.py
+  - app/services/crawl4ai_service.py
+  - app/services/brightdata_enrichment_service.py
+  - app/services/person_screening_service.py
+  - app/services/northdata_scrape_service.py
+  - app/services/mcc_service.py
+tests:
+  - tests/test_pillar35_integration.py
+  - tests/test_network_investigation.py
+last_verified: 2026-03-31
+status: implemented
 ---
 
 # OSINT Investigation Pipeline
@@ -8,6 +30,8 @@ title: "OSINT Pipeline"
 The OSINT (Open Source Intelligence) pipeline is the core automated investigation engine. It coordinates multiple AI agents to cross-reference customer-provided documents against public registries, LinkedIn profiles, adverse media sources, and sanctions databases.
 
 ## Pipeline DAG
+
+The pipeline now includes 13 agents. Three agents were added in the 2026-03-31 update: `verification_checks`, `quality_scorer`, and `inhoudingsplicht_check`. MCC classification was moved earlier in the sequence (before risk reassessment, after synthesis).
 
 ```mermaid
 graph TD
@@ -17,7 +41,12 @@ graph TD
     PV --> S[Synthesis Agent]
     AM --> S
     S --> MCC[MCC Classifier]
-    MCC --> TG[Task Generator]
+    MCC --> RR[Risk Reassessment]
+    RR --> VC[Verification Checks]
+    VC --> QS[Quality Scorer]
+    QS --> INH[Inhoudingsplicht Check]
+    INH --> TG[Task Generator]
+    TG --> GE[Graph ETL]
 
     style DV fill:#2563eb,stroke:#38bdf8,color:#fff
     style R fill:#2563eb,stroke:#38bdf8,color:#fff
@@ -25,7 +54,12 @@ graph TD
     style AM fill:#2563eb,stroke:#38bdf8,color:#fff
     style S fill:#2563eb,stroke:#38bdf8,color:#fff
     style MCC fill:#2563eb,stroke:#38bdf8,color:#fff
+    style RR fill:#2563eb,stroke:#38bdf8,color:#fff
+    style VC fill:#7c3aed,stroke:#a78bfa,color:#fff
+    style QS fill:#7c3aed,stroke:#a78bfa,color:#fff
+    style INH fill:#7c3aed,stroke:#a78bfa,color:#fff
     style TG fill:#2563eb,stroke:#38bdf8,color:#fff
+    style GE fill:#2563eb,stroke:#38bdf8,color:#fff
 ```
 
 ### Execution Order
@@ -34,8 +68,28 @@ graph TD
 2. **Registry Agent** (sequential) -- Must complete first to extract director and UBO names
 3. **Person Validation** + **Adverse Media** (parallel) -- Run concurrently via `asyncio.gather`
 4. **Synthesis Agent** (sequential) -- Combines all three agent outputs into a unified risk assessment
-5. **MCC Classifier** (sequential) -- Assigns Merchant Category Code based on OSINT findings
-6. **Task Generator** (sequential) -- Suggests follow-up actions based on the investigation
+5. **MCC Classifier** (sequential) -- Assigns Merchant Category Code based on OSINT findings (moved before risk reassessment as of 2026-03-31, so MCC context is available during EBA scoring)
+6. **Risk Reassessment** (sequential) -- Re-runs EBA risk matrix with MCC context
+7. **Verification Checks** (sequential) -- Runs `inhoudingsplicht_check` and other verification tools; progress tracked in `agent_executions`
+8. **Quality Scorer** (sequential) -- LLM-as-judge scores synthesis report on 4 dimensions; progress tracked in `agent_executions`
+9. **Inhoudingsplicht Check** (sequential, BE only) -- Social/tax debt status via PEPPOL (Belgian cases only)
+10. **Task Generator** (sequential) -- Suggests follow-up actions based on the investigation
+11. **Graph ETL** (sequential, KYB only) -- Syncs investigation results to Neo4j knowledge graph
+
+### Pipeline Strip (Frontend)
+
+The officer dashboard Pipeline Strip shows 8 stages that map to the DAG above:
+
+| Stage | Agents covered |
+|-------|----------------|
+| Registry | Document Validator + Registry Agent |
+| MCC | MCC Classifier |
+| Screening | Person Validation + Adverse Media |
+| Financial | Risk Reassessment |
+| Synthesis | Synthesis Agent |
+| Quality | Quality Scorer |
+| Tasks | Task Generator |
+| Graph | Graph ETL |
 
 ## Standard Pipeline (Non-Belgian)
 
@@ -183,6 +237,61 @@ Each agent reports its status to the `agent_executions` PostgreSQL table:
 | `output_summary` | Human-readable summary (e.g., "Found 3 directors, 1 UBO") |
 
 The frontend displays this data as a real-time pipeline visualization (PipelineDAG, AgentCard, PipelineTimingBar components), showing officers which agents are running, completed, or failed.
+
+## Network Scan Phase
+
+After the Synthesis agent completes its primary investigation, the EVOI engine initiates a network scan phase that evaluates connected entities discovered via NorthData `relatedCompanies`.
+
+### Trigger
+
+The network scan phase is triggered automatically after synthesis when:
+- NorthData returned one or more `relatedCompanies` entries for the subject entity
+- At least one connected entity has a positive Network EVOI score
+
+### Per-Entity Scan
+
+For each entity with a positive Network EVOI decision, the engine runs three checks in parallel:
+
+| Check | Tool | Output |
+|---|---|---|
+| Company lookup | NorthData API (euId passed as registration ID) | `company_status`, `directors`, further `relatedCompanies` |
+| Sanctions screening | OpenSanctions local database (pg_trgm fuzzy match) | `sanctions_status`, matched entity names |
+| Jurisdiction risk | FATF + EU high-risk countries lookup | `jurisdiction_risk` (LOW / MEDIUM / HIGH / CRITICAL) |
+
+The euId extracted from the `relatedCompanies` response is passed as the registration ID for the NorthData lookup. This dramatically improves match quality compared to name-based searches, especially for entities with common names.
+
+### Timing
+
+Scanning 16 entities typically completes in 35–60 seconds. The bottleneck is NorthData, which is rate-limited to a 2-second interval between requests enforced by a global async rate limiter shared across all concurrent network scans.
+
+### Corroboration Analysis
+
+Once all entities are scanned, a cross-network corroboration analysis identifies structural risk patterns:
+
+- **Shared directors** — the same natural person governing multiple network entities
+- **Jurisdiction concentration** — multiple entities in high-risk jurisdictions
+- **Dissolved entities** — terminated companies in the corporate chain
+- **Sanctions hits** — any sanctions match in the network
+
+### Result Propagation
+
+HIGH-severity findings from the network scan cascade to the parent case investigation result. These findings appear in the officer review dashboard alongside primary OSINT findings, clearly attributed to the network scan phase. The OSINT pipeline DAG displays a dedicated "Network Scan" step with real-time progress messages as each entity is evaluated.
+
+---
+
+## Data Merge Points
+
+The OSINT pipeline collects data from multiple independent sources that must be merged at specific points in the pipeline. Director data, financial data, and company identity data each have different merge strategies and timing constraints.
+
+Key merge points:
+
+- **Pre-validation director merge** -- Registry agent directors + NorthData pre-enrichment directors + UBOs are merged and deduplicated before person validation and adverse media screening run in parallel.
+- **Post-synthesis financial enrichment** -- NorthData API financials and country-specific financial APIs are fetched after synthesis and added to the result.
+- **Post-OSINT UBO merge** -- Document-extracted UBOs are merged into the investigation result at the Temporal workflow level, after the OSINT pipeline completes.
+
+For the full data flow with Mermaid diagrams, merge decision rationale, and documented gaps, see [Data Merge Architecture](/docs/architecture/data-merge-architecture).
+
+---
 
 ## Error Handling
 

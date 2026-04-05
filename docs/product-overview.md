@@ -284,7 +284,7 @@ For those who want to understand what powers the platform without a computer sci
 
 - **Self-hosted deployment** — the entire platform runs on your infrastructure using standard containerization. Setup takes minutes, not months. No data leaves your environment.
 
-- **3,391+ automated tests** — the system is continuously verified against a comprehensive test suite (2,830+ backend + 561+ frontend), covering the workflow engine, 95 API endpoints across 28 routers, AI agents, and user interface.
+- **4,176+ automated tests** — the system is continuously verified against a comprehensive test suite (4,117+ backend + 59 frontend), covering the workflow engine, 242 API endpoints across 41 routers, AI agents, and user interface.
 
 - **4-dimension confidence scoring** — every investigation produces a 0-100 confidence score decomposed into Evidence Completeness, Source Diversity, Consistency, and Historical Calibration. Officers see exactly where uncertainty lives and what to do about it.
 

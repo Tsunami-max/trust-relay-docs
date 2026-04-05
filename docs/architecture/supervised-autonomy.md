@@ -1,6 +1,12 @@
 ---
 sidebar_position: 24
 title: "Supervised Autonomy"
+components:
+  - app/services/automation_tier_service.py
+tests:
+  - tests/test_evoi_engine.py
+last_verified: 2026-03-29
+status: implemented
 ---
 
 # Supervised Autonomy (Pillar 4)
