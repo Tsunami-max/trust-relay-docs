@@ -29,6 +29,7 @@ const sidebars: SidebarsConfig = {
         'architecture/compliance-memory',
         'architecture/multi-country-registries',
         'architecture/goaml-export',
+        'architecture/cost-monitoring',
       ],
     },
     {
@@ -202,39 +203,6 @@ const sidebars: SidebarsConfig = {
     'competitive-landscape',
     'data-moat-strategy',
     'vlaio-development-project',
-  ],
-  atlasSidebar: [
-    'atlas/overview',
-    {
-      type: 'category',
-      label: 'System Design',
-      collapsed: false,
-      items: [
-        'atlas/architecture',
-        'atlas/tech-stack',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Core Capabilities',
-      collapsed: false,
-      items: [
-        'atlas/investigation-pipeline',
-        'atlas/ontology-system',
-        'atlas/risk-scoring',
-        'atlas/graph-database',
-        'atlas/workflow-studio',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Implementation',
-      items: [
-        'atlas/frontend',
-        'atlas/api-reference',
-      ],
-    },
-    'atlas/import-candidates',
   ],
 };
 
