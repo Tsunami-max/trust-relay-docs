@@ -104,12 +104,6 @@ const config: Config = {
         },
         {
           type: 'docSidebar',
-          sidebarId: 'atlasSidebar',
-          position: 'left',
-          label: 'Atlas Reference',
-        },
-        {
-          type: 'docSidebar',
           sidebarId: 'strategySidebar',
           position: 'left',
           label: 'Strategy',
@@ -157,10 +151,6 @@ const config: Config = {
             {
               label: 'Trust Relay',
               href: 'https://trustrelay.eu',
-            },
-            {
-              label: 'Atlas Reference',
-              to: '/docs/atlas/overview',
             },
             {
               label: 'GitHub',

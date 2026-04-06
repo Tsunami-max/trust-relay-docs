@@ -30,6 +30,7 @@ const sidebars: SidebarsConfig = {
         'architecture/multi-country-registries',
         'architecture/goaml-export',
         'architecture/cost-monitoring',
+        'architecture/segments',
       ],
     },
     {

@@ -316,9 +316,9 @@ Trust Relay's graph visualization now matches or exceeds every competitor analyz
 
 ---
 
-## Atlas Adoption — New Differentiators (March–April 2026)
+## Atlas Adoption — New Differentiators (March 2026)
 
-Trust Relay adopted 8 architectural patterns from a co-founder's parallel Atlas codebase ([full Atlas documentation](/docs/atlas/overview)). Three of these directly extend the competitive differentiation above. Since the initial adoption, Trust Relay has expanded significantly in areas where Atlas has no coverage — 11 European country registries, goAML export, Lex regulatory corpus, and the Network Intelligence Hub.
+Trust Relay adopted 8 architectural patterns from a co-founder's parallel Atlas codebase. Three of these directly extend the competitive differentiation above.
 
 ### EBA/GL/2021/02 Risk Matrix with SHA-256 Audit
 
@@ -352,8 +352,6 @@ The quality score is visible on the case detail page and stored in `additional_d
 
 Full documentation of all 8 adopted services: [Atlas Adoption Architecture](./architecture/atlas-adoption.md)
 
-For comprehensive documentation of the Atlas system itself: [Atlas Reference](/docs/atlas/overview)
-
 ---
 
 ## Where Competitors Are Stronger
@@ -362,9 +360,9 @@ Honest assessment of gaps where established competitors hold significant advanta
 
 ### Data Breadth
 
-- **ComplyAdvantage**: 400M+ entities in a pre-computed graph vs. Trust Relay's registry-by-registry approach
+- **ComplyAdvantage**: 400M+ entities in a pre-computed graph vs. Trust Relay's Belgian-focused registry data
 - **Moody's Orbis**: 600M+ company profiles with global financial data
-- **Trust Relay progress**: Now covers 11 European countries (BE, FR, NL, CH, CZ, DK, EE, FI, NO, RO, SK) with 20 dedicated registry services calling official government APIs. Still not global — EEA routing architecture supports expansion, but each country requires building country-specific integrations.
+- **Trust Relay gap**: Currently deep in Belgium, with EEA routing architecture in place but country-specific scrapers not yet implemented beyond Belgium
 
 ### Sanctions and Watchlist Quality
 
@@ -376,7 +374,7 @@ Honest assessment of gaps where established competitors hold significant advanta
 
 - **Sumsub**: 220+ countries with localized verification flows
 - **ComplyAdvantage**: Global entity graph with multi-jurisdictional coverage
-- **Trust Relay progress**: Now 11 European countries with dedicated government API integrations (BE, FR, NL, CH, CZ, DK, EE, FI, NO, RO, SK). The architecture supports further expansion — each new country requires its own registry service(s), but the country routing infrastructure, investigation pipeline, and graph ETL are country-agnostic. Remaining gaps: Southern Europe (IT, ES, PT, GR), Nordics (SE, IS), and non-EU markets.
+- **Trust Relay gap**: Currently Belgium + EEA country routing. The architecture supports country expansion (the KBO/NBB/Gazette pattern can be replicated per country), but each country requires building country-specific scrapers and integrations.
 
 ### Regulatory Acceptance
 

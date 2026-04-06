@@ -331,11 +331,7 @@ Every finding in every investigation carries:
 
 ## Section 6: The Atlas Adoption -- Absorbing the Best
 
-In March 2026, Trust Relay analyzed a co-founder's parallel Atlas codebase. A comprehensive April 2026 re-assessment revealed the full scope: 300+ API endpoints across 28+ routers, 100+ Flyway migrations, 35+ pages, Temporal workflow orchestration, Neo4j graph database, Keycloak auth, Langfuse observability, and a full Workflow Studio with drag-drop builder and evaluation logic. Rather than discarding competing work, we identified 14 architectural patterns worth adopting and integrated 8 into the platform. This process itself demonstrates the system's absorptive capacity.
-
-:::info
-For comprehensive documentation of the Atlas system, see the [Atlas Reference](/docs/atlas/overview) section — covering architecture, investigation pipeline, ontology, risk scoring, graph database, workflow studio, frontend, and full API reference.
-:::
+In March 2026, Trust Relay analyzed a co-founder's parallel Atlas codebase (219 Python files, 85 Flyway migrations, 293 API endpoints built in 10 days). Rather than discarding competing work, we identified 14 architectural patterns worth adopting and integrated 8 into the platform. This process itself demonstrates the system's absorptive capacity.
 
 ### What We Adopted
 
@@ -355,35 +351,19 @@ For comprehensive documentation of the Atlas system, see the [Atlas Reference](/
 | Capability | Why Atlas Could Not Replace It |
 |---|---|
 | Customer-facing branded portal | Atlas explicitly deferred to v3.4+. Our iterative document collection loop IS the compliance workflow. |
-| Multi-tenant RLS (25 tables) | Atlas was explicitly single-tenant. |
-| Multi-country registry depth (11 countries, 20 services) | Atlas had KVK (Dutch) and NorthData (generic). Trust Relay has dedicated government API integrations for BE (KBO, NBB, Gazette, PEPPOL, Inhoudingsplicht), FR (INPI, INSEE, BODACC), NL (KVK), CH (Zefix), CZ (ARES, ISIR, Justice), DK (CVR), EE (Ariregister), FI (YTJ), NO (Brreg, Regnskapsregisteret), RO (ANAF, ONRC), SK (RUZ). |
-| Lex regulatory knowledge corpus | Atlas had no regulatory text integration. Trust Relay has 21 regulations, 89 articles, 95 obligations. |
-| goAML export (5 countries) | Atlas had no FIU export capability. Three-layer pipeline with country profiles. |
-| Network Intelligence Hub (3 views, 22 components) | Atlas had basic Cytoscape.js. Our Hub has Network Graph, Ownership Tree, and Investigation Flow views — designed from 10-platform competitive analysis, all 5 phases implemented. |
-| CopilotKit copilot (40+ tools) | Atlas had no officer-facing AI assistant. Inline chat with 3 write tools + 20 read tools. |
-| EVOI decision theory | Atlas had no formal decision-theoretic investigation optimization. Bayesian BeliefState with 50x cost asymmetry. |
-| GovernanceEngine (3-mechanism) | Atlas had no deterministic safety layer. Zero-LLM governance that operates provably independently. |
-| Supervised autonomy (earned tiers) | Atlas had no officer competence tracking. Per-officer earned autonomy tiers. |
-| Session diagnostics | Atlas had no investigation session tracing or diagnostic tooling. |
-| Prompt centralization (DB-backed) | Atlas stores prompts in agent_prompts table with basic text. Trust Relay has PromptRegistry singleton with 35 Jinja2 templates, DB-backed with filesystem fallback, regulatory basis inclusions. |
-| Evidence bundles (Trust Capsule) | Atlas had no cryptographic evidence packaging. SHA-256 content hashes with immutable audit trail. |
-
-### What Atlas Has That We Don't (Yet)
-
-| Capability | Atlas Implementation | Trust Relay Status |
-|---|---|---|
-| Workflow Builder (visual) | Drag-drop workflow authoring with live preview | Trust Relay uses declarative YAML schemas (adopted pattern); no visual builder |
-| Evaluation Studio | Interactive risk evaluation configuration | Trust Relay manages risk config via admin API + reference data browser |
-| Data Provider plugin architecture | Extensible provider system (North Data, KVK, OpenCorporates) | Trust Relay has dedicated per-country services (deeper but less pluggable) |
-| Mutation Queue | Async post-investigation entity consolidation | Trust Relay processes entities synchronously in graph ETL |
-| Segment definitions | Dynamic company grouping with filter rules | Not yet implemented |
-| LLM cost tracking per investigation | Token count per investigation with cost reporting | Not yet implemented (model tiers adopted but no per-investigation cost tracking) |
+| Multi-tenant RLS (22 tables) | Atlas was explicitly single-tenant. |
+| Belgian regulatory depth (5 sources) | Atlas had KVK (Dutch) and NorthData (generic). Our KBO + NBB + Gazette + PEPPOL + Inhoudingsplicht integration is unmatched. |
+| Lex regulatory knowledge corpus | Atlas had no regulatory text integration. |
+| goAML export (5 countries) | Atlas had no FIU export capability. |
+| Network Intelligence Hub (3 views) | Atlas had basic Cytoscape.js. Our Hub was designed from 10-platform competitive analysis. |
+| CopilotKit copilot (40+ tools) | Atlas had no officer-facing AI assistant. |
+| EVOI decision theory | Atlas had no formal decision-theoretic investigation optimization. |
+| GovernanceEngine (3-mechanism) | Atlas had no deterministic safety layer. |
+| Supervised autonomy (earned tiers) | Atlas had no officer competence tracking. |
 
 ### The Strategic Insight
 
 Atlas proved that a second, independent team building for the same market converges on the same problems (entity resolution, risk scoring, workflow orchestration, reference data). Where they produced better solutions (EBA matrix, survivorship, quality scoring), we adopted them. Where our solutions were deeper (EVOI, governance, multi-tenancy, regulatory knowledge), we kept them. The combined platform is stronger than either codebase alone.
-
-Since the original analysis (March 2026), Trust Relay has significantly expanded its lead in multi-country coverage (from Belgium-only to 11 European countries) and platform depth (44 Alembic migrations, 106 services, 22 agents, 374 frontend files, 3,600+ tests). The gap in workflow flexibility and data provider extensibility remains an area where Atlas's patterns could inform future Trust Relay development.
 
 ---
 
@@ -395,24 +375,23 @@ Trust Relay is not a thin wrapper on third-party APIs. It is a vertically integr
 
 | Metric | Count | Detail |
 |---|---|---|
-| **Backend Python modules** | 300+ | Services, agents, models, API routers, workflows, prompts, registries |
-| **Backend services** | 106 | `backend/app/services/` -- graph, OSINT, branding, audit, confidence, EVOI, governance, survivorship, quality scoring, registries (20 country-specific), and more |
-| **AI agents** | 22 | Investigation pipeline: document validation, registry, country registry, person validation, adverse media, social intelligence, MCC classification, sanctions, Belgian OSINT, scan tiers, scan synthesis, synthesis, task generation, case intelligence, finding debugger, dashboard, dashboard stats, memory admin |
-| **API routers** | 46 | `backend/app/api/` -- cases, decisions, documents, analysis, evidence, portal, dashboard, graph, PEPPOL, regulatory, intelligence, confidence, reasoning, memory, scan, lex, risk config, and more |
-| **Prompt templates** | 35 | `backend/app/prompts/templates/` -- Jinja2 templates with regulatory basis inclusions, severity matrices, and guardrails |
-| **Alembic migrations** | 44 | Schema evolution from initial tables through multi-tenancy, RLS, pillars, lex, diagnostics, intelligence, prompt management, risk configurations, discrepancy resolutions |
-| **Country registry services** | 20 | Dedicated government API integrations: BE (KBO, NBB, Gazette, PEPPOL, Inhoudingsplicht), FR (INPI, INSEE, BODACC), NL (KVK, Jaarrekeningen), CH (Zefix), CZ (ARES, ISIR, Justice), DK (CVR), EE (Ariregister), FI (YTJ), NO (Brreg, Regnskapsregisteret), RO (ANAF, ONRC, Nomenclator), SK (RUZ) |
+| **Backend Python modules** | 275 | Services, agents, models, API routers, workflows, prompts |
+| **Backend services** | 105 | `backend/app/services/` -- graph, OSINT, branding, audit, confidence, EVOI, governance, survivorship, quality scoring, and more |
+| **AI agents** | 21 | Investigation pipeline: document validation, registry, person validation, adverse media, financial health, MCC classification, sanctions, Belgian OSINT, scan tiers, synthesis, task generation, case intelligence, finding debugger, dashboard, memory admin |
+| **API routers** | 51 | `backend/app/api/` -- cases, decisions, documents, analysis, evidence, portal, dashboard, graph, PEPPOL, regulatory, intelligence, confidence, reasoning, memory, scan, lex, and more |
+| **Prompt templates** | 34 | `backend/app/prompts/templates/` -- Jinja2 templates with regulatory basis inclusions, severity matrices, and guardrails |
+| **Alembic migrations** | 38 | Schema evolution from initial tables through multi-tenancy, RLS, pillars, lex, diagnostics, intelligence, prompt management |
 | **Reference data files** | 12 | FATF grey/black lists, EU high-risk countries, CPI scores, secrecy jurisdictions, PEP tiers, UBO thresholds, industry/product risk, sanctions config, EU tax blacklist |
 | **Workflow templates** | 3 | KYB onboarding, periodic review, vendor due diligence (declarative YAML) |
-| **Frontend TypeScript files** | 374 | Components, pages, hooks, utilities, API clients |
+| **Frontend TypeScript files** | 311 | Components, pages, hooks, utilities, API clients |
 | **Frontend views/pages** | 25+ | Dashboard, case detail (5 tabs), portal, admin (workflows, prompts, reference data), settings (risk matrix), memory, intelligence, network hub, regulatory, ontology, onboarding, PEPPOL, inhoudingsplicht, standards, graph explorer |
-| **Backend test files** | 279 | pytest with testcontainers (real PostgreSQL, MinIO, Temporal), 14 country-specific registry test suites |
+| **Backend test files** | 258 | pytest with testcontainers (real PostgreSQL, MinIO, Temporal) |
 | **Frontend test files** | 69 | Jest + React Testing Library |
 | **E2E test specs** | 10 | Playwright (onboarding, network intelligence, memory, scan API, case detail, dashboard intelligence, MCC, chatbot portal/dashboard) |
-| **Total automated tests** | 3,800+ | Backend (pytest) + frontend (Jest) + E2E (Playwright) |
-| **Docusaurus documentation pages** | 80+ | Architecture, API reference, features, methodology, ADRs, competitive analysis, Atlas reference (10 pages) |
+| **Total automated tests** | 3,600+ | Backend (pytest) + frontend (Jest) + E2E (Playwright) |
+| **Docusaurus documentation pages** | 60+ | Architecture, API reference, features, methodology, ADRs, competitive analysis |
 | **Docker services** | 11 | FastAPI, Temporal (server + worker), PostgreSQL, MinIO, Redis, Neo4j, Keycloak, frontend |
-| **External data source integrations** | 25+ | KBO, NBB CBSO, VIES, GLEIF, PEPPOL, OpenSanctions, NorthData, Tavily, BrightData, crawl4ai, Belgian Gazette, Interpol, email security, Wayback Machine, consumer reviews, ANAF, ONRC, ARES, Zefix, CVR, Ariregister, YTJ, Brreg, INPI, INSEE |
+| **External data source integrations** | 15+ | KBO, NBB CBSO, VIES, GLEIF, PEPPOL, OpenSanctions, NorthData, Tavily, BrightData, crawl4ai, Belgian Gazette, Interpol, email security, Wayback Machine, consumer reviews |
 
 ### Architecture Diagram
 

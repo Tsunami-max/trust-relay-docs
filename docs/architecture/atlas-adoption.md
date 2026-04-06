@@ -20,17 +20,13 @@ tests:
   - tests/test_entity_matcher.py
   - tests/test_survivorship.py
   - tests/test_workflow_schema.py
-last_verified: 2026-04-05
+last_verified: 2026-03-31
 status: implemented
 ---
 
 # Atlas Adoption
 
 This page documents the 8 services adopted from a co-founder's parallel Atlas codebase into Trust Relay. Each service was analysed, extracted, and reimplemented in Trust Relay's tech stack (PydanticAI, SQLAlchemy, Alembic, Next.js/shadcn) — no foreign code was introduced. The source analysis is at `docs/research/atlas-extraction/` and the design specification is at `docs/plans/2026-03-31-atlas-adoption-roadmap-design.md`.
-
-:::info Atlas Reference Documentation
-For comprehensive documentation of the Atlas system itself — architecture, investigation pipeline, ontology, risk scoring, graph database, workflow studio, frontend, and full API reference — see the [Atlas Reference](/docs/atlas/overview) section.
-:::
 
 ---
 
@@ -500,8 +496,4 @@ These services address areas where the Atlas co-founder's codebase had architect
 
 None of these capabilities require changes to the core investigaton loop, the Temporal workflow state machine, or the customer portal. They integrate as services that the existing pipeline calls.
 
-**Trust Relay's architectural strengths that Atlas does not have** — multi-tenancy (RLS on 25 tables), customer portal (white-label branded), multi-country registry depth (11 countries with 20 dedicated service files: BE, FR, NL, CH, CZ, DK, EE, FI, NO, RO, SK), EVOI decision theory, GovernanceEngine (3-mechanism deterministic safety), supervised autonomy (earned tiers), compliance memory (Letta), the Network Intelligence Hub (3 views, 22 components, 5 phases), Lex regulatory knowledge corpus, goAML FIU export, session diagnostics, and prompt centralization with 35 Jinja2 templates — are preserved and unaffected by the adoption.
-
-:::tip Atlas Reference Documentation
-For complete documentation of the Atlas system — how it works, its architecture, and detailed technical reference — see the [Atlas Reference](/docs/atlas/overview) section. For the head-to-head comparison, see the [Atlas vs Trust Relay comparison](/docs/atlas/overview#how-atlas-relates-to-trust-relay).
-:::
+**Trust Relay's architectural strengths that Atlas does not have** — multi-tenancy, customer portal, Belgian regulatory depth (5 sources), EVOI decision theory, GovernanceEngine, supervised autonomy, compliance memory (Letta), and the Network Intelligence Hub — are preserved and unaffected by the adoption.
