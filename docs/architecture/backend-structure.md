@@ -341,7 +341,7 @@ backend/
 
     alembic/                # Database migration management
       env.py                # Async migration runner
-      versions/             # 32 migration files (001–031 + 1 seed migration)
+      versions/             # 50 migration files (001–050 covering full schema evolution)
 
     exceptions.py           # Custom exception hierarchy (TrustRelayError + subtypes)
 
@@ -594,7 +594,7 @@ All 50 database tables have SQLAlchemy ORM models defined using `DeclarativeBase
 
 Database migrations are managed by Alembic with async support. The migration environment (`alembic/env.py`) uses `run_async` for async engine compatibility.
 
-32 migrations covering the full schema evolution:
+50 Alembic migrations covering the full schema evolution:
 
 | Range | Migrations | Scope |
 |-------|-----------|-------|
@@ -668,7 +668,7 @@ This separation is a Temporal requirement: workflow code runs in a deterministic
 | API routing | Split into 41 focused routers (238 endpoints) | **Complete** |
 | Service layer | 116 modules, FastAPI `Depends()` injection via `lru_cache` singletons | **Complete** |
 | Agent layer | 21 PydanticAI agents with 29 Jinja2 prompt templates | **Complete** |
-| Database | ORM models (50 tables), Alembic (32 migrations), Repository pattern (incremental migration) | **Complete** |
+| Database | ORM models (50 tables), Alembic (50 migrations), Repository pattern (incremental migration) | **Complete** |
 | goAML export | STR/SAR XML generation with country profiles and XSD validation | **Complete** |
 | Prompt management | DB-backed versioning with FS fallback, admin CRUD API | **Complete** |
 | Error handling | Custom exception hierarchy + structured logging | **Complete** |

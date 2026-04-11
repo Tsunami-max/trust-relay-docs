@@ -110,6 +110,12 @@ const config: Config = {
         },
         {
           type: 'docSidebar',
+          sidebarId: 'atlasSidebar',
+          position: 'left',
+          label: 'Atlas Reference',
+        },
+        {
+          type: 'docSidebar',
           sidebarId: 'releasesSidebar',
           position: 'left',
           label: 'Releases',

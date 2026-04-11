@@ -10,7 +10,7 @@ components:
   - app/services/precious_metals_risk_engine.py
   - app/services/risk_config_service.py
   - app/api/risk_config.py
-last_verified: 2026-03-31
+last_verified: 2026-04-07
 status: implemented
 ---
 
@@ -100,3 +100,25 @@ The `/admin/risk-configuration` admin page provides a three-tab interface for ma
 | **Versions** | Browse all configuration versions, compare diffs, and activate a version |
 
 The old `/admin/reference-data` page now redirects to `/admin/risk-configuration`.
+
+## Recent Fixes (2026-04-06)
+
+### Delivery Channel Fix
+
+The `delivery_channel` dimension weight was incorrectly set to 0 in some configurations, causing the EBA matrix to produce inflated scores. Fixed to the EBA-standard weight of 0.10 (10%). The `non_face_to_face` factor now defaults to 100 (maximum score) for all cases onboarded through the digital portal, reflecting EBA guidance that non-face-to-face identification carries inherent risk.
+
+### PEP Detection Fix
+
+False PEP escalations were occurring when the screening agent found common-name matches without sufficient confidence. The fix tightens the PEP matching threshold: a PEP finding only elevates risk when the match confidence exceeds 0.7 (previously any match triggered escalation). Clean screening results now correctly produce `VERIFIED` severity in the structured summary.
+
+### MCC-Aware License Verification
+
+The verification checks pipeline now includes regulatory license verification that is MCC-aware. The MCC code (assigned by the MCC classifier agent earlier in the pipeline) determines the business vertical, which in turn determines which regulatory licenses are required. Missing licenses produce a `hit` finding with `PSD2 Art. 11 / CRR Art. 8` regulatory basis.
+
+### Segment Risk Calibration
+
+Risk factor weights can now be overridden per regulatory segment. A banking segment applies higher weights to `regulatory_status` (1.5x) and `financial_profile` (1.3x) factors compared to the default PSP merchant segment. Segment calibration is applied during the `post_osint` risk reassessment checkpoint.
+
+### Risk Config 403 Fix
+
+The `/api/risk-config/recalculate` endpoint was gated behind `super_admin` role, preventing compliance officers from recalculating risk scores when configurations changed. The gate has been removed -- any authenticated user with tenant access can trigger recalculation.

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 1
 title: "Architecture Overview"
-last_verified: 2026-03-31
+last_verified: 2026-04-07
 status: implemented
 ---
 
@@ -22,9 +22,15 @@ graph TB
     end
 
     subgraph Backend["FastAPI Backend (Port 8002)"]
-        API["REST API Layer"]
-        Agents["25 PydanticAI Agents"]
-        Services["Service Layer"]
+        API["REST API Layer<br/>48 routers"]
+        Agents["13 PydanticAI Agents"]
+        Services["Service Layer<br/>ORM Repository pattern"]
+        PII["PII Classification<br/>AES-256-GCM encryption"]
+    end
+
+    subgraph Auth["Authentication & Isolation"]
+        Keycloak["Keycloak 26<br/>JWT + JWKS"]
+        RLS["PostgreSQL RLS<br/>25+ tenant-scoped tables"]
     end
 
     subgraph Temporal["Temporal (Port 7233)"]
@@ -33,13 +39,13 @@ graph TB
     end
 
     subgraph Storage["Data Layer"]
-        PG["PostgreSQL 16"]
+        PG["PostgreSQL 16<br/>50 Alembic migrations"]
         MinIO["MinIO (S3)"]
         Redis["Redis Cache"]
         Neo4j["Neo4j (Graph)"]
     end
 
-    subgraph External["External Services"]
+    subgraph External["External Services — 12 Countries"]
         NorthData["NorthData MCP"]
         BrightData["BrightData MCP"]
         Tavily["Tavily MCP"]
@@ -49,13 +55,17 @@ graph TB
         PEPPOL["PEPPOL Directory"]
     end
 
-    Dashboard --> API
+    Dashboard --> Keycloak
     Portal --> API
     CopilotKit --> API
+    Keycloak --> API
+    API --> RLS
+    RLS --> PG
     API --> Temporal
     Workflow --> Activities
     Activities --> Agents
     Activities --> Services
+    Services --> PII
     Agents --> NorthData
     Agents --> BrightData
     Agents --> Tavily
@@ -63,11 +73,38 @@ graph TB
     Services --> NBB
     Services --> VIES
     Services --> PEPPOL
-    Services --> PG
     Services --> MinIO
     Services --> Redis
     Services --> Neo4j
 ```
+
+## Design Principles
+
+The architecture follows a set of deliberate principles that govern every layer of the system.
+
+### Authentication and Tenant Isolation
+
+All API access is authenticated via **Keycloak 26** with JWT tokens validated against JWKS endpoints. Multi-tenant isolation is enforced at the database level through **PostgreSQL Row-Level Security (RLS)** across 25+ tenant-scoped tables. RLS policies use a `FORCE ROW LEVEL SECURITY` directive so that even the table-owner role is subject to isolation — the system is safe-by-default, returning zero rows when the tenant context is unset.
+
+### PII Protection
+
+20 PII fields are classified across the data model using a typed annotation system (`PII_DIRECT`, `PII_QUASI`, `PII_SENSITIVE`). Six fields containing direct identifiers (national IDs, passport numbers, bank accounts) are encrypted at rest with **AES-256-GCM** via dedicated encrypted columns. PII classification is enforced through 85+ tests covering annotation completeness, encryption round-trips, and migration integrity.
+
+### Data Access
+
+The data layer uses **SQLAlchemy 2.0 ORM models** as the single source of truth, with a generic `BaseRepository[T]` pattern for type-safe CRUD operations. Schema evolution is managed through **50 Alembic migrations** covering the full lifecycle from initial schema through PII encryption. All queries use parameterized ORM access — no string interpolation touches SQL.
+
+### Observability
+
+Structured **JSON logging with correlation IDs** propagates trace context across HTTP requests, Temporal activities, and agent invocations. Every AI-driven decision is captured in an append-only `audit_events` table with full input provenance, model identification, and confidence scoring — meeting EU AI Act Article 12 (automatic logging) and Article 14 (human oversight) requirements.
+
+### Evidence-Based AI Decisions
+
+Every AI output is anchored to verifiable evidence through the **Trust Capsule** cryptographic architecture (ADR-0017). Each capsule contains the source data, model version, prompt template, reasoning chain, and a cryptographic seal that detects post-hoc tampering. The **Evidence Bundle** system (ADR-0021) packages related capsules into auditable units that satisfy GDPR Article 22 (right to explanation of automated decisions) and 6AMLD 5-year retention requirements.
+
+### Modular API Design
+
+The REST API is decomposed into **48 focused routers** organized by domain concern (`case_crud`, `case_decisions`, `case_documents`, `case_analysis`, `case_evidence`, `portal`, `graph`, `lex`, `risk_config`, etc.). Dependencies are injected via FastAPI's `Depends()` pattern with singleton service instances, ensuring testability and clear ownership boundaries.
 
 ## Key Architectural Decisions
 
@@ -75,70 +112,42 @@ graph TB
 |----------|--------|-----------|
 | Workflow engine | Temporal | Durable execution, built-in retry policies, signal/query pattern fits the iterative compliance loop. See [ADR-0002](../../docs/adr/). |
 | AI framework | PydanticAI | Type-safe agent outputs via Pydantic models, native MCP tool support, per-agent model configuration. See [ADR-0001](../../docs/adr/). |
+| Authentication | Keycloak 26 | Standards-based OIDC/JWT, JWKS rotation, multi-tenant realm configuration. |
+| Tenant isolation | PostgreSQL RLS | Database-enforced isolation — application bugs cannot leak data across tenants. See [ADR-0023](../../docs/adr/). |
 | Document conversion | IBM Docling | MIT-licensed, local execution, no data leaves the infrastructure. |
 | Object storage | MinIO | S3-compatible API, stores documents organized by case/iteration. |
 | Frontend AI | CopilotKit v2 + AG-UI | Embeds AI assistant into the officer dashboard (inline chat, popup, `useCopilotReadable`). See [ADR-0003](../../docs/adr/), [ADR-0013](../../docs/adr/). |
-| Belgian data | 4 official sources | Country-specific routing with dedicated scraping tools per source. See [ADR-0007](../../docs/adr/). |
 | Knowledge graph | Neo4j (CQRS read layer) | Cross-case analytics, co-directorship detection, fraud pattern matching. PostgreSQL remains the write store. See [ADR-0014](../../docs/adr/). |
+| Risk assessment | EBA 5-dimension matrix | Weighted-max aggregation across customer, product, channel, geography, and transaction risk. See [ADR-0020](../../docs/adr/). |
+| Country routing | 12-country registry architecture | Dedicated agents per jurisdiction with structured service catalogs. See [ADR-0034](../../docs/adr/). |
+| White-label branding | Tenant-scoped WCAG AA | Per-tenant visual identity with enforced accessibility contrast ratios. See [ADR-0028](../../docs/adr/). |
 
-## Maturity Assessment
+## System Metrics
 
-This table provides an honest assessment of each architectural area. The system has been through a comprehensive technical debt remediation (Phases 1-7), upgrading several areas from weak/needs-work to adequate/strong.
-
-| Area | Rating | Notes |
-|------|--------|-------|
-| Workflow Layer | **Strong** | Clean Temporal state machine, well-defined signals/queries, proper retry policies, typed workflow state |
-| AI Agents | **Strong** | 25 PydanticAI agents with consistent patterns, structured outputs, mock mode system |
-| Configuration | **Strong** | pydantic-settings with per-agent model overrides, feature flags, mock mode toggles |
-| API Client (Frontend) | **Strong** | Well-typed Axios client, comprehensive endpoint coverage |
-| UI Library | **Strong** | 25 shadcn/ui primitives, consistent dark theme |
-| API Layer | **Strong** | Split into 41 focused routers + DI via FastAPI `Depends()` pattern |
-| Code Organization | **Strong** | Clear separation of concerns, routers decomposed, service layer uses DI |
-| Error Handling | Adequate | Custom exception hierarchy (`TrustRelayError` + subtypes), centralized logging, no silent swallows |
-| Security | Adequate | JWT auth with JWKS (PoC mode bypasses), portal token expiry (30-day TTL), IP-based rate limiting, dynamic CORS |
-| Frontend Architecture | Adequate | Custom hooks extracted, React Query caching, accessibility improvements, 59 test files |
-| CI/CD | Adequate | GitHub Actions pipeline (4 jobs), health checks, multi-stage Docker builds |
-| Database | Adequate | SQLAlchemy ORM models (53 tables), Alembic configured (27+ migrations), parameterized queries via `sqlalchemy.text()` |
-| Data Models | Adequate | Good Pydantic models for API, typed workflow state via TypedDicts |
-| Knowledge Graph | Adequate | Neo4j integration for cross-case analytics (CQRS: PostgreSQL writes, Neo4j reads) |
-
-## Addressed Technical Debt (Phases 1-7)
-
-The following items were identified as technical debt and have been remediated:
-
-| Item | Was | Now | Phase |
-|------|-----|-----|-------|
-| Monolithic API | `cases.py` with 23 endpoints in 1,500 lines | Split into 41 routers across `app/api/` | Phase 2 |
-| No DI | 52 inline service instantiations | FastAPI `Depends()` pattern via `app/api/deps/services.py` with `lru_cache` singletons | Phase 2 |
-| Silent exception swallows | ~70 bare `except: pass` blocks | Exception hierarchy (`TrustRelayError` + subtypes) with structured logging | Phases 1-2 |
-| No authentication | Dashboard API fully open | JWT authentication with JWKS validation (PoC mode bypasses, production mode validates) | Phase 4 |
-| No token expiry | Portal tokens valid indefinitely | 30-day TTL with `expires_at` column, HTTP 410 on expired tokens | Phase 4 |
-| No rate limiting | Vulnerable to abuse | IP-based sliding window (100/min authenticated, 20/min unauthenticated) | Phase 4 |
-| Hardcoded CORS | Only `localhost:3001` | Dynamic CORS configuration via `CORS_ORIGINS` environment variable | Phase 4 |
-| No CI/CD | Manual testing only | GitHub Actions pipeline with 4 jobs (backend-tests, frontend-tests, lint, build) | Phase 6 |
-| No health checks | `depends_on` without conditions | Docker `HEALTHCHECK` directives + health-conditioned dependencies | Phase 6 |
-| No multi-stage Docker | Development images everywhere | Multi-stage builds for backend (`python:3.11-slim`) and frontend (build + serve) | Phase 6 |
-| God components | Inline state/fetch logic in page components | Custom hooks: `useCaseDetail`, `usePipelineStatus`, `useDecisionSubmit`, `usePeppolVerify` | Phase 5 |
-| No caching | Fresh API calls on every navigation | React Query (`@tanstack/react-query`) with `QueryClientProvider` | Phase 5 |
-| No custom hooks | Zero custom hooks | `useAsyncData` shared hook + 4 domain-specific hooks | Phase 5 |
-| Untyped workflow state | Internal state uses raw `dict` | TypedDicts for workflow state | Phase 2 |
-| No ORM models | All queries via `sqlalchemy.text()` | SQLAlchemy ORM models (50 tables) + Alembic migrations (32 migrations) | Phase 3 |
+| Metric | Value |
+|--------|-------|
+| Architecture Decision Records | 36 |
+| PII test coverage | 85+ tests |
+| PII fields classified | 20 fields, 6 encrypted at rest (AES-256-GCM) |
+| OSINT agents | 13-agent pipeline with circuit breakers |
+| Country registries | 12 countries, 21 services |
+| RLS-protected tables | 25+ |
+| Alembic migrations | 50 |
+| ORM models | 61 SQLAlchemy 2.0 models |
+| API routers | 48 |
+| Prompt templates | 20 Jinja2 templates (DB-first with filesystem fallback) |
 
 ## Production Roadmap
 
-The following items are planned for production hardening beyond the current PoC:
-
 | Item | Priority | Path Forward |
 |------|----------|-------------|
-| ORM query migration | Low | ORM models and Alembic are in place. Most queries migrated; one raw SQL call remains for PostgreSQL sequence operations. |
-| Log aggregation | Medium | Structured JSON logging with correlation IDs, forwarded to ELK/Datadog. See [Deployment](/docs/architecture/deployment). |
-| PII classification | Medium | PII tags on model fields, encrypted columns for sensitive data, GDPR data subject request handling. |
-| Secret management | Low | Move from `.env` files to a managed secret store (AWS Secrets Manager, HashiCorp Vault). |
-| Testcontainers expansion | Low | 20 integration tests using Testcontainers for PostgreSQL with macOS Docker Desktop support. CI uses GitHub Actions service containers. |
+| Secret management | Medium | Move from `.env` files to a managed secret store (AWS Secrets Manager, HashiCorp Vault). |
+| ~~Testcontainers expansion~~ | ~~Low~~ | ~~40 integration tests with testcontainer PostgreSQL, macOS Docker Desktop support.~~ **Done.** |
+| Log forwarding | Low | Forward structured JSON logs to centralized aggregation (ELK/Datadog). Logging infrastructure is in place; forwarding pipeline is not yet configured. See [Deployment](/docs/architecture/deployment). |
 
 ## Architecture Decision Records
 
-All significant technical decisions are documented as ADRs in `docs/adr/`:
+All significant technical decisions are documented as ADRs in `docs/adr/`. The project maintains **36 ADRs** covering every major architectural choice — from workflow orchestration and AI framework selection through cryptographic sealing, regulatory segment compilation, and multi-country registry design.
 
 | ADR | Decision | Status |
 |-----|----------|--------|
@@ -151,7 +160,7 @@ All significant technical decisions are documented as ADRs in `docs/adr/`:
 | ADR-0007 | Belgian data layer, country routing, and PEPPOL UI | Implemented |
 | ADR-0008 | Raw SQL via SQLAlchemy text() for database access | Accepted |
 | ADR-0009 | Minimal error handling with silent recovery for PoC | Accepted |
-| ADR-0010 | React useState/useEffect for state management | Superseded by ADR-0015 |
+| ADR-0010 | React useState/useEffect for state management | Accepted (PoC) — effectively superseded by TanStack React Query v5 |
 | ADR-0011 | Authentication deliberately deferred for PoC | Accepted (superseded by Pillar 0) |
 | ADR-0012 | Hybrid scraping tool selection per data source | Implemented |
 | ADR-0013 | CopilotKit v2 migration (supersedes ADR-0004) | Accepted |
@@ -159,3 +168,34 @@ All significant technical decisions are documented as ADRs in `docs/adr/`:
 | ADR-0015 | React Query for frontend caching | Implemented |
 | ADR-0016 | Tiered Scan Agent (portfolio-scale entity screening) | Implemented |
 | ADR-0017 | Compliance Memory System | Accepted |
+| ADR-0018 | Dynamic document requirements — pre-investigation resolution | Implemented |
+| ADR-0019 | Multi-agent OSINT pipeline with country routing | Implemented |
+| ADR-0020 | EBA risk matrix with weighted-max aggregation | Implemented |
+| ADR-0021 | Evidence bundle system for EU AI Act audit trail | Implemented |
+| ADR-0022 | Neo4j knowledge graph with 20-step ETL pipeline | Implemented |
+| ADR-0023 | PostgreSQL Row-Level Security for multi-tenant isolation | Implemented |
+| ADR-0024 | Entity matching with blocking keys and trust-weighted survivorship | Implemented |
+| ADR-0025 | Network Intelligence Hub — ReactFlow three-perspective visualization | Implemented |
+| ADR-0026 | Prompt centralization with DB-first registry and filesystem fallback | Implemented |
+| ADR-0027 | GoAML export with three-layer pipeline and country profiles | Implemented |
+| ADR-0028 | White-label branding with WCAG AA enforcement | Implemented |
+| ADR-0029 | Cost-optimized model tiers for agent fleet | Implemented |
+| ADR-0030 | Social intelligence via BrightData MCP expansion | Implemented |
+| ADR-0031 | Regulatory segment profiles with declarative YAML compiler | Implemented |
+| ADR-0032 | Circuit breakers for OSINT pipeline resilience | Implemented |
+| ADR-0033 | Document gap analysis engine | Implemented |
+| ADR-0034 | Multi-country registry architecture (12 countries, 21 services) | Implemented |
+| ADR-0035 | Atlas reference documentation within Docusaurus | Implemented |
+| ADR-0036 | Structured JSON logging with correlation IDs | Implemented |
+
+## Architecture Documentation
+
+This overview connects to detailed documentation for each subsystem:
+
+- **[Data Flow](./data-flow)** — 12-step investigation-first compliance loop
+- **[Temporal Workflows](./temporal-workflows)** — State machine, signals, queries, and retry policies
+- **[OSINT Pipeline](./osint-pipeline)** — 13-agent investigation engine with circuit breakers
+- **[AI Agents](./ai-agents)** — PydanticAI agents, CopilotKit integration, AG-UI protocol
+- **[Knowledge Graph](./knowledge-graph)** — Neo4j CQRS read layer with 20-step ETL
+- **[Security](./security)** — Authentication, RLS, PII classification, Trust Capsules
+- **[Deployment](./deployment)** — Docker Compose, CI/CD, health checks

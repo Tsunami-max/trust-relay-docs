@@ -11,7 +11,7 @@ components:
   - app/services/audit_service.py
   - app/services/branding_service.py
   - app/services/reference_data_service.py
-last_verified: 2026-03-31
+last_verified: 2026-04-07
 status: implemented
 ---
 
@@ -538,7 +538,7 @@ The editor supports both creating new templates (`POST`) and editing existing on
 | Migration | Description |
 |-----------|-------------|
 | `015` | Create `tenants` and `users` tables with seed data |
-| `016` | Add `tenant_id` FK to all 22 tenant-scoped tables |
+| `016` | Add `tenant_id` FK to all 30+ tenant-scoped tables |
 | `017` | Enable `FORCE ROW LEVEL SECURITY` and create isolation + admin bypass policies |
 | `018` | Extend `workflow_templates` with verification chain, red flag rules, confidence adjustments, regulatory framework; seed 3 Belgian system templates |
 | `026` | Add `risk_configurations` and `risk_config_audit` tables with RLS |

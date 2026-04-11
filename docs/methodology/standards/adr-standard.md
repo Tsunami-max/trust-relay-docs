@@ -251,7 +251,7 @@ Maintain a summary table of all ADRs in the project's `CLAUDE.md`:
 
 ## 9. Trust Relay ADR Inventory
 
-17 ADRs produced over 29 days of development:
+36 ADRs produced over the course of development:
 
 | ADR | Title | Status |
 |-----|-------|--------|

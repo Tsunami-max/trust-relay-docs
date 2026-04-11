@@ -2,7 +2,7 @@
 sidebar_position: 2
 title: "Atlas — System Architecture"
 description: "Deep architecture documentation for the Atlas compliance platform. Covers layered design, domain organization, investigation lifecycle, deployment topology, and key architectural decisions."
-last_verified: 2026-04-05
+last_verified: 2026-04-08
 status: reference
 ---
 
@@ -25,7 +25,7 @@ flowchart TD
     subgraph API["API Layer — FastAPI"]
         Auth["Auth Middleware<br/>Keycloak JWT"]
         RateLimit["Rate Limiter"]
-        Routers["25+ Domain Routers"]
+        Routers["30+ Domain Routers"]
     end
 
     subgraph Services["Service Layer"]
@@ -191,7 +191,7 @@ flowchart TD
 
 ## Domain-Driven Organization
 
-The Atlas backend is organized into 8 domain packages under `src/`, each owning its models, repositories, and business logic.
+The Atlas backend is organized into 20+ domain packages under `src/`, each owning its models, repositories, and business logic. The primary domains are listed below; supporting packages include `api`, `database`, `models`, `tools`, `settings`, `events`, `observability`, `source_contracts`, and `services`.
 
 ### 1. Investigations (`src/temporal/`, `src/pipelines/`)
 
@@ -348,7 +348,7 @@ flowchart TD
 
 ## Deployment Architecture
 
-Atlas runs as a Docker Compose stack with 15+ containers organized into 5 categories.
+Atlas runs as a Docker Compose stack with 16 containers organized into 6 categories.
 
 ```mermaid
 flowchart TD
@@ -428,7 +428,7 @@ flowchart TD
 
 | Service | Image | Port(s) | Purpose |
 |---------|-------|---------|---------|
-| `osint-api` | Custom Dockerfile | 8000 | FastAPI backend, 25+ routers |
+| `osint-api` | Custom Dockerfile | 8000 | FastAPI backend, 30+ routers |
 | `osint-ui` | Custom Dockerfile | 3000 | React SPA served via nginx |
 | `temporal-worker` | Custom Dockerfile | -- | Investigation module execution |
 | `workflow-engine-worker` | Custom Dockerfile | -- | Dynamic compliance workflow execution |
@@ -501,21 +501,33 @@ Investigation reports are generated as HTML from Jinja2 templates and converted 
 
 Risk scoring is not hardcoded. The ontology schema defines entity types and their risk-relevant attributes. Risk factors are evaluated per-dimension using the EBA 5-dimension framework, with per-factor weights stored in the database. The scorer produces 4 SHA-256 hashes (input, override, evaluation fingerprint, output) for full audit reproducibility.
 
-## Differences from Trust Relay Architecture
+## Security Architecture
 
-At a high level, the main architectural differences are:
+Atlas implements defense in depth across the API, data, and deployment layers.
 
-| Aspect | Atlas | Trust Relay |
-|--------|-------|-------------|
-| **AI orchestration** | LangChain agents with tool-calling | PydanticAI agents with structured output |
-| **Investigation model** | 7 modules, all parallel, no customer interaction | 13 agents, pre-investigation before customer, iterative document loop |
-| **Workflow scope** | Generic workflow engine (YAML schemas, visual builder) | Single compliance workflow (state machine in Temporal) |
-| **Entity model** | Ontology-driven with versioned schemas and mutation queue | Simpler entity model, graph ETL with 20-step pipeline |
-| **Frontend framework** | Blueprint.js (Java-inspired component library) | shadcn/ui (Tailwind-based, modern React) |
-| **Database access** | Raw asyncpg with repository pattern | SQLAlchemy ORM with Alembic migrations |
-| **LLM observability** | Langfuse (self-hosted, always-on, ClickHouse + MinIO) | Langfuse + OpenTelemetry (profile flag) + 5 audit tables + diagnostics API + monitoring API |
-| **Auth status** | Keycloak fully integrated with JWT middleware | Keycloak fully integrated (JWT/JWKS, RBAC with 4 roles, JIT user provisioning, PKCE flow) |
-| **Customer portal** | Workflow Studio portal phases (dynamic) | Dedicated branded portal with token auth |
-| **Document processing** | None (investigation-only) | IBM Docling for document conversion + MinIO storage |
+### API Security
 
-For a detailed comparison of specific patterns adopted from Atlas into Trust Relay, see [Atlas Adoption](/docs/architecture/atlas-adoption).
+- **Network binding** -- The API server binds to `127.0.0.1` in production, accessible only through a reverse proxy (nginx). Direct external access to the FastAPI process is not possible.
+- **Authentication** -- Every API request passes through `PlatformAuthMiddleware`, which validates Keycloak JWTs, extracts tenant and user context, and rejects unauthenticated requests. RBAC roles are enforced at the router level.
+- **Rate limiting** -- Four tiers of rate limiting protect against abuse:
+
+| Tier | Scope | Limit |
+|------|-------|-------|
+| **Global** | All requests per IP | 100 req/min |
+| **Authentication** | Login/token endpoints | 10 req/min |
+| **Investigation** | Investigation creation | 20 req/hour |
+| **AI Pipeline** | LLM-backed endpoints | 30 req/min |
+
+- **Input sanitization** -- All user-supplied HTML content is sanitized with `nh3` before storage, preventing XSS injection in investigation notes, report content, and workflow descriptions.
+
+### Data Security
+
+- **Tenant isolation** -- Multi-tenant data access is enforced through Keycloak JWT context. Every database query is scoped to the authenticated tenant.
+- **Audit hashing** -- Risk evaluations produce 4 SHA-256 hashes (input, override, evaluation fingerprint, output) for tamper detection and deterministic reproducibility.
+- **Evidence provenance** -- Every entity field carries source attribution, timestamp, and trust score metadata. The mutation queue maintains a full history of field-level changes with provenance chains.
+
+### Deployment Security
+
+- **No external dependencies at runtime** -- The platform runs entirely self-hosted. No data leaves the deployment environment. LLM providers are the only external calls, and these can be replaced with local models (Ollama, vLLM) for air-gapped deployments.
+- **Secret management** -- All credentials are injected via environment variables or Docker secrets. No credentials are stored in code or configuration files.
+- **Database migrations** -- Flyway manages schema migrations with versioned, idempotent SQL files. Migration state is tracked in a `flyway_schema_history` table, ensuring consistent schema across environments.

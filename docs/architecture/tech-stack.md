@@ -41,7 +41,7 @@ All frontend rendering is client-side. Next.js SSR/RSC capabilities are availabl
 | uvicorn | latest | ASGI server | Production-ready |
 
 :::note
-SQLAlchemy ORM models are defined for all 50 tables in `app/db/models.py`. Alembic is configured with async support and 32 migrations covering the full schema evolution (initial schema, portal token expiry, calibration, reasoning templates, alerts, tool invocations, governance checks, EVOI decisions, automation tiers, signal events, multi-tenancy RLS, diagnostics, finding intelligence, Lex knowledge layer, and more). The current query layer uses `sqlalchemy.text()` with parameterized queries. ORM query migration is planned as a follow-up refinement.
+SQLAlchemy ORM models are defined for all 50 tables in `app/db/models.py`. Alembic is configured with async support and 50 migrations covering the full schema evolution (initial schema, portal token expiry, calibration, reasoning templates, alerts, tool invocations, governance checks, EVOI decisions, automation tiers, signal events, multi-tenancy RLS, diagnostics, finding intelligence, Lex knowledge layer, PII classification, risk configurations, discrepancy resolutions, and more). The current query layer uses `sqlalchemy.text()` with parameterized queries. ORM query migration is planned as a follow-up refinement.
 :::
 
 ## Workflow Engine

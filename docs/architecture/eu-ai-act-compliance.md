@@ -87,7 +87,7 @@ This is not a paper commitment. The Temporal workflow is structurally incapable 
 | Data freshness | OpenSanctions auto-refresh (sanctions daily, PEPs weekly) | 831K entities, last refreshed tracked |
 | Resilience to data gaps | Guard-and-swallow pattern — individual check failures don't block investigation | PEPPOL failure does not prevent OSINT completion |
 | Resilience to adversarial inputs | Source diversity prevents manipulation via single-source poisoning | A false record in one registry is contradicted by others |
-| Cybersecurity | Tenant isolation with Row Level Security on all 22 tenant-scoped tables | RLS enforced at DB layer, not application layer |
+| Cybersecurity | Tenant isolation with Row Level Security on all 30+ tenant-scoped tables | RLS enforced at DB layer, not application layer |
 
 ### Article 17 — Quality Management System
 
@@ -98,7 +98,7 @@ Article 17 requires providers of high-risk AI systems to implement a documented 
 | Risk management process | EVOI engine with asymmetric utility function | `cost_false_negative` (10,000) >> `reward_correct_approve` (100) — 100x penalty for false approvals |
 | Data governance | Source attribution on every fact | `source` field on all findings, SourceBadge in UI |
 | Post-market monitoring | Case intelligence learns from officer decisions | Episodic memory, pattern detection across cases |
-| Documentation management | ADR records + Docusaurus site | 17 ADRs, 90+ documentation pages |
+| Documentation management | ADR records + Docusaurus site | 36 ADRs, 90+ documentation pages |
 | Testing and validation | Mandatory quality gates before every commit | ruff F-codes + TypeScript strict before merge |
 | Corrective action process | ADR process for any deviation from PRD | New ADR required before implementing significant change |
 | Traceability of changes | Git history + ADR records | Every architectural decision recorded with rationale |
@@ -207,7 +207,7 @@ The EU AI Act compliance architecture intersects with and reinforces several oth
 | Article | Requirement | Implementation |
 |---------|-------------|----------------|
 | Art. 22 | Right to human review of automated decisions | Officer decision required — no automated final decisions |
-| Art. 25 | Privacy by design | Tenant isolation, Row Level Security on all 22 tenant-scoped tables |
+| Art. 25 | Privacy by design | Tenant isolation, Row Level Security on all 30+ tenant-scoped tables |
 | Art. 30 | Records of processing activities | Audit log captures all processing steps |
 | Art. 35 | Data Protection Impact Assessment | Architecture supports DPIA; formal document pending (known gap) |
 

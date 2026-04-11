@@ -1,202 +1,247 @@
 ---
 sidebar_position: 3
-title: "Atlas — Technology Stack"
+title: "Atlas — Tech Stack"
+last_verified: 2026-04-08
+status: reference
 ---
 
-# Atlas — Technology Stack
+# Atlas — Tech Stack
 
-Atlas is a Python/TypeScript full-stack KYB/KYC/AML compliance platform built by co-founder Valentin. This page documents every major technology choice in Atlas and compares it with Trust Relay's equivalent decisions. Understanding where the two systems converge and diverge is essential for planning their integration.
+Atlas is a full-stack KYB/KYC/AML compliance investigation platform built on Python and TypeScript. This page documents every major technology choice, organized by architectural layer.
 
-## Backend
+## Production Dependencies
 
-### Language & Framework
+### Backend
 
-Atlas runs on **Python 3.12-3.14** with **FastAPI** and **Pydantic v2** for request validation and settings management (`pydantic-settings`). The API server is served by **Uvicorn** with standard extras. This is identical to Trust Relay's backend stack, making shared code and libraries straightforward.
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Python | 3.14 | Runtime |
+| FastAPI | >=0.109 | HTTP API framework with automatic OpenAPI documentation |
+| Pydantic | >=2.5 | Data validation, serialization, and model definitions |
+| pydantic-settings | >=2.1 | Configuration management from environment variables and `.env` files |
+| Uvicorn | latest | ASGI server with standard extras |
 
-### AI / Agent Framework
+### AI Framework
 
-Atlas uses **LangChain 1.2.10** with **LangGraph 1.0.10** as its agent orchestration layer. Agents are defined as LangGraph graphs where each investigation module is a node. The LangChain adapter pattern wraps LLM calls and tool invocations behind a unified interface:
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| LangGraph | 1.0.10 | Pipeline orchestration -- investigation modules are LangGraph nodes executing in parallel |
+| LangChain | 1.2.10 | Agent framework -- wraps LLM calls, tool invocations, and structured output behind a unified interface |
+| langchain-mcp-adapters | 0.2.2 | MCP tool integration -- bridges MCP servers into the LangChain tool ecosystem |
+| langchain-anthropic | 1.4.0 | Claude model adapter for direct Anthropic API access |
+| langchain-openai | 1.1.12 | OpenAI model adapter for GPT-series models |
+| langchain-openrouter | >=0.0.2 | OpenRouter multi-model gateway adapter |
+| langchain-ollama | >=0.3.0 | Local model adapter for self-hosted LLMs via Ollama |
+| langchain-core | 1.2.23 | Core abstractions shared across all LangChain adapters |
 
-| Dependency | Version |
-|---|---|
-| `langchain` | 1.2.10 |
-| `langgraph` | 1.0.10 |
-| `langchain-anthropic` | 1.4.0 |
-| `langchain-openai` | 1.1.12 |
-| `langchain-openrouter` | >=0.0.2 |
-| `langchain-ollama` | >=0.3.0 |
-| `langchain-core` | 1.2.23 |
-| `langchain-mcp-adapters` | 0.2.2 |
+### LLM Gateway
 
-Trust Relay uses **PydanticAI** with direct model calls instead of the LangChain abstraction layer. The trade-off: LangChain provides a broader tool ecosystem and model adapter coverage; PydanticAI gives tighter Pydantic integration and less indirection.
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| OpenRouter | -- | Primary multi-model routing gateway. Allows per-agent model selection without managing multiple API keys |
+
+Atlas uses a three-tier model strategy through OpenRouter:
+
+| Tier | Model | Use Case | Cost Profile |
+|------|-------|----------|-------------|
+| Primary | `claude-3.7-sonnet` | Investigation module agents -- quality-critical analysis | Standard |
+| Fast | `claude-3.5-haiku` | Quick classification, entity extraction, report Stage 1 | ~82% cheaper |
+| Reasoning | `claude-3.7-sonnet:thinking` | Complex risk analysis requiring extended chain-of-thought | Premium |
+
+The `ModelFactory` supports fallback to direct Anthropic/OpenAI APIs and local providers (Ollama, vLLM, LM Studio). Agent-specific model overrides are stored in the `agent_configurations` database table and loaded per-module at runtime.
+
+### Database
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| PostgreSQL | 15 | Primary relational store for investigations, entities, risk scores, configurations, and all structured data |
+| asyncpg | >=0.29 | Async PostgreSQL driver for non-blocking database access |
+| Neo4j | 5.18 | Knowledge graph for entity relationships, ownership chains, and network analysis (Community Edition with APOC plugin) |
+| Redis | 7 | Cache layer and rate limiting backend |
+
+PostgreSQL is the system of record. Neo4j is a derived view -- investigation entities are synced to the graph asynchronously via a detached child workflow, so investigation completion is never blocked by graph operations.
+
+### Migrations
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Flyway | 10 | SQL schema migrations. 105+ versioned migration files (`V001__` through `V105__+`) executed as a Docker init container before the API starts |
+
+Flyway runs as a separate container (`flyway/flyway:10-alpine`) with a `service_completed_successfully` dependency, guaranteeing the schema is fully up to date before any application container starts.
 
 ### Workflow Orchestration
 
-Both systems use **Temporal** for durable workflow execution. Atlas pins `temporalio>=1.4.0`; Trust Relay pins `temporalio>=1.9`. The docker-compose runs `temporalio/auto-setup:1.24` with the Temporal UI at `temporalio/ui:2.26.2`.
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Temporal (server) | 1.24 | Durable workflow execution engine with automatic retry, cancellation, and persistent state |
+| Temporal (Python SDK) | >=1.4 | Python client for defining workflows and activities |
+| Temporal UI | 2.26.2 | Web-based workflow monitoring dashboard |
 
-Atlas runs **two separate Temporal workers** as distinct containers:
-- `temporal-worker` — investigation workflow activities (`python -m src.temporal.worker`)
-- `workflow-engine-worker` — workflow engine activities (`python -m src.workflows.worker`)
-
-Trust Relay runs a single Temporal worker process.
-
-### Database Access
-
-Atlas uses **asyncpg** (>=0.29.0) for direct async PostgreSQL access alongside **SQLAlchemy** (>=2.0.25) and **Alembic** (>=1.13.0). Trust Relay also uses SQLAlchemy + asyncpg but has migrated to a Repository pattern with ORM models as the single source of truth.
-
-### Resilience Patterns
-
-Atlas has a dedicated resilience layer for MCP tool calls:
-
-| Library | Purpose | Version |
-|---|---|---|
-| **PyBreaker** | Circuit breaker pattern for MCP servers | >=1.4.0 |
-| **Tenacity** | Retry with exponential backoff | >=9.0.0 |
-| **SlowAPI** | Rate limiting on API endpoints | >=0.1.9 |
-
-Trust Relay handles retries at the Temporal activity level and uses rate limiting via configurable `rate_limit_skip_paths` settings. It does not currently use circuit breakers.
-
-### Logging & Observability
-
-Atlas uses **Structlog** (>=24.1.0) for structured JSON logging and **Langfuse** (>=3.0.0, self-hosted) for LLM observability. The Langfuse deployment includes a ClickHouse backend (`clickhouse/clickhouse-server:24.3`), a dedicated MinIO instance for event storage, and a web worker — 5 containers in total just for observability.
-
-Trust Relay has **Langfuse + OpenTelemetry** integration (`langfuse_service.py`) available behind a Docker Compose profile (`--profile observability`). When enabled, it provides the same trace visibility. Additionally, Trust Relay has comprehensive audit logging via 5 dedicated tables (AuditEvent, ToolInvocation, SignalEvent, FindingAnalysis, RiskConfigAudit), a diagnostics API with per-agent accuracy tracking, and a monitoring API with alert management.
-
-### PDF Generation
-
-Atlas uses **WeasyPrint** (>=62.0) for generating PDF investigation reports from HTML/CSS templates. Trust Relay uses **IBM Docling** for document conversion (PDF/DOCX to Markdown) as part of its document processing pipeline, but does not generate investigation PDF reports from HTML templates like Atlas does.
-
-### Other Notable Dependencies
-
-| Library | Purpose |
-|---|---|
-| `python-keycloak` >=4.0.0 | Keycloak admin SDK |
-| `rdflib` >=7.0.0 | RDF/OWL ontology support |
-| `pyld` >=2.0.3 | JSON-LD processing |
-| `celery` >=5.3.0 | Background task queue |
-| `nh3` >=0.2.0 | HTML sanitization |
-| `python-whois`, `dnspython`, `shodan` | OSINT domain tools |
-| `pdfplumber`, `python-docx` | Document parsing |
-| `minio` >=7.2.0 | Object storage client |
-
-## Frontend
-
-### Framework & Build
-
-| Choice | Atlas | Trust Relay |
-|---|---|---|
-| React version | **18.2** | **19** |
-| Meta-framework | None (SPA) | **Next.js 16** (SSR/RSC) |
-| Build tool | **Vite** 7.3 | Next.js built-in (Turbopack) |
-| TypeScript | 5.4 | 5.x |
-
-Atlas is a single-page application with client-side routing via **React Router** v6. Trust Relay uses Next.js App Router with server components and server-side rendering.
-
-### UI Component Library
-
-Atlas uses **Blueprint.js v5** (`@blueprintjs/core`, `@blueprintjs/icons`, `@blueprintjs/select`, `@blueprintjs/table`). Blueprint provides data-dense enterprise UI components out of the box — tables, trees, overlays, and form controls.
-
-Trust Relay uses **shadcn/ui** — a copy-paste component library built on Radix primitives and Tailwind CSS. shadcn gives full control over component source code but requires more assembly.
-
-### State Management
-
-| Concern | Atlas | Trust Relay |
-|---|---|---|
-| Client state | **Zustand** 4.5 | React `useState`/`useEffect` |
-| Server state | **TanStack React Query** v5 | Axios + manual refetch |
-| Form state | **React Hook Form** 7.72 + **Zod** 3.24 | Controlled components |
-| Persistence | `@tanstack/query-sync-storage-persister` | None |
-
-Atlas has a more mature state management architecture with Zustand stores, React Query caching with offline persistence, and form validation via Zod schemas. Trust Relay keeps state simpler by design (ADR-0010) but trades away offline support and automatic cache invalidation.
-
-### Data Visualization
-
-| Library | Atlas | Trust Relay |
-|---|---|---|
-| Graph visualization | **Cytoscape.js** 3.28 + dagre/fcose layouts | **ReactFlow** |
-| Charts | **Recharts** 2.12 | **Recharts** |
-| Maps | **d3-geo** + world-atlas TopoJSON | None |
-| Drag & drop | **@dnd-kit** | None |
-
-Atlas includes geographic visualization for mapping company locations across jurisdictions. Trust Relay focuses on network graph analysis through the Network Intelligence Hub with ReactFlow.
+Atlas runs two separate Temporal workers as distinct containers:
+- **Investigation worker** (`temporal-worker`) -- executes the 7-module investigation pipeline
+- **Workflow engine worker** (`workflow-engine-worker`) -- executes dynamic compliance workflows defined via the Workflow Studio
 
 ### Authentication
 
-Both systems integrate **keycloak-js v26** for frontend authentication. Trust Relay has a fully implemented Keycloak stack: JWT validation with JWKS caching, RBAC via `require_role()` (4 roles: `super_admin`, `tenant_admin`, `officer`, `auditor`), JIT user provisioning from Keycloak claims, PKCE OAuth2 flow, and automatic token refresh. Keycloak 26.0 runs in Docker with realm auto-import and pre-configured bootstrap users.
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Keycloak | 26.0 | OIDC/JWT authentication and authorization with role-based access control |
+| python-keycloak | >=4.0 | Keycloak admin SDK for user and realm management |
+| keycloak-js | 26 | Frontend OIDC client library |
 
-### Other Frontend Libraries
+JWT validation middleware on every API request extracts tenant and user context for multi-tenant isolation. Role-based access control is enforced at the router level.
 
-| Library | Purpose |
-|---|---|
-| `@react-pdf/renderer` | Client-side PDF generation |
-| `@uiw/react-codemirror` | YAML/config editor |
-| `swagger-ui-react` | Embedded API documentation |
-| `axios` | HTTP client |
+### Object Storage
 
-## Database Layer
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| MinIO | latest | S3-compatible document and blob storage for investigation evidence, reports, and exports |
 
-### PostgreSQL
+Atlas runs two MinIO instances: one dedicated to the application (documents, reports) and one for Langfuse event storage.
 
-| Aspect | Atlas | Trust Relay |
-|---|---|---|
-| Version | **PostgreSQL 15** | **PostgreSQL 16** |
-| Migration tool | **Flyway** 10 (100 versions) | **Alembic** (39 migrations) |
-| Migration format | Numbered SQL files (`V001__` to `V100__`) | Python migration scripts |
-| Container | `postgres:15-alpine` | `postgres:16` |
+### Observability
 
-Atlas uses Java-based Flyway running as a separate Docker init container (`flyway/flyway:10-alpine`). Flyway executes before the API and worker containers start, enforced by `service_completed_successfully` dependency. Trust Relay uses Alembic integrated into the Python codebase with `alembic upgrade head`.
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Langfuse | 3 | LLM tracing, cost tracking, prompt versioning, and evaluation scoring. Self-hosted with web UI, background worker, and dedicated storage |
+| ClickHouse | 24.3 | Columnar analytics backend for Langfuse trace data |
+| structlog | >=24.1 | Structured JSON logging throughout the backend |
 
-### Neo4j
+The Langfuse deployment includes 5 containers: web UI, background worker, ClickHouse, MinIO (event storage), and init containers for database and bucket setup. Every LLM call is traced with token counts, latencies, cost, and prompt metadata.
 
-Both systems use **Neo4j 5.18 Community Edition** with the APOC plugin for graph analytics. Atlas connects via `neo4j>=5.18.0`; Trust Relay uses the same driver version. Both use Neo4j for entity relationship visualization, ownership trees, and network analysis.
+### Resilience
 
-### Redis
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| pybreaker | >=1.4 | Circuit breaker pattern for MCP server calls -- prevents cascading failures when external tools are degraded |
+| tenacity | >=9.0 | Retry with exponential backoff and jitter for transient failures |
+| slowapi | >=0.1.9 | Rate limiting on API endpoints to prevent abuse |
 
-Atlas runs **Redis 7** (`redis:7-alpine`) for caching and Langfuse event processing. Trust Relay also uses Redis 7 for caching.
+### Security
 
-## AI / LLM Configuration
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| slowapi | >=0.1.9 | Rate limiting on API endpoints |
+| nh3 | >=0.2 | HTML sanitization for user-supplied content |
 
-### Model Selection
+### Document Processing
 
-Atlas uses **OpenRouter** as its LLM gateway, routing to Anthropic models:
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| WeasyPrint | >=62.0 | PDF report generation from HTML/CSS templates via Jinja2 |
+| pdfplumber | >=0.11 | PDF document parsing for extracting text and tables from uploaded documents |
+| python-docx | >=1.2 | DOCX document parsing for Microsoft Word files |
 
-| Tier | Model | Use Case |
-|---|---|---|
-| Primary | `claude-3.7-sonnet` | Investigation module agents |
-| Fast | `claude-3.5-haiku` | Quick classification, entity extraction |
-| Reasoning | `claude-3.7-sonnet:thinking` | Complex risk analysis requiring chain-of-thought |
+### Semantic / Ontology
 
-Trust Relay uses a **cost-optimized model tier system** (ADR-0029) with direct API calls via PydanticAI. Models are selected per-agent based on task complexity and cost constraints.
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| rdflib | >=7.0 | RDF/SPARQL support for the ontology system -- entity type definitions, attribute schemas, and relationship validation |
+| pyld | >=2.0.3 | JSON-LD processing for linked data serialization |
 
-### LLM Observability
+### Other Backend Libraries
 
-Atlas deploys a **self-hosted Langfuse** stack for complete LLM observability:
+| Technology | Purpose |
+|-----------|---------|
+| SQLAlchemy >=2.0.25 | ORM and query builder alongside asyncpg |
+| Alembic >=1.13.0 | Available for additional migration needs |
+| Celery >=5.3.0 | Background task queue for non-Temporal async jobs |
+| python-whois | WHOIS domain lookups for DFWO module |
+| dnspython | DNS resolution for domain analysis |
+| shodan | Network intelligence for infrastructure analysis |
+| minio >=7.2.0 | MinIO Python client for object storage operations |
 
-| Component | Image | Purpose |
-|---|---|---|
-| `langfuse-web` | `langfuse/langfuse:3` | Web UI and API |
-| `langfuse-worker` | `langfuse/langfuse-worker:3` | Background trace processing |
-| `langfuse-clickhouse` | `clickhouse/clickhouse-server:24.3` | Columnar storage for traces |
-| `langfuse-minio` | `minio/minio:latest` | S3 storage for events/exports |
+## Frontend
 
-This gives Atlas full trace visibility: token counts, latencies, cost tracking, prompt versioning, and evaluation scores. Trust Relay has the same Langfuse + OpenTelemetry integration available (behind a `--profile observability` Docker flag) and additionally captures agent outputs through evidence bundles, 5 audit tables, a diagnostics API, and a monitoring API with alert management.
+### Framework and Build
 
-## Infrastructure Services
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| React | 18.2 | UI framework -- single-page application with client-side rendering |
+| TypeScript | 5.4.2 | Type system for compile-time safety across the entire frontend |
+| Vite | 7.3.1 | Build tool with hot module replacement for fast development cycles |
+| react-router-dom | 7.14 | Client-side routing with nested layouts |
 
-### Object Storage (MinIO)
+Atlas is a single-page application (SPA) with client-side routing. Vite provides sub-second hot module replacement during development and optimized production builds with tree-shaking and code splitting.
 
-Atlas runs **two separate MinIO instances**:
+### UI Component Library
 
-| Instance | Purpose | Ports |
-|---|---|---|
-| `langfuse-minio` | Langfuse event/export storage | Internal only |
-| `atlas-minio` | Document service (DOC-01) | 9002 (API), 9092 (console) |
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Blueprint.js | 5.10+ | Enterprise UI component library (Palantir). Provides data-dense tables, trees, overlays, form controls, and context menus out of the box |
 
-Trust Relay runs a single MinIO instance on ports 9000/9001.
+Blueprint.js packages used:
+- `@blueprintjs/core` -- Foundation components (buttons, dialogs, toasts, tabs)
+- `@blueprintjs/icons` -- SVG icon set
+- `@blueprintjs/select` -- Searchable select, multi-select, and suggest components
+- `@blueprintjs/table` -- High-performance data tables with virtualization
 
-### Authentication (Keycloak)
+### State Management
 
-Both systems run **Keycloak 26.0** (`quay.io/keycloak/keycloak:26.0`). Atlas runs it on port 8180; Trust Relay runs it on port 8180 as well (mapped from internal 8080). Both have Keycloak fully wired into frontend and backend with JWT validation, role-based access control, and JIT user provisioning. Trust Relay's implementation includes 4 hierarchical roles (`super_admin` > `tenant_admin` > `officer` > `auditor`), PKCE flow, and realm auto-import with pre-configured demo users.
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Zustand | 4.5 | Client state management with minimal boilerplate |
+| TanStack React Query | 5.28 | Server state management with automatic caching, background refetching, and optimistic updates |
+
+React Query integrates with `@tanstack/query-sync-storage-persister` for offline persistence, enabling the UI to display cached data immediately while background refetches update stale entries.
+
+### Data Visualization
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Cytoscape.js | 3.28 | Graph visualization for entity relationships, ownership chains, and network analysis. Supports dagre and fcose layout algorithms |
+| Recharts | 2.12 | Charts for risk distributions, investigation statistics, and timeline visualizations |
+| d3-geo + world-atlas | -- | Geographic visualization for mapping company locations across jurisdictions |
+
+### Forms and Validation
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| react-hook-form | 7.72 | Performant form handling with uncontrolled components |
+| Zod | 3.24 | Schema-based validation for form inputs and API response parsing |
+
+### Interactive Components
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| @dnd-kit | 6.3 | Drag-and-drop for the Workflow Studio visual builder |
+| CodeMirror | 6 | Code and YAML editors for workflow schema configuration and prompt editing |
+
+### Utilities
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| @react-pdf/renderer | 4.3 | Client-side PDF generation for investigation reports and exports |
+| swagger-ui-react | 5.32 | Embedded API documentation within the application settings |
+| axios | -- | HTTP client for all backend API communication |
+
+## CI/CD
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| GitHub Actions | -- | CI/CD pipeline with self-hosted runners |
+| Dependabot | -- | Weekly automated dependency update pull requests |
+
+## Development Dependencies
+
+### Backend Development
+
+| Technology | Purpose |
+|-----------|---------|
+| pytest | Test framework |
+| pytest-asyncio | Async test support |
+| ruff | Python linter and formatter |
+| mypy | Static type checking |
+| pre-commit | Git hook management |
+
+### Frontend Development
+
+| Technology | Purpose |
+|-----------|---------|
+| Vitest | Unit and integration test framework |
+| ESLint | JavaScript/TypeScript linting |
+| Sass | CSS preprocessing for Blueprint.js theme customization |
+| @testing-library/react | Component testing utilities |
 
 ## Architecture Diagram
 
@@ -255,37 +300,25 @@ graph TB
     ON --> N4
     TW --> MN
     FA --> RD
+
+    style Frontend fill:#1e3a5f,stroke:#38bdf8,color:#fff
+    style API fill:#2d4a3e,stroke:#34d399,color:#fff
+    style Services fill:#3b1a5f,stroke:#a78bfa,color:#fff
+    style Data fill:#5f3a1e,stroke:#f59e0b,color:#fff
+    style External fill:#4a1a3b,stroke:#ec4899,color:#fff
 ```
 
-## Full Technology Comparison
+## Deployment Topology
 
-| Layer | Atlas | Trust Relay |
-|---|---|---|
-| **Language** | Python 3.12-3.14 | Python 3.11+ |
-| **API Framework** | FastAPI + Pydantic v2 | FastAPI + Pydantic v2 |
-| **Agent Framework** | LangChain 1.2.10 + LangGraph 1.0.10 | PydanticAI + AG-UI |
-| **Workflow Engine** | Temporal (temporalio >=1.4.0) | Temporal (temporalio >=1.9) |
-| **DB Access** | asyncpg + SQLAlchemy + Alembic | SQLAlchemy + asyncpg (Repository pattern) |
-| **Rate Limiting** | SlowAPI | Configurable skip paths |
-| **Circuit Breakers** | PyBreaker | None |
-| **Retries** | Tenacity | Temporal retry policy |
-| **Logging** | Structlog (structured JSON) | Python logging |
-| **LLM Observability** | Langfuse (self-hosted, 5 containers) | Langfuse + OpenTelemetry (profile flag) + 5 audit tables + diagnostics API |
-| **PDF Generation** | WeasyPrint (report export) | IBM Docling (document conversion) |
-| **Ontology** | RDFLib + JSON-LD (pyld) | N/A |
-| **React** | 18.2 | 19 |
-| **Meta-framework** | None (Vite SPA) | Next.js 16 |
-| **UI Library** | Blueprint.js v5 | shadcn/ui |
-| **State Management** | Zustand + React Query | useState/useEffect |
-| **Forms** | React Hook Form + Zod | Controlled components |
-| **Graph Viz** | Cytoscape.js | ReactFlow |
-| **Charts** | Recharts | Recharts |
-| **Auth (Frontend)** | keycloak-js v26 | keycloak-js v26 (PKCE, RBAC, JIT provisioning) |
-| **PostgreSQL** | 15 (Flyway, 100 migrations) | 16 (Alembic, 44 migrations) |
-| **Neo4j** | 5.18 Community | 5.18 Community |
-| **Redis** | 7 | 7 |
-| **Object Storage** | MinIO x2 (docs + Langfuse) | MinIO x1 |
-| **LLM Gateway** | OpenRouter | Direct API (PydanticAI) |
-| **Primary Model** | claude-3.7-sonnet | claude-3.7-sonnet |
-| **Fast Model** | claude-3.5-haiku | claude-3.5-haiku |
-| **Docker Services** | ~15 containers | ~11 containers |
+Atlas runs as a Docker Compose stack with 15+ containers. See [System Architecture](./architecture) for the full deployment diagram and initialization chain.
+
+| Category | Containers | Count |
+|----------|-----------|-------|
+| Application | API, UI, 2 Temporal workers | 4 |
+| Databases | PostgreSQL 15, Neo4j 5.18, Redis 7 | 3 |
+| Orchestration | Temporal server, Temporal UI | 2 |
+| Authentication | Keycloak 26, DB init, Flyway | 3 |
+| Observability | Langfuse web, Langfuse worker, ClickHouse, Langfuse MinIO | 4 |
+| Storage | Atlas MinIO | 1 |
+
+Total: ~17 containers including init containers.

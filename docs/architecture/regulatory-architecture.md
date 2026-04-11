@@ -44,7 +44,7 @@ graph TD
     end
 
     subgraph "Trust Relay Architecture"
-        ADR["17 ADRs + Agent Manifests"]
+        ADR["36 ADRs + Agent Manifests"]
         AUDIT["6 Audit Tables"]
         CONF["Confidence Scoring"]
         GOV["GovernanceEngine"]
@@ -256,7 +256,7 @@ Even in Express Approval mode (the lightest review tier), the officer must activ
 
 **Requirement:** The controller must implement appropriate technical and organizational measures designed to implement data-protection principles, such as data minimization, and to integrate the necessary safeguards into the processing.
 
-**Row-Level Security (RLS).** All 22 tenant-scoped tables in PostgreSQL have `FORCE ROW LEVEL SECURITY` enabled with the policy:
+**Row-Level Security (RLS).** All 30+ tenant-scoped tables in PostgreSQL have `FORCE ROW LEVEL SECURITY` enabled with the policy:
 
 ```sql
 tenant_id = current_setting('app.current_tenant')::uuid
@@ -297,7 +297,7 @@ All records are append-only and include `tenant_id` for per-tenant isolation. Th
 
 Trust Relay's technical documentation provides the foundation for DPIA review:
 
-- **17 ADRs** documenting every significant technical decision with rationale
+- **36 ADRs** documenting every significant technical decision with rationale
 - **Data flow documentation** showing exactly how documents and personal data move through the system (see [Data Flow](/docs/architecture/data-flow))
 - **Agent manifests** declaring what data each AI agent accesses and what it produces
 - **RLS architecture** demonstrating tenant isolation guarantees
@@ -494,7 +494,7 @@ No phone-home telemetry. No external data transmission unless explicitly configu
 
 ### Guarantee 7 -- Per-Tenant Isolation
 
-Row-Level Security on all 22 tenant-scoped tables with `FORCE ROW LEVEL SECURITY`. Branding per tenant (logo, colors, company name). Workflow templates per tenant (clone and customize). Audit trails per tenant. There is no application-level query that can access another tenant's data without explicitly using `get_admin_session()`, which is restricted to `super_admin` role.
+Row-Level Security on all 30+ tenant-scoped tables with `FORCE ROW LEVEL SECURITY`. Branding per tenant (logo, colors, company name). Workflow templates per tenant (clone and customize). Audit trails per tenant. There is no application-level query that can access another tenant's data without explicitly using `get_admin_session()`, which is restricted to `super_admin` role.
 
 ---
 
@@ -504,7 +504,7 @@ The following table provides a complete mapping from regulatory requirement to T
 
 | Regulation | Article/Requirement | Trust Relay Component | Source File |
 |------------|---------------------|----------------------|-------------|
-| EU AI Act | Art. 11 -- Technical Documentation | 17 ADRs, 14 agent manifests, Docusaurus docs | `docs/adr/`, `backend/app/services/agent_manifests.py` |
+| EU AI Act | Art. 11 -- Technical Documentation | 36 ADRs, 14 agent manifests, Docusaurus docs | `docs/adr/`, `backend/app/services/agent_manifests.py` |
 | EU AI Act | Art. 12 -- Automatic Logging | 6 audit tables, `@audited_tool` decorator | `backend/app/db/models.py`, `backend/app/services/tool_audit_service.py` |
 | EU AI Act | Art. 13 -- Transparency | 4-dimension confidence, Red Flag Engine, chain-of-thought capture | `backend/app/services/confidence_engine.py`, `backend/app/services/red_flag_engine.py` |
 | EU AI Act | Art. 14 -- Human Oversight | GovernanceEngine (4 mechanisms), output validator, supervised autonomy | `backend/app/services/governance_engine.py`, `backend/app/agents/synthesis_agent.py` |

@@ -19,7 +19,7 @@ The Lex regulatory corpus tables (`lex_regulations`, `lex_articles`, `lex_articl
 
 ## Context
 
-The existing codebase has FORCE ROW LEVEL SECURITY on all 22 tenant-scoped tables. The Lex module introduces a new category: universal reference data (EU regulations are identical for every tenant).
+The existing codebase has FORCE ROW LEVEL SECURITY on all 30+ tenant-scoped tables. The Lex module introduces a new category: universal reference data (EU regulations are identical for every tenant).
 
 ## Rationale
 

@@ -17,15 +17,19 @@ Production deployments will use HTTPS behind a reverse proxy. The base URL is co
 
 ## Authentication
 
-Trust Relay uses three authentication models depending on the endpoint group:
+Trust Relay enforces authentication via Keycloak JWT (OIDC) on all officer-facing and admin endpoints. The `get_current_user` dependency validates the `Authorization: Bearer <token>` header against the Keycloak JWKS endpoint, verifying issuer, audience, and expiration claims. Roles are extracted from Keycloak's `realm_access.roles` claim.
 
 | Endpoint Group | Auth Method | Details |
 |---|---|---|
-| **Case Management** (`/api/cases/*`) | None (PoC) | Officer endpoints are unauthenticated in the PoC. Production will add JWT/session auth. |
-| **Scan** (`/api/scan/*`) | None (PoC) | Tiered entity scanning endpoints. Same auth model as Case Management. |
+| **Case Management** (`/api/cases/*`) | Keycloak JWT | Bearer token validated via JWKS. Requires `compliance_officer` role or higher. |
+| **Scan** (`/api/scan/*`) | Keycloak JWT | Same JWT validation as Case Management. |
+| **Graph** (`/api/graph/*`) | Keycloak JWT | Knowledge graph queries require authenticated officer. |
+| **Admin** (`/api/admin/*`) | Keycloak JWT | Requires `super_admin` role. |
+| **Data Subject** (`/api/data-subject/*`) | Keycloak JWT | GDPR DSR endpoints. Requires `compliance_manager` or higher. |
+| **Capsule** (`/api/capsule/*`) | Keycloak JWT | Trust Capsule assembly and verification. |
 | **Customer Portal** (`/api/portal/*`) | Portal token | Each case generates a unique `portal_token` embedded in the portal URL. The token is the path parameter itself. |
-| **PEPPOL Verification** (`/v1/peppol/*`) | API key | `X-API-Key` header required. Keys are configured server-side with rate limits and requestor identity. |
-| **Feature Config** (`/api/config/*`) | None | Public read-only endpoint. |
+| **PEPPOL Verification** (`/v1/peppol/*`) | API key | `X-API-Key` header required. Keys are configured server-side with rate limits. |
+| **Feature Config** (`/api/config/*`) | None | Public read-only endpoint for frontend feature flags. |
 
 ## Content Types
 

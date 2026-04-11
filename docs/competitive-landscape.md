@@ -201,7 +201,7 @@ This satisfies Art. 11 (technical documentation), Art. 12 (automatic logging), A
 Full multi-tenant isolation with:
 
 - **WCAG-validated branding**: automated palette extraction from logo upload via ColorThief, with WCAG AA contrast ratio validation (4.5:1 minimum)
-- **Row-Level Security**: PostgreSQL RLS policies on **22 tenant-scoped tables**, enforced via GUC (`app.current_tenant`), safe-by-default (unset GUC returns zero rows)
+- **Row-Level Security**: PostgreSQL RLS policies on **30+ tenant-scoped tables**, enforced via GUC (`app.current_tenant`), safe-by-default (unset GUC returns zero rows)
 - **Per-tenant isolation**: separate Keycloak realms, Letta agent instances, and MinIO buckets per tenant
 
 This enables Trust Relay to serve as a white-label platform for PSPs, banks, and compliance service providers who need to offer branded compliance portals to their own customers.

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 5
 title: "Security"
-last_verified: 2026-03-29
+last_verified: 2026-04-07
 status: implemented
 ---
 
@@ -37,7 +37,7 @@ _JWKS_TTL_SECONDS = 300
 
 ### Multi-Tenancy (Row Level Security)
 
-All 22 tenant-scoped database tables are protected by PostgreSQL Row Level Security (RLS) policies with `FORCE ROW LEVEL SECURITY` enabled. The session layer sets the tenant context on every database connection:
+All 30+ tenant-scoped database tables are protected by PostgreSQL Row Level Security (RLS) policies with `FORCE ROW LEVEL SECURITY` enabled. The session layer sets the tenant context on every database connection:
 
 - `get_session()` always sets the default tenant context
 - `get_tenant_session(tid)` provides explicit tenant-scoped access
@@ -162,6 +162,24 @@ This is enforced in `backend/app/services/kyc_screening.py` and `backend/app/ser
 
 Regulatory basis: GDPR Article 25 (data protection by design and by default).
 
+### PII Classification & Encryption at Rest
+
+Trust Relay classifies every PII field in the database with one of six categories (ADR-0036). Fields in the DIRECT_IDENTIFIER, FINANCIAL, and CONTACT categories are encrypted at rest using AES-256-GCM via the `EncryptedText` SQLAlchemy TypeDecorator. The encryption is transparent to application code -- reads and writes happen with plaintext strings.
+
+**Encrypted columns:**
+- `users.email` (CONTACT)
+- `investigation_accounts.iban` (FINANCIAL)
+- `investigation_accounts.account_number` (FINANCIAL)
+
+**JSONB PII encryption:**
+- `investigation_persons.identification` -- document numbers encrypted within JSON
+- `investigation_persons.phones` -- phone numbers encrypted within JSON
+- `investigation_persons.emails` -- email addresses encrypted within JSON
+
+**Search hashes:** HMAC-SHA256 hashes enable equality lookups (`WHERE email_hash = ?`) without decrypting every row. The pepper is a separate secret from the encryption key.
+
+**GDPR Data Subject Requests:** Three API endpoints at `/api/data-subject/` handle access (Art. 15), erasure (Art. 17), and rectification (Art. 16) with AML 5-year retention rules. See [PII Classification & Encryption](/docs/architecture/pii-classification) for full details.
+
 ### Mock Mode Flags — Production Safety
 
 Every external integration has a corresponding `*_mock_mode` boolean flag in `app/config.py`. In production, **all flags default to `False`**. If a flag is `False` and the real service is unavailable, the service raises `NotImplementedError` — preventing silent mock-in-production behavior.
@@ -197,12 +215,7 @@ The following enhancements are planned for production hardening:
 
 ### PII Classification
 
-The system processes personal data (director names, LinkedIn profiles, document contents). Production deployment will add:
-
-- PII classification tags on model fields
-- Encrypted columns for sensitive data
-- Data retention and deletion policies
-- GDPR data subject request handling
+**Status: Implemented** (ADR-0036). The system now classifies 20 PII fields across 5 tables with a 6-category taxonomy. DIRECT_IDENTIFIER, FINANCIAL, and CONTACT fields are encrypted at rest using AES-256-GCM. Three GDPR DSR endpoints handle access, erasure, and rectification with AML retention rules. See [PII Classification & Encryption](/docs/architecture/pii-classification) for the full architecture.
 
 ### Enhanced Audit Trail
 
@@ -222,7 +235,7 @@ API keys are stored in `.env` files for local development. Production deployment
 |-------|-------|--------|
 | **Phase 1** (Pre-production) | Officer authentication (OIDC), token expiry, CORS configuration | **Done** (Phase 4 remediation) |
 | **Phase 2** (Launch) | Rate limiting, audit logging with identity | **Partially done** (rate limiting complete, audit logging pending full auth integration) |
-| **Phase 3** (Post-launch) | PII classification, data encryption at rest, GDPR compliance, secret management | Planned |
+| **Phase 3** (Post-launch) | PII classification, data encryption at rest, GDPR compliance, secret management | **PII + encryption + GDPR DSR done** (ADR-0036). Secret management planned |
 | **Phase 4** (Maturity) | SOC 2 Type II preparation, penetration testing, security monitoring | Planned |
 
 ## Security Configuration

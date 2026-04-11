@@ -7,7 +7,7 @@ components:
   - app/worker.py
 tests:
   - tests/test_workflow.py
-last_verified: 2026-03-31
+last_verified: 2026-04-07
 status: implemented
 ---
 
@@ -308,3 +308,72 @@ The workflow includes a utility function `_build_segment_codes()` that merges NA
 3. OSINT investigation codes (from the registry agent)
 
 Codes are deduplicated by their numeric prefix, and the merged list is passed to the MCC classifier for accurate categorization.
+
+## Post-Document Re-Synthesis Activity (2026-04-06)
+
+The `refresh_synthesis_after_documents` activity is a new pipeline step that runs after document validation to update the investigation summary with customer-uploaded evidence. It is guarded by `workflow.patched("post-doc-synthesis-v1")`.
+
+### When It Runs
+
+The activity executes when all three conditions are met:
+1. The `post-doc-synthesis-v1` version gate is open
+2. `validation_results` is non-empty (customer uploaded and validated documents)
+3. `current_iteration >= 1` (always true in practice)
+
+### What It Does
+
+1. **Builds verified-document findings**: Iterates through validation results and creates `document_verified_*` findings for each valid document with `severity: verified` and regulatory basis `AMLD-IV Art. 14 / AMLR Art. 28`
+2. **Merges UBO data**: If document extraction found UBOs (from uploaded UBO register extract), creates a `ubo_verification` finding
+3. **Removes stale findings**: Filters out `medium`-severity UBO findings marked as "unverified" when they are now verified by uploaded documents
+4. **Strikes through satisfied Next Steps**: Uses keyword matching against validated requirement names to add strikethrough (`~~`) to completed action items
+5. **Appends verification section**: Adds a `## Document Verification (Post-Portal)` section to the existing summary
+
+### Design Decision
+
+The activity does NOT re-run the synthesis agent. It mechanically merges new findings and appends a summary section. This preserves the original OSINT-derived narrative while adding document verification results. Re-running synthesis would be more expensive (another GPT-5.2 call) and risks losing well-crafted findings from the initial run. For production, a full re-synthesis with the complete evidence corpus would produce a more unified narrative.
+
+### Failure Handling
+
+On any exception, the activity returns the original `investigation_result` unchanged. This is a guard-and-swallow pattern -- document re-synthesis is best-effort and should never block the pipeline.
+
+## Skip Path Upload Processing (2026-04-06)
+
+When an officer clicks "Skip & Continue" to bypass the document upload portal, the workflow now checks for officer-uploaded documents in MinIO before proceeding. This handles the case where an officer uploads documents via the inline upload component at the `REQUIREMENTS_REVIEW` stage and then skips the portal.
+
+Guarded by `workflow.patched("skip-check-uploads-v1")`.
+
+## Nondeterminism Protection (2026-04-06)
+
+The Skip & Continue button exposed a race condition: the `signal_skip_documents` handler sets both `skip_documents = True` and `documents_submitted = True`, but the main loop at the top of each iteration resets `documents_submitted = False`. If the signal arrived before the loop started waiting, the reset would overwrite the signal.
+
+Fix: `workflow.patched("skip-race-fix-v1")` guards the reset -- if `skip_documents` is already true, the reset is skipped, preserving the signal state.
+
+### Version Gate Inventory
+
+As of 2026-04-07, there are 23 `workflow.patched()` gates in the workflow. Each guard protects a code path that was added after the initial workflow version, preventing nondeterminism during replay of older workflow histories.
+
+| Gate | Purpose |
+|------|---------|
+| `pre-investigation-v1` | OSINT before customer documents |
+| `fetch-company-details-v1` | Re-read company details from DB |
+| `verification-checks-v1` | Verification checks pipeline |
+| `peppol-v1` | PEPPOL verification (BE only) |
+| `peppol-cache-v1` | Reuse cached PEPPOL result |
+| `persist-awaiting-v1` | Persist AWAITING_DOCUMENTS to DB |
+| `skip-race-fix-v1` | Skip & Continue race condition |
+| `skip-docs-v1` | Skip documents feature |
+| `fetch-answers-v1` | Fetch portal answers from DB |
+| `skip-check-uploads-v1` | Check officer uploads on skip |
+| `followup-completion-v1` | Mark follow-up tasks completed |
+| `doc-extraction-v1` | UBO extraction from documents |
+| `fetch-website-v1` | Website scrape |
+| `kyc-v1` | KYC vs KYB fork |
+| `customs-shield-v1` | Customs Shield integration |
+| `post-doc-synthesis-v1` | Post-document re-synthesis |
+| `graph-etl-v1` | Knowledge graph ETL |
+| `quality-scorer-v1` | LLM-as-judge quality scoring |
+| `confidence-score-v1` | Pillar 1 confidence scoring |
+
+:::note
+Per `feedback_no_backward_compat.md`, these guards exist as a safety measure but the project has zero in-flight production workflows. All 23 guards could be removed to simplify the workflow code, since `workflow.patched()` always returns `True` for new workflows.
+:::

@@ -1,11 +1,13 @@
 ---
-sidebar_position: 10
+sidebar_position: 11
 title: "Atlas — API Reference"
+last_verified: 2026-04-08
+status: reference
 ---
 
 # Atlas — API Reference
 
-Atlas exposes a comprehensive REST API with **300+ endpoints** organized across **28 routers**. The API is built on FastAPI with OpenAPI documentation, Keycloak JWT authentication, and tiered rate limiting.
+Atlas exposes a comprehensive REST API with **250+ endpoints** organized across **30+ domain routers**. The API is built on FastAPI with OpenAPI documentation, Keycloak JWT authentication, and tiered rate limiting. An embedded Swagger UI is available at the `/api-docs` route for interactive endpoint exploration and testing.
 
 ## Overview
 
@@ -15,7 +17,7 @@ flowchart LR
         App[FastAPI App]
     end
 
-    subgraph Routers["28 Routers"]
+    subgraph Routers["30+ Routers"]
         direction TB
         R1[health_router]
         R2[investigation_router]
@@ -82,6 +84,16 @@ Rate limiting uses **SlowAPI** with Redis-backed distributed storage (falls back
 | **Status** | 120/minute | Health checks, status polling |
 
 Rate limit responses include `Retry-After` header with seconds until the limit resets.
+
+---
+
+## Health & System Endpoints
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/health` | Liveness probe (returns 200 if API process is running) | **No** |
+| GET | `/health/ready` | Readiness probe (checks PostgreSQL, Neo4j, MCP server connectivity) | **No** |
+| GET | `/api-docs` | Embedded Swagger UI for interactive API exploration | **No** |
 
 ---
 
@@ -398,7 +410,7 @@ Prefix: `/settings/data-providers`
 
 ## Workflow Endpoints
 
-See [Workflow Studio](./workflow-studio.md) for detailed workflow API documentation.
+See [Workflow Engine](./workflow-engine.md) for detailed workflow API documentation.
 
 ### Schema Management
 
@@ -537,16 +549,14 @@ Prefix: `/reference-data`
 | GET | `/reconciliation/summary` | Get reconciliation summary | Yes |
 | GET | `/cost/{investigation_id}` | Get investigation cost breakdown | Yes |
 
-## Health & Debug Endpoints
+## Debug Endpoints
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| GET | `/health` | Liveness probe | **No** |
-| GET | `/health/ready` | Readiness probe (DB, Neo4j, MCP) | **No** |
-| GET | `/debug/mcp-servers` | MCP server diagnostics | Yes |
-| GET | `/debug/pipeline-config` | Pipeline configuration dump | Yes |
-| GET | `/investigations/{id}/workflow` | Workflow internals debug | Yes |
-| GET | `/investigations/{id}/workflow/timeline` | Workflow execution timeline | Yes |
+| GET | `/debug/mcp-servers` | MCP server diagnostics (connection status, tool counts, circuit breaker state) | Yes |
+| GET | `/debug/pipeline-config` | Pipeline configuration dump (module configs, model assignments, tool bindings) | Yes |
+| GET | `/investigations/{id}/workflow` | Workflow internals debug (Temporal state, activity history) | Yes |
+| GET | `/investigations/{id}/workflow/timeline` | Workflow execution timeline (per-activity start/end/duration) | Yes |
 
 ## Auth Endpoints
 
@@ -560,28 +570,70 @@ Prefix: `/reference-data`
 | POST | `/logout` | Log out (invalidate session) | Yes |
 | GET | `/workflow-roles` | Get user's workflow roles | Yes |
 
-## How Trust Relay Compares
+## Source Contract Endpoints
 
-Atlas has **300+ endpoints** across 28+ routers. Trust Relay has **275+ endpoints** across 43+ routers. The two systems emphasize different domains:
+Prefix: `/ontology/source-contracts`
 
-| Domain | Atlas | Trust Relay |
-|--------|-------|-------------|
-| **Investigation** | 14 endpoints (crew transcripts, temporal activity) | Case lifecycle routers (45+ endpoints) + Temporal 12-step workflow |
-| **Risk** | 10 endpoints (portfolio, network, propagation) | EBA risk matrix (860 lines) + risk configuration API (11 endpoints) + confidence scoring |
-| **Graph/Neo4j** | 30+ endpoints (sync, parity, retry queue, cleanup) | 36 endpoints (similar scope) |
-| **Ontology** | 25+ endpoints (resolution, reconciliation, enrichment) | Entity matching via survivorship service |
-| **Settings/Admin** | 80+ endpoints (MCP, prompts, agents, tools, models) | ~35 endpoints (prompts, risk config, branding, templates, tenant admin) |
-| **Workflow** | 25+ endpoints (schemas, execution, builder, documents) | Case lifecycle routers (45+ endpoints) + Temporal 12-step workflow |
-| **Risk Matrix** | 20+ endpoints (schemas, evaluations, assignments, batch) | EBA risk matrix service + configuration API (11 endpoints) |
-| **Reports** | Investigation report + PDF export | Compliance Report PDF + Audit Ledger PDF + Belgian Evidence PDF (WeasyPrint) |
-| **Data Providers** | 25+ endpoints (CRUD, coverage, freshness, enrichment) | 15 built-in OSINT agents + 20 country registry services |
-| **Portal** | Within workflow phases | Standalone branded portal (6 endpoints) |
-| **Monitoring** | Debug endpoints | Continuous monitoring (13 endpoints: baselines, alerts, deltas, schedules) |
-| **CopilotKit** | None | AG-UI + CopilotKit endpoints |
-| **Diagnostics** | Debug endpoints | Session diagnostics + per-agent accuracy |
-| **Lex** | None | Regulatory corpus endpoints (9 endpoints) |
-| **goAML** | None | SAR export endpoints (10 endpoints) |
-| **Branding** | None | White-label branding endpoints |
-| **Regulatory** | None | Regulatory intelligence (13 endpoints: regulations, timeline, calendar, impact) |
-| **Memory** | None | Episodic memory (17 endpoints: teach, forget, recall) |
-| **Transactions** | None | Transaction ingestion + tax capsule (6 endpoints) |
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/ontology/source-contracts` | List all source contract definitions | Yes |
+| POST | `/ontology/source-contracts` | Create source contract | Yes |
+| GET | `/ontology/source-contracts/{id}` | Get source contract detail | Yes |
+| PUT | `/ontology/source-contracts/{id}` | Update source contract | Yes |
+| DELETE | `/ontology/source-contracts/{id}` | Delete source contract | Yes |
+| GET | `/ontology/source-contracts/{id}/versions` | List contract versions | Yes |
+| POST | `/ontology/source-contracts/{id}/versions` | Create new version | Yes |
+| GET | `/ontology/source-contracts/{id}/versions/{version}` | Get specific version | Yes |
+| POST | `/ontology/source-contracts/{id}/activate` | Activate contract version | Yes |
+| GET | `/ontology/source-contracts/adapters` | List available adapters | Yes |
+| POST | `/ontology/source-contracts/adapters/test` | Test adapter transformation | Yes |
+| GET | `/ontology/source-contracts/adapters/{name}` | Get adapter detail | Yes |
+| POST | `/ontology/source-contracts/adapters/{name}/validate` | Validate adapter mapping | Yes |
+| GET | `/ontology/source-contracts/coverage` | Get source coverage summary | Yes |
+| GET | `/ontology/source-contracts/coverage/{entity_type}` | Get coverage for entity type | Yes |
+
+## Mutation Endpoints
+
+Prefix: `/mutations`
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/mutations/process` | Process a batch of mutations | Yes |
+| GET | `/mutations/provenance/{entity_id}` | Get mutation provenance chain for entity | Yes |
+| GET | `/mutations/conflicts` | List unresolved conflicts | Yes |
+| GET | `/mutations/conflicts/{id}` | Get conflict detail | Yes |
+| POST | `/mutations/conflicts/{id}/resolve` | Resolve a conflict | Yes |
+| GET | `/mutations/review-tasks` | List pending review tasks | Yes |
+| POST | `/mutations/review-tasks/{id}/complete` | Complete a review task | Yes |
+
+## Ontology Schema Endpoints
+
+Prefix: `/ontology/schemas`
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/ontology/schemas` | List all ontology schema versions | Yes |
+| POST | `/ontology/schemas` | Create new schema version | Yes |
+| GET | `/ontology/schemas/{id}` | Get schema by ID | Yes |
+| PUT | `/ontology/schemas/{id}` | Update schema | Yes |
+| DELETE | `/ontology/schemas/{id}` | Delete schema version | Yes |
+| POST | `/ontology/schemas/{id}/activate` | Activate schema version | Yes |
+| GET | `/ontology/schemas/{id}/parsed` | Get parsed schema structure | Yes |
+| POST | `/ontology/schemas/validate` | Validate schema YAML | Yes |
+| GET | `/ontology/schemas/{id}/lines` | Get schema line-by-line breakdown | Yes |
+| GET | `/ontology/schemas/{id}/field-configs` | Get field configuration for schema | Yes |
+| PUT | `/ontology/schemas/{id}/field-configs` | Update field configurations | Yes |
+| GET | `/ontology/schemas/{id}/evaluation` | Get schema evaluation results | Yes |
+| POST | `/ontology/schemas/{id}/evaluate` | Run schema evaluation | Yes |
+| GET | `/ontology/schemas/{id}/test-suites` | List test suites for schema | Yes |
+| POST | `/ontology/schemas/{id}/test-suites` | Create test suite | Yes |
+| POST | `/ontology/schemas/{id}/test-suites/{suite_id}/run` | Run test suite | Yes |
+| GET | `/ontology/schemas/{id}/test-suites/{suite_id}/results` | Get test suite results | Yes |
+| GET | `/ontology/schemas/diff/{id1}/{id2}` | Diff two schema versions | Yes |
+| GET | `/ontology/schemas/{id}/entity-types` | Get entity types defined in schema | Yes |
+| GET | `/ontology/schemas/{id}/relationship-types` | Get relationship types | Yes |
+| GET | `/ontology/schemas/{id}/survivorship-rules` | Get survivorship configuration | Yes |
+| PUT | `/ontology/schemas/{id}/survivorship-rules` | Update survivorship rules | Yes |
+| GET | `/ontology/schemas/{id}/crew-format/{crew}` | Get crew-specific output format | Yes |
+| GET | `/ontology/schemas/{id}/simplified` | Get simplified schema for agents | Yes |
+| GET | `/ontology/schemas/{id}/export` | Export schema as YAML | Yes |

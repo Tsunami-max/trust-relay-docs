@@ -21,7 +21,7 @@ components:
 tests:
   - tests/test_pillar35_integration.py
   - tests/test_network_investigation.py
-last_verified: 2026-03-31
+last_verified: 2026-04-07
 status: implemented
 ---
 
@@ -302,3 +302,79 @@ The pipeline uses graceful degradation at every level:
 3. **Temporal retry** -- The activity has a 3-attempt retry policy with exponential backoff
 
 This means a case never gets stuck due to a transient API failure. The worst case is a degraded investigation result that flags the need for manual review.
+
+---
+
+## Social Intelligence Timeout (3-minute cap)
+
+The social intelligence agent (BrightData MCP) is the slowest pipeline component, sometimes exceeding 5 minutes on complex company networks. As of 2026-04-06, it runs with a hard 3-minute `asyncio.wait_for` timeout:
+
+```python
+result = await asyncio.wait_for(
+    run_social_intelligence_agent(...),
+    timeout=180,
+)
+```
+
+On timeout, the agent is marked as "failed" in `agent_executions` with the message "Timed out (3 min)" and an empty `SocialIntelligenceOutput` is used. The pipeline continues without social intelligence data -- synthesis receives all other agent outputs normally.
+
+**Exception handling note:** The timeout catch uses `except BaseException` to handle `CancelledError` (which `asyncio.wait_for` raises on the inner coroutine in Python 3.12+). This is a known code review finding -- it can inadvertently swallow Temporal activity cancellation signals.
+
+---
+
+## Website Scrape Reuse from Pre-Enrichment
+
+When a website URL is discovered during pre-enrichment (via Tavily search at case creation time), the workflow reuses this URL during the investigation iteration instead of repeating the discovery:
+
+1. **Pre-enrichment** (case creation): `_website_discover()` searches Tavily for the company website, stores result in `additional_data.website_discovery`
+2. **Workflow iteration**: `fetch-website-v1` reads the stored `website_url` from the DB via `fetch_company_details` activity, avoiding a redundant Tavily call
+3. **Crawl4ai scrape**: Uses the known URL directly, saving 2-5 seconds of discovery time
+
+The website URL from pre-enrichment is auto-selected (first non-directory candidate) and stored in the case's `additional_data.website_url` field.
+
+---
+
+## Agent Error Tracking in Audit Log
+
+As of 2026-04-06, every agent failure is tracked in two places:
+
+1. **`agent_executions` table**: Status set to "failed" with `error_message` field (truncated to 200 chars)
+2. **Workflow audit log**: `agent_error` audit event with `agent_name`, `error_type`, and `error_message`
+
+Agent errors include duration tracking -- the `duration_ms` field is populated even on failure, enabling analysis of whether timeouts are the primary failure mode.
+
+---
+
+## PydanticAI ModelRetry Quality Gates
+
+Two pipeline agents use PydanticAI's `ModelRetry` mechanism to enforce output quality:
+
+### Synthesis Agent
+
+The synthesis agent validates its output against 5 structural requirements:
+- Must contain all 5 sections (Executive Summary, Key Risk Signals, Verification Status, Recommendation, Next Steps)
+- Executive Summary must be 2-3 sentences
+- Risk signals must not be empty
+- Verified items must not appear in the Unverified section
+
+On validation failure, `ModelRetry` re-runs the LLM with feedback about what was wrong, up to 2 retries. This catches misclassification errors where the LLM puts verified sanctions results under "Unverified" instead of "Verified".
+
+### Document Validator
+
+The document validator uses `ModelRetry` to catch:
+- Missing confidence scores
+- Generic validation reasons (e.g., "document looks valid")
+- Requirement ID mismatches
+
+---
+
+## MCC-Aware License Verification
+
+As of 2026-04-06, the verification checks pipeline includes regulatory license verification that is MCC-aware:
+
+1. **Vertical resolution**: The `resolve_vertical()` function determines the business vertical from either the template ID (e.g., `psp_merchant_onboarding` -> `payments`) or the MCC code (e.g., MCC 6012 -> `payments`)
+2. **Registry check**: For payments/banking verticals, the EBA Payment Institutions Register (CSV) is searched by company name and registration number
+3. **Country routing**: National supervisory authority checks are routed by country -- FSMA for Belgium, CNB for Czech Republic
+4. **Circuit breaker protection**: The EBA register download uses the `eba_register` circuit breaker to prevent cascading failures
+
+License check results are converted to standard `VerificationResult` findings and merged into the investigation output.
