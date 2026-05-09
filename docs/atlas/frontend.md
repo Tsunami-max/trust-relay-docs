@@ -1,5 +1,5 @@
 ---
-sidebar_position: 9
+sidebar_position: 14
 title: "Atlas — Frontend Architecture"
 last_verified: 2026-04-08
 status: reference

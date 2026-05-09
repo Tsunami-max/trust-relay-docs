@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 15
 title: "Atlas — Knowledge Graph"
 last_verified: 2026-04-08
 status: reference

@@ -1,8 +1,8 @@
 ---
 sidebar_position: 1
 title: "Atlas — Product Overview"
-description: "Atlas is an AI-powered KYC/KYB/AML compliance investigation platform with parallel OSINT modules, ontology-driven entity resolution, EBA risk scoring, declarative workflows, and knowledge graph exploration."
-last_verified: 2026-04-08
+description: "Atlas is an AI-powered KYC/KYB/AML compliance investigation platform with parallel OSINT modules, ontology-driven entity resolution, EBA risk scoring, declarative workflows, knowledge graph exploration, multi-tenant RLS isolation, plugin-based data providers, per-tenant credential vault, and claim-plus-rank entity history."
+last_verified: 2026-05-09
 status: reference
 ---
 
@@ -247,53 +247,88 @@ Platform configuration covering LLM providers and model selection, MCP server ma
 
 ## Version History
 
-Atlas has shipped 16 milestones across 83 development phases with 105+ Flyway database migrations.
+Atlas has shipped 17 production milestones across **110+ development phases** with **126+ Flyway database migrations**. The current milestone (v5.1) is in progress at 84% complete (38 of 45 phases as of 2026-05-09).
 
-| Version | Milestone | Key Capabilities |
-|---------|-----------|-----------------|
-| **v1.0** | Foundation | FastAPI backend, 7 OSINT modules, Temporal orchestration, basic investigation pipeline |
-| **v1.5** | Entity Resolution | Ontology schema v1, entity population from module outputs, basic deduplication |
-| **v2.0** | Knowledge Graph | Neo4j integration, graph sync as detached child workflow, Cytoscape.js explorer |
-| **v2.5** | Risk Engine | EBA 5-dimension risk matrix, deterministic scoring with SHA-256 hashes, reference data registry |
-| **v3.0** | Workflow Studio | YAML schema compiler, DynamicComplianceWorkflow, review gates with SLA escalation |
-| **v3.2** | MCP Resilience | Circuit breakers (PyBreaker), retry with backoff (Tenacity), tool availability tracking |
-| **v3.5** | Ontology v3 | Trust entities, document tracking, survivorship strategies, field-level lineage |
-| **v3.8** | Portfolio Management | Company registry, batch risk re-evaluation, portfolio-level analytics |
-| **v4.0** | Workflow Builder | AI-powered schema generation from regulatory documents, semantic validation |
-| **v4.2** | Multi-Tenant | Keycloak RBAC integration, tenant-aware reference data resolution, role-based task routing |
-| **v4.3** | Report Generation | Two-stage report pipeline (extraction + synthesis), WeasyPrint PDF export, quality scoring |
-| **v4.4** | Mutation Queue | Field-level mutation pipeline with provenance tracking, conflict detection, merge strategies |
-| **v4.5** | Observability | Self-hosted Langfuse with ClickHouse backend, full LLM tracing, cost tracking |
-| **v4.6** | Dynamic Risk Categories | Configurable risk categories, per-tenant risk customization, category-level analytics |
+| Version | Milestone | Shipped | Key Capabilities |
+|---|---|---|---|
+| **v1.0** | Foundation | 2026-03-20 | FastAPI backend, 7 OSINT modules, Temporal orchestration, basic investigation pipeline |
+| **v1.1** | Functional Completeness | 2026-03-25 | Stable async runtime (anyio), reliable Neo4j sync, MCP circuit breakers, two-stage reports, Langfuse |
+| **v2.0** | Workflow Ontology Engine | 2026-03-26 | Declarative YAML workflow schemas → Temporal execution; 5 phase types; review gates with SLA escalation; AI Workflow Builder |
+| **v2.1** | Analyst Interaction Layer | 2026-03-27 | Schema field metadata, role-based task inbox, document service (MinIO), portal draft auto-save |
+| **v2.2** | Builder Wizard UI | 2026-03-27 | Three-panel WorkflowBuilder, CodeMirror YAML editor, AI Schema Wizard, drag-and-drop reordering |
+| **v3.0** | Reference Data Registry | 2026-03-28 | Tenant-aware versioned datasets (FATF, PEP, sanctions, UBO thresholds), publish-time snapshot freezing |
+| **v3.1** | EBA Risk Matrix Engine | 2026-03-29 | Deterministic 5-dimension scorer with SHA-256 hash chain, MatrixVersionManager, 19-endpoint API |
+| **v3.2** | Risk Matrix UI & Temporal Batch | 2026-03-29 | Full matrix editor, evaluation dashboard, BatchReEvaluationWorkflow, dimension drill-down |
+| **v3.3** | Data Provider Plugin Architecture (preview) | 2026-03-30 | First-pass plugin scaffolding, KVK provider, authority-tier model, Health Check Workflow |
+| **v3.4** | Compliance Studio UI | 2026-03-31 | Schema Mapping Designer, three-column field mapping, sources & versions UI |
+| **v4.1** | Source Integration | 2026-03-31 | Provider mapping_spec → Schema Designer direct integration; unified Data Sources page |
+| **v4.2** | Studio URL Navigation | 2026-04-01 | All 5 Studio pages migrated to URL search params; deep-linking & refresh persistence |
+| **v4.3** | Port-and-Wire Schema Designer | 2026-04-02 | SVG Bezier wire interaction model replacing @dnd-kit; 8-state PortDot |
+| **v4.4** | Evaluation Rework | 2026-04-04 | Live data preview in Schema Designer; Matrix Evaluation portfolio scoring; comparison with delta tints |
+| **v4.5** | Risk Matrix Scoring Pipeline | 2026-04-06 | ADR-019 scoring engine (REFERENCE_LOOKUP / BOOLEAN / THRESHOLD_RANGES); rule-based escalation overrides |
+| **v4.6** | Dynamic Risk Categories | 2026-04-08 | User-definable risk category types; generic list + scored-table editors; ADR-021 data shapes |
+| **v5.0** | Multi-Tenancy Architecture | 2026-04-20 | `tenants` + `tenant_domains` tables; RLS on ~46 tables; `atlas_app` non-owner role; FORCE ROW LEVEL SECURITY; tenant-scoped sessions; payload-level Temporal isolation; **editorial-grade reports** |
+| **v5.1** | Data Provider Plugin Architecture | in progress (84%) | Formal `plugin.yaml` contract; declarative `mapping_spec.yaml`; per-tenant credentials with AES-256-GCM + HKDF subkeys; OSINT-as-plugin with redeploy-required immutability; entity claims (claim-plus-rank); per-tenant LLM keys; per-tenant health probes |
 
-**Current version: v4.6 (Dynamic Risk Categories)**
+**Current focus (v5.1):** Phase 110.2 — one-shot backfill of legacy entity data into the new `entity_claims` table with KVK + NorthData integration tests and operator runbook.
+
+**Newly documented architectural pillars (this revision):**
+
+- **[Multi-Tenancy & Row-Level Security](./multi-tenancy)** — four-layer isolation (Keycloak realm → request-scoped GUC → PostgreSQL FORCE RLS → Temporal payload isolation).
+- **[Plugin Architecture](./plugin-architecture)** — `plugin.yaml` + `mapping_spec.yaml` contract, three-layer test harness, sync vs. async execution modes.
+- **[Credential Vault & Resolution](./credential-vault)** — per-tenant AES-256-GCM credentials with HKDF subkeys; five-branch resolver chain.
+- **[OSINT-as-Plugin](./osint-plugin)** — async-mode plugin with redeploy-required immutability and per-tenant LLM keys.
+- **[Entity Claims & Claim-Plus-Rank](./entity-claims)** — Wikidata-style multiplicity model preserving every provider's view of every field.
 
 ## Technology Stack
 
 | Layer | Technology |
-|-------|-----------|
-| **Backend** | Python 3.12+, FastAPI, Pydantic v2, asyncpg |
-| **AI Framework** | LangChain 1.2 + LangGraph 1.0 |
+|---|---|
+| **Backend** | Python 3.14, FastAPI, Pydantic v2, asyncpg |
+| **AI Framework** | LangChain 1.2 + LangGraph 1.0; CrewAI for multi-agent OSINT crews |
 | **Workflow Engine** | Temporal (2 workers: investigation + workflow engine) |
-| **Database** | PostgreSQL 15, Neo4j 5.18, Redis 7 |
-| **Object Storage** | MinIO |
-| **LLM Gateway** | OpenRouter (multi-provider routing) |
+| **Database** | PostgreSQL 15 with FORCE Row-Level Security and unprivileged `atlas_app` role; Neo4j 5.18; Redis 7 |
+| **Object Storage** | MinIO (Atlas docs + Langfuse events) |
+| **LLM Gateway** | OpenRouter — per-tenant API keys resolved through the Phase 103 chain |
 | **Frontend** | React 18, Blueprint.js v5, Vite, TypeScript |
 | **State Management** | Zustand + TanStack React Query v5 |
 | **Graph Visualization** | Cytoscape.js (3 layout engines) |
-| **Authentication** | Keycloak 26 (JWT/OIDC, RBAC) |
+| **Authentication** | Keycloak 26 (JWT/OIDC, RBAC; one realm per tenant) |
 | **Observability** | Langfuse 3 (self-hosted with ClickHouse) |
-| **PDF Generation** | WeasyPrint |
-| **Migrations** | Flyway 10 (105+ SQL migrations) |
+| **PDF Generation** | WeasyPrint with Source Serif 4 + Inter Tight, 11 Jinja partials, 801-line theme CSS |
+| **Cryptography** | AES-256-GCM for credentials at rest; HKDF-SHA256 for per-tenant subkey derivation |
+| **Migrations** | Flyway 10 (126+ SQL migrations through V126 `entity_claims`) |
+| **Plugin Substrate** | `plugins/<name>/` directory layout; `plugin.yaml` + `mapping_spec.yaml`; three-layer pytest harness |
 
 ## Reading Guide
 
-- **[System Architecture](./architecture)** -- deep dive into layered architecture, domain organization, deployment topology, data flow, and architectural decisions
-- **[Technology Stack](./tech-stack)** -- complete dependency inventory across backend, frontend, and infrastructure
-- **[Investigation Pipeline](./investigation-pipeline)** -- detailed walkthrough of every investigation stage from request to report
-- **[Ontology & Entity Resolution](./ontology-system)** -- entity schema, matching, reconciliation, and survivorship rules
-- **[Risk Engine](./risk-engine)** -- EBA matrix dimensions, scoring pipeline, determinism proofs, and portfolio risk
-- **[Workflow Engine](./workflow-engine)** -- YAML schema authoring, compilation, execution engine, and task routing
-- **[Frontend Architecture](./frontend)** -- React SPA structure, page hierarchy, state management, and visualization
-- **[Graph Database](./graph-database)** -- Neo4j integration, sync pipeline, Cypher queries, and parity checks
-- **[API Reference](./api-reference)** -- complete endpoint inventory across all 30+ domain routers
+### Foundations
+
+- **[System Architecture](./architecture)** — layered architecture, domain organization, deployment topology, request flow, and architectural decisions.
+- **[Technology Stack](./tech-stack)** — complete dependency inventory across backend, frontend, and infrastructure.
+- **[Infrastructure & Deployment](./infrastructure)** — Docker Compose stack, container inventory, initialization chain, security posture.
+
+### v5.0 — Multi-Tenancy
+
+- **[Multi-Tenancy & Row-Level Security](./multi-tenancy)** — four-layer tenant isolation (Keycloak realm → request-scoped GUC → PostgreSQL FORCE RLS → Temporal payload isolation), threat model, and operational levers.
+
+### v5.1 — Plugin Architecture
+
+- **[Plugin Architecture](./plugin-architecture)** — `plugin.yaml` + `mapping_spec.yaml` contract, three-layer test harness, sync vs. async execution modes.
+- **[Credential Vault & Resolution](./credential-vault)** — per-tenant AES-256-GCM credentials with HKDF subkeys, five-branch resolver chain, grandfather mechanism.
+- **[Data Providers](./data-providers)** — KVK, NorthData, country routing, trust-weighted survivorship.
+- **[OSINT-as-Plugin](./osint-plugin)** — async-mode plugin design with prompts/agents/tools, redeploy-required immutability, per-tenant LLM keys.
+
+### Entity Resolution & Risk
+
+- **[Investigation Pipeline](./investigation-pipeline)** — every investigation stage from request to report.
+- **[Ontology & Entity Resolution](./ontology-system)** — entity schema, matching, reconciliation, survivorship strategies.
+- **[Entity Claims & Claim-Plus-Rank](./entity-claims)** — Wikidata-style multiplicity preservation; `entity_claims` table; Phase 109 decision and Phase 110 write-path.
+- **[Risk Engine](./risk-engine)** — EBA matrix dimensions, scoring pipeline, determinism proofs, portfolio risk.
+
+### Workflow & Surfaces
+
+- **[Workflow Engine](./workflow-engine)** — YAML schema authoring, compilation, execution engine, task routing.
+- **[Frontend Architecture](./frontend)** — React SPA structure, page hierarchy, state management, visualization.
+- **[Graph Database](./graph-database)** — Neo4j integration, sync pipeline, Cypher queries, parity checks.
+- **[API Reference](./api-reference)** — complete endpoint inventory across 30+ domain routers.

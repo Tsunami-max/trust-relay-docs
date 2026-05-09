@@ -1,5 +1,5 @@
 ---
-sidebar_position: 11
+sidebar_position: 20
 title: "Atlas — Import Candidates"
 description: "Features from Atlas that Trust Relay does not yet have, prioritized by compliance value, demo readiness, and implementation complexity."
 last_verified: 2026-04-05

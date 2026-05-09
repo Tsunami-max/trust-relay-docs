@@ -1,14 +1,16 @@
 ---
-sidebar_position: 13
+sidebar_position: 18
 title: Shared Packages
-description: 6 standalone Python packages for Atlas integration
-last_verified: 2026-04-11
+description: 6 Python packages + 1 React UI package for Atlas integration
+last_verified: 2026-04-13
 status: reference
 ---
 
 # Shared Packages
 
-TrustRelay's portable code is extracted into 6 standalone Python packages. Each package has its own `pyproject.toml`, test suite, and clean dependency graph. Atlas (or any Python application) can `pip install` exactly the packages it needs.
+TrustRelay's portable code is extracted into **6 standalone Python packages plus 1 React UI component package**. Each package has its own `pyproject.toml` (or `package.json`), test suite, and clean dependency graph. Atlas (or any Python / Node application) can `pip install` / `npm install` exactly the packages it needs.
+
+As of 2026-04-13 the packages are verified end-to-end by `./scripts/demo_packages.sh` (6/6 Python packages, 127 tests green) and `backend && python ../examples/atlas_integration.py` (10/10 integration sections pass).
 
 ## Package Overview
 
@@ -16,10 +18,11 @@ TrustRelay's portable code is extracted into 6 standalone Python packages. Each 
 |---------|-------------|-------|-------------|
 | **trustrelay-models** | Pydantic types — the typed contracts (43 files) | ~6,400 | pydantic |
 | **trustrelay-protocols** | Protocol interfaces Atlas implements (9 files) | ~440 | models |
-| **trustrelay-registries** | 12-country company registry library (38 files) | ~7,700 | models, httpx |
+| **trustrelay-registries** | 11-country company registry library (38 files) | ~7,700 | models, httpx |
 | **trustrelay-engines** | Decision algorithms + compliance features (16 files) | ~4,700 | models, protocols |
 | **trustrelay-compliance** | GoAML, evidence, ref data, prompts, segments, conclusions (21 py + 71 data) | ~5,300 | models, pyyaml |
 | **trustrelay-pii** | AES-256-GCM encryption, HMAC search (8 files) | ~660 | cryptography |
+| **@trustrelay/ui** | React UI component library (20 shadcn/ui primitives) | ~1,200 | react, tailwindcss |
 
 ## Dependency Graph
 
@@ -155,7 +158,7 @@ The foundation package. Contains 41 Pydantic model files covering:
 
 ### trustrelay-registries
 
-12-country company registry library with the `DataProvider` ABC:
+11-country company registry library with the `DataProvider` ABC:
 
 | Country | Registries |
 |---------|-----------|

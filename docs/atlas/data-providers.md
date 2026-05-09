@@ -1,27 +1,65 @@
 ---
-sidebar_position: 12
+sidebar_position: 7
 title: "Atlas — Data Providers"
-last_verified: 2026-04-08
+description: "How Atlas's KVK, NorthData, and async OSINT plugins fetch and normalize structured company data through the v5.1 plugin contract, the country-routing matrix, and the trust-weighted survivorship that feeds the entity-claims layer."
+last_verified: 2026-05-09
 status: reference
 ---
 
 # Atlas — Data Providers
 
-Atlas uses a plugin-based data provider architecture to fetch structured company data from external registries and aggregators. Each provider implements a standard interface, maps its response to the ontology schema, and reports a trust level that feeds into entity survivorship resolution. The system routes requests to the best available provider for each country and capability combination.
+Atlas fetches structured company data from external registries and aggregators through the **plugin substrate** introduced in milestone v5.1. Each provider lives at `plugins/<name>/`, satisfies the formal `plugin.yaml` contract, declares its ontology projection in `mapping_spec.yaml`, and reports a trust level that feeds into entity survivorship and the [claim-plus-rank](./entity-claims) layer.
 
-## Plugin Architecture
+This page focuses on the *runtime* concerns of data providers: what plugins exist, how requests are routed by country and tier, how trust levels feed survivorship, and how the integration flow connects to the broader investigation pipeline. For the contract that every plugin satisfies — `plugin.yaml` shape, three-layer test harness, sync vs. async execution modes, the disk-authoritative mapping discipline — see **[Plugin Architecture](./plugin-architecture)**.
 
-Every data provider implements the `DataProvider` abstract base class, which enforces a single-call contract: one API request fetches the complete company profile.
+## Plugin Inventory
 
-### Core Principle: Single API Call
+```mermaid
+flowchart LR
+    subgraph Sync["Sync — HTTP Plugins"]
+        K["plugins/kvk/<br/>NL primary<br/>0.95 trust"]
+        N["plugins/northdata/<br/>20+ EU jurisdictions<br/>0.95 trust"]
+    end
+    subgraph Async["Async — Temporal Plugins"]
+        O["plugins/osint/<br/>jurisdiction-agnostic<br/>0.50–0.80 trust per crew"]
+    end
+    subgraph Reference["Reference Implementation"]
+        E["plugins/_example/<br/>harness self-test"]
+    end
 
-Each provider's `fetch_company_complete()` method retrieves all available data in a single atomic API call. This avoids the complexity of multi-step fetch orchestration, rate limit coordination across endpoints, and partial-data inconsistencies. The full response is cached and reused across investigation modules.
+    style Sync fill:#1e3a5f,stroke:#38bdf8,color:#fff
+    style Async fill:#3b1a5f,stroke:#a78bfa,color:#fff
+    style Reference fill:#3b3b1a,stroke:#eab308,color:#fff
+```
 
-### DataProvider ABC
+| Plugin | Mode | Provider type | Trust level | Tenant credential required |
+|---|---|---|---|---|
+| `plugins/kvk/` | sync | `company_registry` | 0.95 (official authority) | ✅ Phase 103 cutover; grandfather window during migration |
+| `plugins/northdata/` | sync | `aggregator` | 0.95 (aggregated official sources) | ✅ Phase 103 cutover |
+| `plugins/osint/` | async | `investigation` | 0.50–0.80 per crew | ✅ Phase 106.1; OpenRouter LLM key in same row |
+| `plugins/_example/` | sync | `company_registry` | n/a (reference) | n/a |
+
+### Backlog (deferred to v5.2+)
+
+Two plugins are explicitly scoped for after v5.1 closes:
+
+- **OpenCorporates plugin** — fallback coverage across 140+ jurisdictions. Adds a `fallback` tier in the country-routing matrix.
+- **Companies House plugin** — UK primary authority (GB).
+
+By the architecture's promise, both are plugin-only work — no router changes, no UI changes beyond the auto-generated credential form, no migration beyond seeding `data_providers` rows.
+
+## The Two Execution Modes
+
+Atlas's plugin contract treats two structurally different things — an HTTP-shaped registry call and a multi-step LLM-driven investigation — as the same kind of thing. They both produce normalized ontology entities with provenance; they just run on different substrates.
+
+### Sync Plugins (`execution.mode: "sync"`)
+
+A sync plugin is an HTTP client. The contract:
 
 ```python
 class DataProvider(ABC):
-    """Base class for all data provider plugins."""
+    """Base class for sync-mode plugins. Runs inside the request handler
+    or as part of pre-investigation enrichment."""
 
     @abstractmethod
     async def fetch_company_complete(
@@ -39,32 +77,29 @@ class DataProvider(ABC):
         self,
         response: ProviderResponse,
     ) -> list[ProviderEntity | ProviderRelationship]:
-        """Map raw provider response to normalized ontology entities."""
-        ...
+        """Map raw provider response to normalized ontology entities.
 
-    @property
-    @abstractmethod
-    def manifest(self) -> PluginManifest:
-        """Return plugin metadata and capabilities."""
+        Sync plugins delegate this to MappingSpec.project(response)
+        loaded from plugins/<name>/mapping_spec.yaml.
+        """
         ...
 ```
 
-### PluginManifest
+**Single-call discipline.** `fetch_company_complete` retrieves all available data in one atomic call (sometimes composed of 2-3 underlying API calls in `client.py`, but always a single logical operation). This avoids multi-step fetch orchestration, rate-limit coordination across endpoints, and partial-data inconsistencies. The full response is cached and reused across investigation modules.
 
-Every provider declares its capabilities through a `PluginManifest` dataclass. The manifest includes semver versioning, supported country codes, entity types the provider can discover, and a default trust level.
+**Disk-authoritative mapping.** `map_to_ontology` no longer contains hand-written Python. It loads `plugins/<name>/mapping_spec.yaml`, validates it against the active ontology, and applies the declarative projection. This is what made the NorthData migration possible: 567 lines of `NorthDataMapper` Python were replaced with a YAML spec without behavioral change (Phase 99).
 
-```python
-@dataclass
-class PluginManifest:
-    name: str                    # Unique provider identifier (e.g., "kvk", "northdata")
-    version: str                 # Semver version string (e.g., "1.2.0")
-    description: str             # Human-readable description
-    countries: list[str]         # ISO 3166-1 alpha-2 country codes
-    entity_types: list[str]      # Ontology entity types this provider discovers
-    trust_level: float           # Default trust score (0.0 - 1.0)
-    requires_api_key: bool       # Whether credentials are needed
-    rate_limit: int | None       # Requests per minute (None = unlimited)
-```
+### Async Plugins (`execution.mode: "async"`)
+
+An async plugin delegates to a Temporal workflow. There is no HTTP client; the `connection.base_url` is a self-documenting sentinel. The contract is satisfied through:
+
+| Sync field | Async equivalent |
+|---|---|
+| `connection.base_url` | `async://temporal/<WorkflowName>` (sentinel) |
+| `client.fetch_company_complete()` | `Temporal.start_workflow(execution.workflow_name, payload)` |
+| `MappingSpec` against API response | `MappingSpec` against workflow output (e.g., the seven crew result models) |
+
+The OSINT plugin is the only async plugin in production today. See **[OSINT-as-Plugin](./osint-plugin)** for the full mechanics — the seven crews, the file-loader cache, the redeploy-required immutability contract.
 
 ## Normalized Data Types
 
@@ -113,87 +148,125 @@ The top-level response object returned by `fetch_company_complete()`.
 
 ## Implemented Providers
 
-### KVK (Dutch Chamber of Commerce)
+### KVK (Dutch Chamber of Commerce) — Phase 96 migration template
 
-The KVK provider fetches company data from the Dutch Kamer van Koophandel registry. It consists of two components: `KVKClient` for API communication and `KVKMapper` for ontology mapping.
+The KVK provider was the first integration migrated onto the formal plugin contract. It established the migration template subsequent providers follow: `git mv` into `plugins/<name>/`, author `plugin.yaml` and `mapping_spec.yaml` alongside the existing mapper, add a wrapping adapter for FLAT→WRAPPED shape compatibility, wire the three-layer harness, then cut over.
 
 | Property | Value |
-|----------|-------|
-| **Provider name** | `kvk` |
-| **Country coverage** | NL (Netherlands) |
+|---|---|
+| **Plugin path** | `plugins/kvk/` |
+| **Plugin version** | `1.0.0` |
+| **Country coverage** | NL (Netherlands — primary authority) |
 | **Trust level** | 0.95 (official government registry) |
-| **Entity types** | LegalEntity, Person, Address |
-| **API type** | REST (JSON) |
-| **Authentication** | API key |
+| **Entity types** | LegalEntity, Address |
+| **Endpoints** | `basic_profile`, `establishment_profile`, `naming` (composed into one logical fetch) |
+| **Credential field** | `api_key` (36-char `l7xx…` token from developers.kvk.nl) |
+| **`allow_platform_fallback`** | `false` (Phase 103 cutover; grandfather window during migration) |
+| **`execution.mode`** | `sync` |
 
-**KVKClient** handles authentication, request construction, and response parsing for the KVK API. It fetches the company profile, branch offices, and officer information in a single consolidated call.
+The `KVKMapper.map_response` legacy function is preserved byte-unchanged for the parity contract; the wrapping adapter (`_wrap_ontology_mapping` in `client.py`) converts its FLAT output to the WRAPPED shape the harness expects. The `mapping_spec.yaml` targets `ontology_schema_v3_5` and uses `transforms.py` for KVK-specific normalization (legal-form lookups, postcode normalization, ISO date parsing).
 
-**KVKMapper** transforms the raw KVK JSON response into `ProviderEntity` and `ProviderRelationship` objects using a YAML mapping specification. The mapping spec defines field-by-field correspondence between KVK response fields and ontology attributes, including data type conversions, value normalization, and conditional mapping rules.
+### NorthData (European Aggregator) — Phase 97-99 migration
 
-### NorthData (European Company Data Aggregator)
-
-NorthData provides aggregated company information across European jurisdictions. It serves as a high-quality enrichment source for countries where Atlas does not have a direct registry integration.
+NorthData was the second provider migrated onto the formal contract. Its migration ran the canonical three-phase shadow pattern: skeleton (97) → parity (98) → cutover + delete (99). At cutover, the 567-line `NorthDataMapper` Python class, the entire shadow-plumbing scaffold (`shadow_diff.py`, `shadow_diff_repository.py`, V121 migration table, 5 shadow test files), and 2 operator scripts were deleted in a single revertable commit.
 
 | Property | Value |
-|----------|-------|
-| **Provider name** | `northdata` |
-| **Country coverage** | 20+ European countries (DE, NL, BE, FR, AT, CH, and more) |
+|---|---|
+| **Plugin path** | `plugins/northdata/` |
+| **Plugin version** | `1.0.0` (target ontology v3.5.1 per Phase 96.1) |
+| **Country coverage** | 20+ European countries (DE, AT, CH, BE, FR, NL, LU, …) |
 | **Trust level** | 0.95 (aggregated from official sources) |
 | **Entity types** | LegalEntity, Person, Address, Document |
-| **API type** | REST (JSON) |
-| **Authentication** | API key |
+| **Rich attributes (v3.5.1)** | `financials`, `sheets`, `events`, `segment_codes`, `contact_info`, `capital_history` — promoted in Phase 96.1 to avoid silent drop at cutover |
+| **`allow_platform_fallback`** | `false` (Phase 103 cutover) |
+| **`execution.mode`** | `sync` |
 
-**NorthDataClient** communicates with the NorthData API to fetch company profiles, financial filings, officer lists, and corporate events. It includes response caching to avoid redundant API calls when multiple investigation modules request the same company.
+The shadow-mode pattern that landed Phase 98 — running both old and new mappers in parallel and persisting divergences to `data_provider_shadow_diff` for review — is preserved in the codebase as historical decision provenance (`98.1-DRIFT-REGISTER.md`) but no longer runs in production. The `_wrap_ontology_mapping` adapter in `wrapper.py` mirrors the KVK pattern.
 
-**NorthDataMapper** maps the NorthData response format to ontology entities. NorthData returns deeply nested structures (company -> officers -> roles -> dates), which the mapper flattens into discrete Person entities with Directorship and Ownership relationships.
+### OSINT (Investigation Engine) — Phase 104-106 migration
+
+The OSINT investigation engine — seven CrewAI-based investigation modules, six MCP tools, OpenRouter LLM gateway — is the canonical async-mode plugin. It satisfies the same `plugin.yaml` contract as KVK and NorthData but executes through Temporal rather than HTTP.
+
+| Property | Value |
+|---|---|
+| **Plugin path** | `plugins/osint/` |
+| **Plugin version** | `0.2.0` |
+| **Jurisdictions** | `["XX"]` (sentinel — jurisdiction-agnostic) |
+| **Trust level** | 0.50–0.80 per crew (configured per-source in `MODULE_TRUST_SCORES`) |
+| **Entity types** | LegalEntity, Person, Address |
+| **Endpoints** | The seven crew names: `cir`, `roa`, `mebo`, `spepws`, `amlrr`, `dfwo`, `frls` |
+| **Credentials** | `openrouter_api_key` (mandatory), four optional MCP tokens (Brightdata, Exa, Tavily, Google Maps) |
+| **`allow_platform_fallback`** | `false` (Phase 106.1 — secure-by-default) |
+| **`execution.mode`** | `async` (delegates to `InvestigationWorkflow`) |
+| **Immutability** | Redeploy-required — file-loader cache primed at lifespan; CI version-bump gate fails closed on prompt/agent/tool changes without `version:` bump |
+
+See the dedicated **[OSINT-as-Plugin](./osint-plugin)** page for the seven-crew architecture, the `projector.py` declarative ontology projector, the file-loader pattern, and the per-tenant LLM credential resolution.
 
 ## Provider Infrastructure
 
-### DataProviderRepository
+The provider infrastructure has three responsibilities: storing provider configuration, resolving the right provider for a request, and resolving the right *credential* for the (tenant, provider) pair. The first lives in `data_providers`; the second in `ProviderRouter`; the third in the [Credential Vault](./credential-vault).
 
-Provider configurations are stored in the database, enabling runtime management without code deployment. The repository supports full CRUD operations for providers, their country coverage mappings, and encrypted credential storage.
+### `data_providers` Table — Provider Configuration
 
-| Operation | Description |
-|-----------|-------------|
-| List providers | Return all configured providers with enabled/disabled status |
-| Create provider | Register a new provider with manifest and credentials |
-| Update provider | Modify provider configuration (name, settings, trust level) |
-| Delete provider | Remove provider and all associated country mappings |
-| Toggle enabled | Enable or disable a provider without deleting it |
-| Update credentials | Securely store or rotate API keys and secrets |
-| Country coverage | CRUD operations for which countries a provider serves |
+The legacy "credentials column on data_providers" pattern was retired in Phase 103. `data_providers` now stores only static configuration: name, display name, provider type, default trust level, country tier mappings, enabled flag, health status. Tenant secrets live in the separate `data_provider_credentials` table with FORCE RLS and AES-256-GCM encryption — see [Credential Vault](./credential-vault).
 
-### ProviderRouter
+| Column class | Purpose |
+|---|---|
+| Identity | `name` (matches `plugin.yaml` `plugin:` field), `display_name`, `provider_type` |
+| Routing | `country_codes[]`, per-country tier (primary / secondary / fallback) |
+| Trust | `default_trust_level` (overridable per-entity by the plugin's `mapping_spec.yaml`) |
+| Health | `health_status` (legacy column; UI-only as of Phase 106.3 — backend reads `data_provider_credentials.last_test_status`) |
+| Lifecycle | `enabled` flag (toggleable from Settings → Data Providers); `created_at`, `updated_at` |
 
-The `ProviderRouter` routes data requests to the best available provider for a given country and capability combination. When multiple providers cover the same country, the router selects based on:
+The `update_credentials` mutation that pre-Phase-103 wrote tenant secrets to a JSONB column on this table is *deleted*. Static-grep guards in CI (`tests/test_phase_103_no_platform_creds.py`, 258 cases) fail closed on any reintroduction of the pattern.
 
-1. **Tier ranking** -- providers are assigned a tier (primary, secondary, fallback) per country
-2. **Enabled status** -- disabled providers are skipped
-3. **Health status** -- providers failing health checks are deprioritized
-4. **Trust level** -- among equal-tier providers, higher trust wins
+### ProviderRouter — Routing + Credential Resolution
+
+`ProviderRouter` is the coordination point for every metered-provider call. It does two things:
+
+1. **Selects the right provider for a (tenant, country, capability) request.** Tier ranking (primary > secondary > fallback), enabled status, health status, trust level.
+2. **Resolves credentials for the chosen provider through the five-branch chain** documented in [Credential Vault](./credential-vault).
 
 ```mermaid
 flowchart TD
-    REQ["Enrichment Request<br/>country_code + registration_number"]
-    ROUTE["ProviderRouter"]
-    CHECK{"Multiple providers<br/>for country?"}
-    SINGLE["Use sole provider"]
-    SELECT["Select by tier → health → trust"]
-    FETCH["DataProvider.fetch_company_complete()"]
-    MAP["DataProvider.map_to_ontology()"]
-    CACHE["Cache ProviderResponse"]
+    REQ["Enrichment Request<br/>(tenant_id, country_code, registration_number)"]
+    GET["get_providers_for_country(<br/>tenant_id, country_code)"]
+    LIST["[ProviderMatch] sorted<br/>by tier → health → trust"]
+    SEL["select first with<br/>matching capability"]
+    RESOLVE["_resolve_credentials(<br/>config, tenant_id, plugin_spec)"]
+
+    subgraph Chain["Five-Branch Resolver Chain"]
+        A{"(a) ATLAS_PLATFORM_FALLBACK_ENABLED?"}
+        B{"(b) plugin_spec.allow_platform_fallback?"}
+        C{"(c) data_provider_credentials row?"}
+        D{"(d) is_active_grandfather?"}
+        E["raise<br/>MissingTenantCredentialsError<br/>(HTTP 424)"]
+    end
+
+    FETCH["plugin.fetch_company_complete<br/>or Temporal start_workflow"]
+    MAP["MappingSpec.project(response)"]
     OUT["ProviderEntity[]<br/>ProviderRelationship[]"]
 
-    REQ --> ROUTE --> CHECK
-    CHECK -->|No| SINGLE --> FETCH
-    CHECK -->|Yes| SELECT --> FETCH
-    FETCH --> MAP --> CACHE --> OUT
+    REQ --> GET --> LIST --> SEL --> RESOLVE
+    RESOLVE --> A
+    A -->|yes| FETCH
+    A -->|no| B
+    B -->|yes| FETCH
+    B -->|no| C
+    C -->|yes| FETCH
+    C -->|no| D
+    D -->|yes| FETCH
+    D -->|no| E
+
+    FETCH --> MAP --> OUT
 
     style REQ fill:#1e3a5f,stroke:#38bdf8,color:#fff
-    style ROUTE fill:#3b1a5f,stroke:#a78bfa,color:#fff
+    style Chain fill:#5f1e1e,stroke:#ef4444,color:#fff
     style FETCH fill:#2d4a3e,stroke:#34d399,color:#fff
-    style OUT fill:#5f3a1e,stroke:#f59e0b,color:#fff
+    style OUT fill:#3b1a5f,stroke:#a78bfa,color:#fff
 ```
+
+`get_providers_for_country(tenant_id, country_code)` requires `tenant_id` (Phase 103 — no default, no sentinel). `_resolve_credentials` returns a fresh `dict` (defensive copy — plugin clients cannot poison the platform-shared `DataProviderConfig`).
 
 ### StaleCheck
 

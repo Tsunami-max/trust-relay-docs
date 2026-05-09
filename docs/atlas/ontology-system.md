@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 10
 title: "Atlas — Ontology System"
 last_verified: 2026-04-08
 status: reference

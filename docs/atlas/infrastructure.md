@@ -1,13 +1,16 @@
 ---
-sidebar_position: 10
+sidebar_position: 16
 title: "Atlas — Infrastructure & Deployment"
-last_verified: 2026-04-08
+description: "The Docker Compose deployment topology, init-chain, container inventory, security posture, and the v5.0 / v5.1 changes — atlas_app role, ATLAS_CREDENTIALS_MASTER_KEY, entity_claims migration."
+last_verified: 2026-05-09
 status: reference
 ---
 
 # Atlas — Infrastructure & Deployment
 
 Atlas runs as a Docker Compose stack with 17+ containers spanning application services, databases, workflow orchestration, authentication, observability, and document storage. All containers communicate over a shared `osint-network` bridge network with health-check-enforced initialization ordering.
+
+This page focuses on the *operational* shape of a deployment: containers, ports, init order, security posture, observability, configuration. The *architectural* shape — multi-tenancy enforcement, plugin substrate, credential resolution — is documented separately in [Multi-Tenancy](./multi-tenancy), [Plugin Architecture](./plugin-architecture), and [Credential Vault](./credential-vault).
 
 ## Docker Compose Architecture
 
@@ -158,16 +161,20 @@ flowchart LR
 
 All three application containers share the same Dockerfile with different entry points. The image is based on `python:3.14-slim` and includes system dependencies required by WeasyPrint for PDF generation:
 
-- **pango** and **gdk-pixbuf** -- layout engine and image rendering for HTML-to-PDF conversion
-- **fonts-noto** -- Unicode font family required for Romanian diacritics, CJK characters, and other non-Latin scripts in generated compliance reports
+- **pango**, **gdk-pixbuf**, **libpangoft2** — layout engine and image rendering for HTML-to-PDF conversion (Phase U1 hardened the Dockerfile production shape)
+- **fonts-noto** — Unicode font family required for Romanian diacritics, CJK characters, and other non-Latin scripts in generated compliance reports
+
+The Dockerfile installs the `plugins/` top-level package alongside `src/`, both as editable Python packages. This is what makes `from plugins.kvk.client import KVKProvider` resolve at import time without `PYTHONPATH` gymnastics.
 
 The entry points differ per service:
 
 | Container | Entry Point |
-|-----------|------------|
+|---|---|
 | `osint-api` | `uvicorn src.main:app --host 0.0.0.0 --port 8000` |
-| `temporal-worker` | `python -m src.worker` |
-| `workflow-engine-worker` | `python -m src.workflow_worker` |
+| `temporal-worker` | `python -m src.worker` (investigation modules — async-mode plugin runtime) |
+| `workflow-engine-worker` | `python -m src.workflow_worker` (DynamicComplianceWorkflow runtime) |
+
+Both worker containers prime the OSINT file-loader cache at startup — exactly the same way `osint-api` does at FastAPI lifespan — so prompts, agent configs, and MCP tool definitions are byte-identical across all three runtimes for a given deployment.
 
 ### Frontend (osint-ui)
 
@@ -207,13 +214,30 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 Atlas uses a single PostgreSQL 15 instance hosting four logical databases. This simplifies deployment and backup operations at the cost of shared resource contention.
 
 | Database | Owner | Purpose |
-|----------|-------|---------|
-| `osint_reports` | `osint` | Application data: investigations, entities, risk scores, ontology, configurations, reference data, workflow schemas, mutation queue |
-| Keycloak DB | `keycloak` | Authentication realms, users, roles, sessions |
+|---|---|---|
+| `osint_reports` | `osint` (schema owner) + `atlas_app` (runtime) | Application data: investigations, entities, risk scores, ontology, configurations, reference data, workflow schemas, mutation queue, **`data_provider_credentials`**, **`entity_claims`** |
+| Keycloak DB | `keycloak` | Authentication realms (one per tenant), users, roles, sessions |
 | Langfuse DB | `langfuse` | LLM traces, observations, scores, prompt versions |
 | Temporal DB | `temporal` | Workflow execution history, task queues, visibility records |
 
-Flyway manages only the `osint_reports` schema. Other databases use their own migration strategies (Keycloak auto-migrates on startup, Temporal uses `auto-setup`, Langfuse manages its own migrations).
+Flyway runs **126+ versioned migrations** through `V126__entity_claims.sql` (Phase 110) on the `osint_reports` schema. Other databases use their own migration strategies (Keycloak auto-migrates on startup, Temporal uses `auto-setup`, Langfuse manages its own migrations).
+
+### The `atlas_app` Role and FORCE Row-Level Security (v5.0)
+
+Two PostgreSQL roles share access to `osint_reports`:
+
+| Role | Created by | Used by | RLS posture |
+|---|---|---|---|
+| `osint` | Flyway init script | Schema migrations, administrative scripts | Schema owner — bypasses RLS by default |
+| `atlas_app` | V108 migration via `init-atlas-app.sql` | All runtime API and worker connections | Non-owner, no `BYPASSRLS` — RLS applies |
+
+The `atlas_app` password is derived from the `POSTGRES_APP_PASSWORD` Compose variable and applied by a postgres init script at first boot. Every asyncpg-using container (`osint-api`, `temporal-worker`, `workflow-engine-worker`) connects as `atlas_app`. The schema-owning `osint` connection is reserved for Flyway and rare administrative tasks.
+
+Approximately **46 tenant-owned tables** carry `tenant_id UUID NOT NULL` and `FORCE ROW LEVEL SECURITY` policies. Two tables (`reference_datasets`, `ontology_schema_lines`) carry permissive `OR` policies that allow system-default rows to be visible across tenants — the only deliberate seam in the FORCE RLS surface.
+
+`DatabasePool.initialize()` fails closed by default. The `ALLOW_OWNER_DB_FALLBACK=true` opt-in is the only way to use the schema-owning role at runtime, and it emits a loud `WARNING` containing the verbatim phrase **"FORCE RLS IS NOT ENFORCED for this process. This MUST NOT be used in production."** — a CI grep guard refuses to allow that warning string to be altered.
+
+See [Multi-Tenancy](./multi-tenancy) for the four-layer threat model and the `tenant_db_session` GUC mechanism.
 
 ### Named Volumes
 
@@ -309,20 +333,28 @@ Atlas uses `pydantic-settings` for configuration management. Settings are loaded
 ### Configuration Categories
 
 | Category | Key Variables | Purpose |
-|----------|--------------|---------|
+|---|---|---|
 | **API** | `HOST`, `PORT`, `LOG_LEVEL`, `CORS_ORIGINS` | Server binding and CORS policy |
-| **Database** | `DATABASE_URL`, `DB_POOL_SIZE`, `DB_MAX_OVERFLOW` | PostgreSQL connection pooling |
+| **Database — owner** | `DATABASE_URL`, `DB_POOL_SIZE`, `DB_MAX_OVERFLOW` | PostgreSQL connection pooling for the `osint` schema-owner role (Flyway, admin scripts) |
+| **Database — runtime** | `POSTGRES_APP_PASSWORD`, `ATLAS_APP_DATABASE_URL`, `ALLOW_OWNER_DB_FALLBACK` | `atlas_app` non-owner role for runtime; the fallback flag is *fail-closed-by-default* (Phase 85) |
+| **Credential vault** | `ATLAS_CREDENTIALS_MASTER_KEY` | 32-byte base64 master key for AES-256-GCM credential encryption (Phase 100). Loaded once at startup, held in memory, never logged. |
+| **Credential resolver** | `ATLAS_PLATFORM_FALLBACK_ENABLED` | Emergency rollback flag for the five-branch credential resolver. Defaults to `false`; setting `true` reverts to platform-shared credentials with sampled `ERROR` logs (Phase 103) |
 | **Redis** | `REDIS_URL`, `REDIS_DB` | Cache and rate limiting backend |
 | **Temporal** | `TEMPORAL_HOST`, `TEMPORAL_NAMESPACE`, `TEMPORAL_TASK_QUEUE` | Workflow orchestration connection |
-| **LLM** | `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `DEFAULT_MODEL` | LLM provider credentials and model selection |
+| **LLM** | `OPENROUTER_API_KEY` (OPTIONAL post-Phase-106.2), `DEFAULT_MODEL` | The env-var was the platform-shared key pre-cutover; current code resolves per-tenant via `data_provider_credentials.openrouter_api_key`. The env-var is honored by the resolver's branch (a) emergency fallback only |
 | **MCP** | `MCP_TIMEOUT`, `MCP_CIRCUIT_BREAKER_*` | MCP server resilience settings |
 | **MinIO** | `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET` | Document storage credentials |
-| **Auth** | `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID` | Authentication provider settings |
+| **Auth** | `KEYCLOAK_URL`, `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID` | One Keycloak realm per tenant; the realm name resolves to a `tenant_id UUID` via `tenant_domains` table |
 | **CORS** | `CORS_ORIGINS`, `CORS_METHODS`, `CORS_HEADERS` | Cross-origin request policy |
 | **Rate Limiting** | `RATE_LIMIT_DEFAULT`, `RATE_LIMIT_WRITE`, `RATE_LIMIT_EXPENSIVE` | Per-tier rate limit overrides |
 | **Workflow** | `WORKFLOW_TASK_QUEUE`, `WORKFLOW_NAMESPACE` | Workflow engine worker settings |
 | **Investigation** | `INVESTIGATION_TIMEOUT`, `MODULE_TIMEOUT`, `ENRICHMENT_TIMEOUT` | Investigation pipeline timeouts |
 | **Langfuse** | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST` | Observability connection |
 | **Neo4j** | `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` | Knowledge graph connection |
+
+The two security-critical variables are highlighted intentionally:
+
+- **`ATLAS_CREDENTIALS_MASTER_KEY`** is the only reason the credential vault is secure. Its loss would render every encrypted credential row unreadable; its leak would expose every tenant's API keys. Rotation is a future hygiene phase (the `Encryptor` Protocol seam exists for this).
+- **`ATLAS_PLATFORM_FALLBACK_ENABLED`** is the only way to bypass per-tenant credential resolution in production. Its existence is documented in the Migration Runbook (`.planning/phases/103-credential-resolution-cutover-migration-grandfathering/MIGRATION.md`) so operators know it exists during incident response — and so they know it is the *first* thing reviewers look for when an incident response is over.
 
 All settings have sensible defaults for development. Production deployments override via environment variables or a mounted `.env` file.

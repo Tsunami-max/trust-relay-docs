@@ -1,5 +1,5 @@
 ---
-sidebar_position: 12
+sidebar_position: 19
 title: "Atlas vs Trust Relay -- Architecture Comparison"
 description: "Honest, dimension-by-dimension architectural comparison between Trust Relay and Atlas from the compliance officer's perspective. For internal strategy, not marketing."
 last_verified: 2026-04-07
@@ -54,7 +54,7 @@ flowchart LR
 ```
 
 - **13 agents** with sequential phase execution (registry must complete before person validation)
-- **Country routing**: 12 countries, 21 registry services (KBO, NBB, INPI, NorthData, ANAF, etc.)
+- **Country routing**: 11 countries (BE, CZ, EE, CH, FR, NL, NO, DK, FI, RO, SK), 21 registry services (KBO, NBB, INPI, NorthData, ANAF, etc.)
 - **Social intelligence**: BrightData MCP with 3-minute timeout for LinkedIn, reviews, and social media
 - **Quality gates**: PydanticAI `ModelRetry` on synthesis and document validation -- if the LLM misclassifies verified items as unverified, it gets corrective feedback and retries
 - **EVOI budget management**: Economic Value of Information scoring controls which network entities get scanned
@@ -239,7 +239,7 @@ This is the most significant architectural gap between the two systems. A compli
 | State Management | React useState/useEffect (ADR-0010) |
 | Build | Next.js built-in (Turbopack) |
 | Backend | FastAPI, Pydantic v2, SQLAlchemy 2.0 ORM + Repository pattern |
-| Migrations | Alembic (39 migrations) |
+| Migrations | Alembic (54 migrations through `054_sanctions_suppression_rules`) |
 | Workflow | Temporal (single worker) |
 | Document Processing | IBM Docling (local, MIT) |
 | Object Storage | MinIO |
@@ -279,7 +279,7 @@ This is the most significant architectural gap between the two systems. A compli
 
 ### Trust Relay
 
-- **12 countries**: BE, CH, CZ, DE, DK, EE, FI, FR, NL, NO, RO, SK
+- **11 countries**: BE, CZ, EE, CH, FR, NL, NO, DK, FI, RO, SK
 - **21 registry services**: Direct integrations with national registries (KBO, NBB, INPI, KVK, NorthData, ANAF, etc.)
 - **Country-routed agents**: The registry agent dispatches to country-specific handlers with official data source access
 - **GoAML country profiles**: SAR generation templates for CZ, RO, SK with country-specific field mappings
@@ -296,7 +296,7 @@ This is the most significant architectural gap between the two systems. A compli
 
 ### Verdict
 
-**Winner: Trust Relay** -- 21 direct registry integrations vs. generic web search. When a Czech bank asks "is this company registered with the CNB?", Trust Relay queries the CNB JERRS register directly. Atlas would search the web for the answer. This is a significant differentiator for European compliance use cases.
+**Winner: Trust Relay** -- 21 direct registry integrations vs. generic web search. When a Czech bank asks "is this company registered with the CNB?", Trust Relay answers from a curated CNB regulated-entity dataset (live JERRS API integration on roadmap). Atlas would search the web for the answer. This is a significant differentiator for European compliance use cases.
 
 ---
 
@@ -515,7 +515,7 @@ flowchart TD
         TR1["Investigation Depth<br/>13 agents, 21 registries"]
         TR2["Document Processing<br/>OSINT-first, Docling, ModelRetry"]
         TR3["Regulatory Compliance<br/>EU AI Act, GoAML, Lex"]
-        TR4["Multi-Country<br/>12 countries, 21 services"]
+        TR4["Multi-Country<br/>11 countries, 21 services"]
         TR5["Data Protection<br/>PII classification, AES-256-GCM, DSR"]
         TR6["Logging & Observability<br/>structlog, correlation IDs"]
         TR7["Database Architecture<br/>ORM, RLS, encryption"]

@@ -1,5 +1,5 @@
 ---
-sidebar_position: 11
+sidebar_position: 17
 title: "Atlas — API Reference"
 last_verified: 2026-04-08
 status: reference

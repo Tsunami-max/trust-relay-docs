@@ -1,16 +1,27 @@
 ---
 sidebar_position: 2
 title: "Atlas — System Architecture"
-description: "Deep architecture documentation for the Atlas compliance platform. Covers layered design, domain organization, investigation lifecycle, deployment topology, and key architectural decisions."
-last_verified: 2026-04-08
+description: "Deep architecture documentation for the Atlas compliance platform. Covers layered design, multi-tenant isolation, plugin substrate, investigation lifecycle, deployment topology, and key architectural decisions."
+last_verified: 2026-05-09
 status: reference
 ---
 
 # Atlas — System Architecture
 
-Atlas follows a monolithic architecture with modular internal organization. The codebase is a single Python package (`src/`) with domain-specific sub-packages, fronted by a FastAPI API layer and backed by PostgreSQL, Neo4j, Redis, and Temporal. The frontend is a React SPA using Blueprint.js, built with Vite.
+Atlas follows a **modular monolith** architecture with strict internal layering. The backend is a single Python package (`src/`) plus a sibling `plugins/` top-level package; the frontend is a React SPA using Blueprint.js, built with Vite. PostgreSQL is the system of record, Neo4j is a derived knowledge-graph view, Redis is cache and rate-limiter backend, Temporal is the durable workflow engine, and Keycloak is the identity provider — one realm per tenant.
 
-This page documents the system from the ground up: request flow, domain organization, investigation lifecycle, deployment topology, and architectural decisions.
+This page documents the system from the ground up: request flow with tenant context, domain organization, the v5.1 plugin substrate, investigation lifecycle, deployment topology, and architectural decisions.
+
+## Two Cross-Cutting Substrates
+
+Two architectural substrates shape every layer of the system. Both were established in milestones v5.0 and v5.1 and are documented in detail on dedicated pages:
+
+| Substrate | Established in | Effect on architecture |
+|---|---|---|
+| **[Multi-tenancy & Row-Level Security](./multi-tenancy)** | v5.0, phases 84–86.1.1 | Every tenant-owned table carries `tenant_id UUID NOT NULL` with FORCE ROW LEVEL SECURITY; the application connects as the unprivileged `atlas_app` role; every request flows through `tenant_db_session(tenant_id)` which sets `app.current_tenant_id` GUC; every Temporal payload carries `tenant_id`. |
+| **[Plugin substrate](./plugin-architecture)** | v5.1, phases 91–110 | Data providers (KVK, NorthData) and the OSINT investigation engine all live under `plugins/<name>/` with a `plugin.yaml` capability/credential contract and a declarative `mapping_spec.yaml` — sync-mode plugins are HTTP clients, async-mode plugins delegate to a Temporal workflow. |
+
+Read those two pages first if the rest of this document leaves you wondering "but how does it stay isolated under load" or "but how is OSINT not just a giant if-statement."
 
 ## Architecture Overview
 
@@ -459,6 +470,83 @@ Several services have initialization dependencies enforced by Docker Compose hea
 8. **UI** starts after API is healthy
 9. **Langfuse** starts after its DB init, ClickHouse, Redis, and MinIO are ready
 
+## Tenant Context Overlay (v5.0)
+
+Every request and every workflow carries `tenant_id` end-to-end. The middleware extracts it from the JWT, the request-scoped DB session binds it to a PostgreSQL GUC, the application connects as `atlas_app` (no RLS bypass), and Temporal payloads carry it as a required field on every dataclass.
+
+```mermaid
+flowchart LR
+    subgraph Wire["Wire"]
+        JWT["JWT<br/>(realm = tenant)"]
+    end
+    subgraph App["Application"]
+        MW["PlatformAuthMiddleware<br/>realm → tenant_id"]
+        AC["AuthContext<br/>{tenant_id, user_id, roles}"]
+        SESS["tenant_db_session<br/>SET LOCAL app.current_tenant_id"]
+    end
+    subgraph DB["PostgreSQL"]
+        APP["atlas_app role<br/>(non-owner, no BYPASSRLS)"]
+        POL["FORCE RLS policy<br/>WHERE tenant_id = GUC"]
+    end
+    subgraph Temporal["Temporal"]
+        DC["Activity dataclass<br/>{tenant_id: UUID, …}"]
+    end
+    JWT --> MW --> AC --> SESS --> APP --> POL
+    AC --> DC --> SESS
+
+    style Wire fill:#1e3a5f,stroke:#38bdf8,color:#fff
+    style App fill:#2d4a3e,stroke:#34d399,color:#fff
+    style DB fill:#3b1a5f,stroke:#a78bfa,color:#fff
+    style Temporal fill:#5f3a1e,stroke:#f59e0b,color:#fff
+```
+
+The `app.current_tenant_id` GUC is set via `SET LOCAL` so it auto-clears at transaction boundary — eliminating "leaked tenant context" bugs by construction. The application has *no path* to bypass RLS in production because the only role that can is `osint` (the schema owner) and the application pool refuses to use it unless `ALLOW_OWNER_DB_FALLBACK=true` with a loud `WARNING`.
+
+See **[Multi-Tenancy & Row-Level Security](./multi-tenancy)** for the full four-layer threat model, the `tenant_provider_grandfather` migration mechanism, and the verification surfaces.
+
+## Plugin Substrate Overlay (v5.1)
+
+`plugins/` is a top-level Python package (sibling to `src/`) containing one directory per data provider. Every plugin satisfies the same `plugin.yaml` contract regardless of whether it's a sync HTTP fetch or an async Temporal investigation:
+
+```mermaid
+flowchart TD
+    subgraph Disk["plugins/ (top-level package)"]
+        K["plugins/kvk/<br/>sync • company_registry"]
+        N["plugins/northdata/<br/>sync • aggregator"]
+        O["plugins/osint/<br/>async • investigation"]
+        E["plugins/_example/<br/>sync • reference impl"]
+    end
+
+    subgraph Contract["Per-Plugin Artifacts"]
+        Y["plugin.yaml<br/>(capabilities, credentials, execution.mode)"]
+        M["mapping_spec.yaml<br/>(declarative ontology projection)"]
+        T["transforms.py<br/>(pure-function toolkit)"]
+        H["tests/<br/>run_plugin_tests(__file__)"]
+    end
+
+    subgraph Runtime["Runtime Resolution"]
+        L["PluginLoader.load(dir)<br/>strict, aggregating validation"]
+        R["ProviderRouter._resolve_credentials<br/>(5-branch chain)"]
+        F["sync: client.fetch_company_complete<br/>async: Temporal start_workflow"]
+        P["MappingSpec.project(response)<br/>→ ProviderEntity[] + ProviderRelationship[]"]
+    end
+
+    Disk --> Contract --> L
+    L --> R --> F --> P
+
+    style Disk fill:#1e3a5f,stroke:#38bdf8,color:#fff
+    style Contract fill:#2d4a3e,stroke:#34d399,color:#fff
+    style Runtime fill:#3b1a5f,stroke:#a78bfa,color:#fff
+```
+
+Three properties distinguish this from the v3.3 first-pass plugin scaffolding:
+
+1. **Disk-authoritative mappings.** `mapping_spec.yaml` is shipped in the plugin directory; it is *not* DB-overridable, *not* tenant-overridable. Two deployments at the same git SHA produce byte-identical projections.
+2. **Three-layer test harness.** Contract (every mapped attribute exists in ontology with compatible type), mapping (DeepDiff vs golden file per fixture), coverage (declared mappings ⊆ produced fields).
+3. **Two execution modes, one contract.** Sync plugins are HTTP-client-shaped; async plugins delegate to a Temporal workflow. The same `plugin.yaml` format describes both.
+
+See **[Plugin Architecture](./plugin-architecture)** for the artifact-by-artifact contract, the loader's strictness guarantees, the harness's failure modes, and the migration template (KVK Phase 96 → NorthData Phases 97-99 → OSINT Phases 104-106).
+
 ## Key Architectural Decisions
 
 ### 1. Parallel Module Execution
@@ -500,6 +588,26 @@ Investigation reports are generated as HTML from Jinja2 templates and converted 
 ### 10. Ontology-Driven Risk Scoring
 
 Risk scoring is not hardcoded. The ontology schema defines entity types and their risk-relevant attributes. Risk factors are evaluated per-dimension using the EBA 5-dimension framework, with per-factor weights stored in the database. The scorer produces 4 SHA-256 hashes (input, override, evaluation fingerprint, output) for full audit reproducibility.
+
+### 11. FORCE Row-Level Security with `atlas_app` Role (v5.0)
+
+Multi-tenancy is enforced at the database, not by application code remembering to filter. ~46 tables carry `tenant_id UUID NOT NULL` and `FORCE ROW LEVEL SECURITY` policies referencing `current_setting('app.current_tenant_id')::uuid`. The application connects as the unprivileged `atlas_app` role; the schema-owning `osint` role is used only for migrations and is gated by an explicit opt-in flag with a loud warning. Cross-tenant reads are cryptographically impossible — even if a query forgets a filter, the database refuses the row. See [Multi-Tenancy](./multi-tenancy).
+
+### 12. Per-Tenant Credentials with Five-Branch Resolver (v5.1)
+
+Tenants bring their own keys. `data_provider_credentials` stores AES-256-GCM ciphertext with HKDF-SHA256-derived per-tenant subkeys; the `EnvKeyEncryptor` is a Protocol seam for future KMS adoption. Every metered-provider call resolves through `ProviderRouter._resolve_credentials` — a five-branch precedence chain: emergency rollback flag, unmetered plugin, tenant credential row, active grandfather row, raise. `MissingTenantCredentialsError` maps to HTTP 424 with a remediation URL. See [Credential Vault](./credential-vault).
+
+### 13. Plugin Architecture with Disk-Authoritative Mappings (v5.1)
+
+Data providers and the OSINT investigation engine all live under `plugins/<name>/` with a `plugin.yaml` capability/credential contract and a declarative `mapping_spec.yaml`. Mapping specs are platform-wide and on-disk — not DB-overridable, not tenant-overridable — so two deployments at the same git SHA produce byte-identical ontology projections. A three-layer pytest harness (contract → mapping → coverage) gates every plugin merge. Sync plugins are HTTP clients; async plugins delegate to a Temporal workflow. See [Plugin Architecture](./plugin-architecture).
+
+### 14. OSINT Immutability via Redeploy-Required Cycle (v5.1)
+
+The OSINT plugin's prompts, agent configs, and MCP tool definitions are files on disk under `plugins/osint/`, primed into a read-only in-memory cache at process startup. There is no admin API to mutate them at runtime. Editing requires a file change, a `plugin.yaml` `version:` bump (CI-enforced), a PR, and a deploy. This trades hot-edit convenience for the reproducibility guarantee: every investigation run by a given deployment uses byte-identical agent configuration. See [OSINT Plugin](./osint-plugin).
+
+### 15. Claim-Plus-Rank Entity Multiplicity (v5.1, Phase 109-110)
+
+When KVK and NorthData disagree about a company's registered address, both claims are preserved. The `entity_claims` table (V126 migration) holds every provider's view of every field with its source, trust score, retrieval timestamp, and `is_preferred` flag. The seven `SurvivorshipStrategy` strategies are unchanged in semantics — they still pick the winner — but losing claims are no longer discarded. The pattern is borrowed from Wikidata's claim model and unlocks per-field provenance UX, multi-source Person dedup, and regulator-auditable evidence trails. See [Entity Claims](./entity-claims).
 
 ## Security Architecture
 
