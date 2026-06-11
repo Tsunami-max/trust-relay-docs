@@ -9,7 +9,7 @@ components:
   - app/services/nbb_service.py
   - app/services/inhoudingsplicht_service.py
   - app/services/document_validators/belgian_eid.py
-last_verified: 2026-03-30
+last_verified: 2026-06-11
 status: implemented
 ---
 

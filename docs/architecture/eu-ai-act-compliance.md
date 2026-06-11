@@ -5,8 +5,12 @@ description: How TrustRelay meets EU AI Act requirements for high-risk AI system
 components:
   - app/services/evoi_engine.py
   - app/services/automation_tier_service.py
+  - app/services/audit_service.py
+  - app/services/evidence_bundle_service.py
+  - app/services/domain_events.py
+  - app/api/data_subject.py
   - app/prompts/registry.py
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -25,7 +29,7 @@ This classification is not incidental. TrustRelay makes or informs decisions tha
 | Requirement | Implementation | Evidence |
 |-------------|---------------|----------|
 | General description of the AI system | Architecture docs at trust-relay.pages.dev | Product overview, data flow, tech stack pages |
-| Design specifications and development methodology | S4U Methodology with design-before-code principle | ADR records (17 decisions documented) |
+| Design specifications and development methodology | S4U Methodology with design-before-code principle | ADR records (48 ADRs documented, latest ADR-0049) |
 | Information about training data | Not applicable — TrustRelay uses deterministic algorithms + LLM API calls, no custom-trained models | EVOI engine uses mathematical decision theory, not ML training |
 | Development and testing procedures | PoC methodology with 90% workflow coverage target | pytest + testcontainers, no mocking without approval |
 | Intended purpose and foreseeable misuse | KYB/KYC compliance for financial services onboarding | Documented in PRD and business context |
@@ -41,7 +45,7 @@ Article 12 requires high-risk AI systems to automatically record events during o
 | Traceability of AI operations | `audit_events` table with full event history | Case lifecycle from creation to decision |
 | Identification of input data | Every finding has `source` field citing data origin | INSEE, NorthData, OpenSanctions, GLEIF, VIES |
 | Network investigation audit trail | Each entity scan logged with EVOI decision, depth, connection weight | Compound risk scores are deterministic and reproducible |
-| Immutability | `audit_events` is append-only — never modified or deleted | Architectural constraint enforced at the database layer |
+| Immutability | `audit_events` is append-only by convention — `AuditService` only ever inserts (`log_event`), never updates or deletes | Append-only at the application layer; no DB trigger or revoked-UPDATE grant enforces it yet (see Known Gaps) |
 | Retention period | Minimum 5-year retention aligned with 6AMLD/AMLR | Deletion only on explicit officer action; case data retained per AML rules |
 
 The `evoi_decisions` log is the primary compliance artifact for Article 12. Every inference, every investigation decision, every skipped agent is recorded with the inputs that produced it. An auditor can reconstruct the exact state of the belief model at any point in a case's lifecycle.
@@ -87,7 +91,7 @@ This is not a paper commitment. The Temporal workflow is structurally incapable 
 | Data freshness | OpenSanctions auto-refresh (sanctions daily, PEPs weekly) | 831K entities, last refreshed tracked |
 | Resilience to data gaps | Guard-and-swallow pattern — individual check failures don't block investigation | PEPPOL failure does not prevent OSINT completion |
 | Resilience to adversarial inputs | Source diversity prevents manipulation via single-source poisoning | A false record in one registry is contradicted by others |
-| Cybersecurity | Tenant isolation with Row Level Security on all 30+ tenant-scoped tables | RLS enforced at DB layer, not application layer |
+| Cybersecurity | Tenant isolation with PostgreSQL Row Level Security (`set_config('app.current_tenant', ...)` GUC + per-table policies) | RLS enforced at the DB layer on the sensitive tenant-scoped tables (18 tables under `FORCE ROW LEVEL SECURITY`); not yet applied to every table (see Known Gaps) |
 
 ### Article 17 — Quality Management System
 
@@ -98,7 +102,7 @@ Article 17 requires providers of high-risk AI systems to implement a documented 
 | Risk management process | EVOI engine with asymmetric utility function | `cost_false_negative` (10,000) >> `reward_correct_approve` (100) — 100x penalty for false approvals |
 | Data governance | Source attribution on every fact | `source` field on all findings, SourceBadge in UI |
 | Post-market monitoring | Case intelligence learns from officer decisions | Episodic memory, pattern detection across cases |
-| Documentation management | ADR records + Docusaurus site | 36 ADRs, 90+ documentation pages |
+| Documentation management | ADR records + Docusaurus site | 48 ADRs, 90+ documentation pages |
 | Testing and validation | Mandatory quality gates before every commit | ruff F-codes + TypeScript strict before merge |
 | Corrective action process | ADR process for any deviation from PRD | New ADR required before implementing significant change |
 | Traceability of changes | Git history + ADR records | Every architectural decision recorded with rationale |
@@ -148,15 +152,17 @@ Every row in `evoi_decisions` records:
 | `iteration` | Workflow iteration number |
 | `step_number` | Sequential step within iteration |
 | `decision_type` | `investigate`, `skip`, or `snapshot` |
-| `entity_id` | Entity being evaluated |
-| `p_clean` | Probability mass on "clean" |
-| `p_risky` | Probability mass on "risky" |
-| `p_critical` | Probability mass on "critical" |
-| `evoi_value` | Computed EVOI score |
+| `candidate_agent` | Agent being evaluated for the next step |
+| `belief_p_clean` | Probability mass on "clean" |
+| `belief_p_risky` | Probability mass on "risky" |
+| `belief_p_critical` | Probability mass on "critical" |
+| `evoi_value` | Computed EVOI score (with `v_now`, `e_v_after`, `step_cost`) |
+| `connected_entity_id` | Network entity being evaluated |
 | `connection_weight` | Strength of link to primary entity |
 | `network_depth` | Depth in ownership/directorship graph |
 | `scan_tier` | Investigation tier selected |
-| `rationale` | Human-readable decision explanation |
+| `decision` | Resulting decision (`investigate` / `skip`) |
+| `reason` | Human-readable decision explanation |
 
 For a typical Bolloré SE case, this table contains 31 rows covering the full investigation path: initial belief snapshots, 16 investigate decisions at depth 0, 6 skip decisions (budget exhausted), and 7 depth-1 discoveries.
 
@@ -207,9 +213,10 @@ The EU AI Act compliance architecture intersects with and reinforces several oth
 | Article | Requirement | Implementation |
 |---------|-------------|----------------|
 | Art. 22 | Right to human review of automated decisions | Officer decision required — no automated final decisions |
-| Art. 25 | Privacy by design | Tenant isolation, Row Level Security on all 30+ tenant-scoped tables |
-| Art. 30 | Records of processing activities | Audit log captures all processing steps |
+| Art. 25 | Privacy by design | Tenant isolation via PostgreSQL Row Level Security (18 sensitive tables under FORCE RLS); PII encrypted at rest via `EncryptedText` (AES-256-GCM) |
+| Art. 30 | Records of processing activities | `audit_events` captures processing steps; `DomainEvent` correlation/causation chains link related events |
 | Art. 35 | Data Protection Impact Assessment | Architecture supports DPIA; formal document pending (known gap) |
+| Art. 15/16/17 | Data subject access, rectification, erasure | `app/api/data_subject.py` — `/api/data-subject/{access,rectify,erase}`; erasure respects AML 5-year retention via `DSRService` |
 
 ### AML Directives (6AMLD / AMLR)
 
@@ -234,7 +241,7 @@ The EVOI framework aligns directly with ISO 42001's risk-based approach to AI go
 | Domain | Implementation |
 |--------|----------------|
 | A.8 (Asset management) | MinIO object storage with tenant-scoped prefixes |
-| A.9 (Access control) | Keycloak OIDC, JWKS token validation, RLS at DB layer |
+| A.9 (Access control) | Keycloak OIDC, JWKS token validation, role-gated endpoints, RLS at DB layer on sensitive tables |
 | A.12 (Operations security) | Audit logging, immutable event records |
 | A.18 (Compliance) | This documentation; ADR process; testing gates |
 
@@ -245,6 +252,8 @@ The EVOI framework aligns directly with ISO 42001's risk-based approach to AI go
 | Gap | Status | Mitigation |
 |-----|--------|------------|
 | GDPR Art. 35 formal DPIA document | Architecture supports it; document not yet drafted | Low risk — DPIA can be produced from existing documentation |
+| Per-tenant audit isolation | **Not yet correct.** The `persist_audit_event` workflow activity calls `AuditService.log_event()`, which opens `get_session()` — pinned to the demo tenant (`DEMO_TENANT_ID`). Workflow audit events are written under the demo tenant default, not the case's actual tenant | Wire `AuditService` to accept and apply the case `tenant_id` (via `get_tenant_session`) before claiming per-tenant audit trails |
+| `audit_events` immutability enforcement | Append-only by application convention only (`AuditService` never updates/deletes); no DB trigger or revoked-UPDATE/DELETE grant exists; `audit_events` is not under FORCE RLS | Add a DB-level immutability constraint (trigger or revoked grants) and an RLS policy to make the guarantee structural |
 | ISO 42001 formal certification | Not yet pursued | Framework alignment enables rapid certification path |
 | ISO 27001 formal certification | Not yet pursued | Prerequisite for enterprise sales; planned post-PoC |
 | Art. 13 transparency notice to data subjects | Portal discloses AI-assisted review | Full notice template pending legal review |

@@ -18,10 +18,16 @@ components:
   - app/services/person_screening_service.py
   - app/services/northdata_scrape_service.py
   - app/services/mcc_service.py
+  - app/agents/osint_phases.py
+  - app/agents/osint_network_phase.py
+  - app/agents/social_intelligence_agent.py
+  - app/agents/financial_analysis_agent.py
+  - app/agents/scan_agent.py
+  - app/services/agent_progress_service.py
 tests:
   - tests/test_pillar35_integration.py
   - tests/test_network_investigation.py
-last_verified: 2026-04-07
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -31,7 +37,7 @@ The OSINT (Open Source Intelligence) pipeline is the core automated investigatio
 
 ## Pipeline DAG
 
-The pipeline now includes 13 agents. Three agents were added in the 2026-03-31 update: `verification_checks`, `quality_scorer`, and `inhoudingsplicht_check`. MCC classification was moved earlier in the sequence (before risk reassessment, after synthesis).
+The investigation pipeline tracked in `agent_progress_service.py` now spans 23 pipeline stages across 10 columns (0–9), including a full pre-enrichment phase (`vies_validation`, `northdata_lookup`, `gleif_check`, `website_discovery`, `initial_risk`) ahead of the core OSINT stages. The mermaid diagram below shows the core post-pre-enrichment investigation agents. Notable additions since the original design: `social_intelligence` (BrightData, runs parallel with person/media screening), `financial_analysis` (Altman/Ohlson/Zmijewski distress models, ADR-0048), `verification_checks`, `gap_analysis`, and `quality_scorer`. MCC classification runs before risk reassessment (after synthesis).
 
 ```mermaid
 graph TD
@@ -66,8 +72,8 @@ graph TD
 
 1. **Document Validator** (sequential) -- Validates uploaded documents against template requirements
 2. **Registry Agent** (sequential) -- Must complete first to extract director and UBO names
-3. **Person Validation** + **Adverse Media** (parallel) -- Run concurrently via `asyncio.gather`
-4. **Synthesis Agent** (sequential) -- Combines all three agent outputs into a unified risk assessment
+3. **Person Validation** + **Adverse Media** + **Social Intelligence** + **Financial Analysis** (parallel) -- Run concurrently via `asyncio.gather`
+4. **Synthesis Agent** (sequential) -- Combines the parallel agent outputs into a unified risk assessment
 5. **MCC Classifier** (sequential) -- Assigns Merchant Category Code based on OSINT findings (moved before risk reassessment as of 2026-03-31, so MCC context is available during EBA scoring)
 6. **Risk Reassessment** (sequential) -- Re-runs EBA risk matrix with MCC context
 7. **Verification Checks** (sequential) -- Runs `inhoudingsplicht_check` and other verification tools; progress tracked in `agent_executions`
@@ -97,9 +103,11 @@ For non-Belgian cases, the registry agent uses NorthData MCP tools:
 
 | Step | Agent | Data Source | Output |
 |------|-------|-------------|--------|
-| 1 | Registry Agent | NorthData API (DACH, NL coverage) | Company status, directors, UBOs, financials |
-| 2a | Person Validation | BrightData LinkedIn MCP | LinkedIn profiles, company-role match, legitimacy scores |
-| 2b | Adverse Media | Tavily search MCP | Sanctions matches, PEP flags, adverse news articles |
+| 1 | Registry Agent | NorthData MCP (Stdio; DACH, NL coverage) | Company status, directors, UBOs, financials |
+| 2a | Person Validation | BrightData MCP (StreamableHTTP) | LinkedIn profiles, company-role match, legitimacy scores |
+| 2b | Adverse Media | Tavily REST (httpx, no MCP) | Sanctions matches, PEP flags, adverse news articles |
+| 2c | Social Intelligence | BrightData MCP (StreamableHTTP) | Social/web presence (LinkedIn, Google Maps, Yahoo Finance) |
+| 2d | Financial Analysis | None (deterministic, NBB/NorthData financials) | Ratios, Altman/Ohlson/Zmijewski distress scores, peer benchmarks |
 | 3 | Synthesis | None (reasoning only) | Risk score (0.0-1.0), findings, discrepancies, narrative summary |
 
 ## Belgian Pipeline (4 Official Sources)
@@ -137,7 +145,7 @@ graph TD
 | **Inhoudingsplicht** | Social debt and tax debt status | **PEPPOL** (primary) or **crawl4ai** (fallback) | PEPPOL inhoudingsplicht check is the primary reliable source |
 
 :::note Scraping Tool Selection
-Each Belgian data source uses the tool best suited to its characteristics. The Belgian Gazette provides comprehensive corporate documentation including articles of association, capital changes, and statutory modifications with full-text content and official PDF downloads. See [ADR-0008](/docs/adr/) for the full tool selection rationale.
+Each Belgian data source uses the tool best suited to its characteristics. The Belgian Gazette provides comprehensive corporate documentation including articles of association, capital changes, and statutory modifications with full-text content and official PDF downloads. See [ADR-0012](/docs/adr/) (scraping tool selection) for the full tool selection rationale.
 :::
 
 ### NBB Financial Data
@@ -305,20 +313,33 @@ This means a case never gets stuck due to a transient API failure. The worst cas
 
 ---
 
-## Social Intelligence Timeout (3-minute cap)
+## BrightData MCP Hard Timeouts (2026-04-13)
 
-The social intelligence agent (BrightData MCP) is the slowest pipeline component, sometimes exceeding 5 minutes on complex company networks. As of 2026-04-06, it runs with a hard 3-minute `asyncio.wait_for` timeout:
+To prevent worker zombification from unbounded MCP connections (observed
+during multi-country E2E validation), three BrightData-backed call sites
+now wrap `agent.run()` inside `async with agent:` with an
+`asyncio.wait_for(..., timeout=N)`:
 
-```python
-result = await asyncio.wait_for(
-    run_social_intelligence_agent(...),
-    timeout=180,
-)
-```
+| Call site | Timeout | Purpose |
+|-----------|---------|---------|
+| `app.agents.social_intelligence_agent` | 180s | Social data (LinkedIn, Google Maps, Yahoo Finance, etc.) |
+| `app.agents.person_validation_agent` | 300s | LinkedIn people search, up to 150 tool calls |
+| `app.services.brightdata_enrichment_service.lookup_crunchbase` | 90s | Pre-enrichment Crunchbase lookup at case creation |
 
-On timeout, the agent is marked as "failed" in `agent_executions` with the message "Timed out (3 min)" and an empty `SocialIntelligenceOutput` is used. The pipeline continues without social intelligence data -- synthesis receives all other agent outputs normally.
+On timeout or cancellation the agent catches
+`(asyncio.TimeoutError, asyncio.CancelledError)` (not the broad
+`BaseException` the previous implementation used) and returns a
+LOW-severity `Finding` with a dedicated category — e.g.
+`social_intelligence_timeout`, `person_validation_timeout`. The
+MCP client's `__aexit__` runs cleanly, releasing the streaming-HTTP
+socket; no CLOSE_WAIT leak.
 
-**Exception handling note:** The timeout catch uses `except BaseException` to handle `CancelledError` (which `asyncio.wait_for` raises on the inner coroutine in Python 3.12+). This is a known code review finding -- it can inadvertently swallow Temporal activity cancellation signals.
+Root cause (commit `1baa085c`): PydanticAI's
+`MCPServerStreamableHTTP` held streaming connections open when inner
+tasks were cancelled, which caused Temporal activity heartbeats to
+lapse and the workflow to transition to `FAILED`. Observed on
+NL/DE/CZ/DK during validation; post-patch 13 consecutive cases completed
+cleanly on the same worker process with no leak.
 
 ---
 

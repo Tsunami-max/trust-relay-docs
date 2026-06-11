@@ -1,8 +1,13 @@
 ---
 sidebar_position: 1
 title: "Architecture Overview"
-last_verified: 2026-04-07
+last_verified: 2026-06-11
 status: implemented
+components:
+  - app/main.py
+  - app/config.py
+  - app/db/database.py
+  - app/db/models.py
 ---
 
 # Architecture Overview
@@ -22,24 +27,24 @@ graph TB
     end
 
     subgraph Backend["FastAPI Backend (Port 8002)"]
-        API["REST API Layer<br/>48 routers"]
-        Agents["13 PydanticAI Agents"]
+        API["REST API Layer<br/>52 routers"]
+        Agents["33 PydanticAI Agents"]
         Services["Service Layer<br/>ORM Repository pattern"]
         PII["PII Classification<br/>AES-256-GCM encryption"]
     end
 
     subgraph Auth["Authentication & Isolation"]
         Keycloak["Keycloak 26<br/>JWT + JWKS"]
-        RLS["PostgreSQL RLS<br/>25+ tenant-scoped tables"]
+        RLS["PostgreSQL RLS<br/>22+ tenant-scoped tables"]
     end
 
     subgraph Temporal["Temporal (Port 7233)"]
         Workflow["ComplianceCaseWorkflow"]
-        Activities["7 Activities"]
+        Activities["44 Activities"]
     end
 
     subgraph Storage["Data Layer"]
-        PG["PostgreSQL 16<br/>50 Alembic migrations"]
+        PG["PostgreSQL 16<br/>58 Alembic migrations"]
         MinIO["MinIO (S3)"]
         Redis["Redis Cache"]
         Neo4j["Neo4j (Graph)"]
@@ -84,7 +89,7 @@ The architecture follows a set of deliberate principles that govern every layer 
 
 ### Authentication and Tenant Isolation
 
-All API access is authenticated via **Keycloak 26** with JWT tokens validated against JWKS endpoints. Multi-tenant isolation is enforced at the database level through **PostgreSQL Row-Level Security (RLS)** across 25+ tenant-scoped tables. RLS policies use a `FORCE ROW LEVEL SECURITY` directive so that even the table-owner role is subject to isolation — the system is safe-by-default, returning zero rows when the tenant context is unset.
+All API access is authenticated via **Keycloak 26** with JWT tokens validated against JWKS endpoints. Multi-tenant isolation is enforced at the database level through **PostgreSQL Row-Level Security (RLS)** across 22+ tenant-scoped tables. RLS policies use a `FORCE ROW LEVEL SECURITY` directive so that even the table-owner role is subject to isolation — the system is safe-by-default, returning zero rows when the tenant context is unset.
 
 ### PII Protection
 
@@ -92,7 +97,7 @@ All API access is authenticated via **Keycloak 26** with JWT tokens validated ag
 
 ### Data Access
 
-The data layer uses **SQLAlchemy 2.0 ORM models** as the single source of truth, with a generic `BaseRepository[T]` pattern for type-safe CRUD operations. Schema evolution is managed through **50 Alembic migrations** covering the full lifecycle from initial schema through PII encryption. All queries use parameterized ORM access — no string interpolation touches SQL.
+The data layer uses **SQLAlchemy 2.0 ORM models** (63 mapped classes in `app/db/models.py`) as the single source of truth, with a generic `BaseRepository[T]` pattern for type-safe CRUD operations. Schema evolution is managed through **58 Alembic migrations** covering the full lifecycle from initial schema through PII encryption, sanctions suppression rules, and decision memoranda. All queries use parameterized ORM access — no string interpolation touches SQL.
 
 ### Observability
 
@@ -104,7 +109,7 @@ Every AI output is anchored to verifiable evidence through the **Trust Capsule**
 
 ### Modular API Design
 
-The REST API is decomposed into **48 focused routers** organized by domain concern (`case_crud`, `case_decisions`, `case_documents`, `case_analysis`, `case_evidence`, `portal`, `graph`, `lex`, `risk_config`, etc.). Dependencies are injected via FastAPI's `Depends()` pattern with singleton service instances, ensuring testability and clear ownership boundaries.
+The REST API is decomposed into **52 focused routers** organized by domain concern (`case_crud`, `case_decisions`, `case_documents`, `case_analysis`, `case_evidence`, `portal`, `graph`, `lex`, `risk_config`, `decision_memorandum`, `sanctions_suppression`, `costs`, etc.). Dependencies are injected via FastAPI's `Depends()` pattern with singleton service instances, ensuring testability and clear ownership boundaries.
 
 ## Key Architectural Decisions
 
@@ -119,23 +124,24 @@ The REST API is decomposed into **48 focused routers** organized by domain conce
 | Frontend AI | CopilotKit v2 + AG-UI | Embeds AI assistant into the officer dashboard (inline chat, popup, `useCopilotReadable`). See [ADR-0003](../../docs/adr/), [ADR-0013](../../docs/adr/). |
 | Knowledge graph | Neo4j (CQRS read layer) | Cross-case analytics, co-directorship detection, fraud pattern matching. PostgreSQL remains the write store. See [ADR-0014](../../docs/adr/). |
 | Risk assessment | EBA 5-dimension matrix | Weighted-max aggregation across customer, product, channel, geography, and transaction risk. See [ADR-0020](../../docs/adr/). |
-| Country routing | 12-country registry architecture | Dedicated agents per jurisdiction with structured service catalogs. See [ADR-0034](../../docs/adr/). |
+| Country routing | 12-country registry architecture | Dedicated agents and registry clients per jurisdiction with structured service catalogs. See [ADR-0034](../../docs/adr/), [ADR-0042](../../docs/adr/), [ADR-0043](../../docs/adr/). |
 | White-label branding | Tenant-scoped WCAG AA | Per-tenant visual identity with enforced accessibility contrast ratios. See [ADR-0028](../../docs/adr/). |
 
 ## System Metrics
 
 | Metric | Value |
 |--------|-------|
-| Architecture Decision Records | 36 |
+| Architecture Decision Records | 48 (ADR-0001 through ADR-0049; ADR-0044 withdrawn) |
 | PII test coverage | 85+ tests |
 | PII fields classified | 20 fields, 6 encrypted at rest (AES-256-GCM) |
-| OSINT agents | 13-agent pipeline with circuit breakers |
-| Country registries | 12 countries, 21 services |
-| RLS-protected tables | 25+ |
-| Alembic migrations | 50 |
-| ORM models | 61 SQLAlchemy 2.0 models |
-| API routers | 48 |
-| Prompt templates | 20 Jinja2 templates (DB-first with filesystem fallback) |
+| OSINT agents | 33 agent modules in `app/agents/` (multi-stage pipeline with circuit breakers) |
+| Country registries | 12 countries (BE, CZ, EE, CH, FR, NL, NO, DK, FI, RO, SK + DE via NorthData) — 28 registry-client modules under `app/services/registries/` |
+| RLS-protected tables | 22+ (`FORCE ROW LEVEL SECURITY`) |
+| Alembic migrations | 58 (latest: `058_decision_memoranda`) |
+| ORM models | 63 SQLAlchemy 2.0 mapped classes |
+| API routers | 52 |
+| Backend services | 138 modules under `app/services/` (incl. `lex/`, `registries/`, `verification/`, `financial_analysis/`, `mutation_queue/`, `vop_providers/`, `document_validators/`) |
+| Prompt templates | 36 Jinja2 templates (DB-first with filesystem fallback) |
 
 ## Production Roadmap
 
@@ -147,7 +153,7 @@ The REST API is decomposed into **48 focused routers** organized by domain conce
 
 ## Architecture Decision Records
 
-All significant technical decisions are documented as ADRs in `docs/adr/`. The project maintains **36 ADRs** covering every major architectural choice — from workflow orchestration and AI framework selection through cryptographic sealing, regulatory segment compilation, and multi-country registry design.
+All significant technical decisions are documented as ADRs in `docs/adr/`. The project maintains **48 ADRs** (ADR-0001 through ADR-0049, with ADR-0044 withdrawn during review) covering every major architectural choice — from workflow orchestration and AI framework selection through cryptographic sealing, regulatory segment compilation, multi-country registry design, async Docling extraction, financial distress modelling, and cross-reference identity-mismatch detection.
 
 | ADR | Decision | Status |
 |-----|----------|--------|
@@ -161,13 +167,13 @@ All significant technical decisions are documented as ADRs in `docs/adr/`. The p
 | ADR-0008 | Raw SQL via SQLAlchemy text() for database access | Accepted |
 | ADR-0009 | Minimal error handling with silent recovery for PoC | Accepted |
 | ADR-0010 | React useState/useEffect for state management | Accepted (PoC) — effectively superseded by TanStack React Query v5 |
-| ADR-0011 | Authentication deliberately deferred for PoC | Accepted (superseded by Pillar 0) |
+| ADR-0011 | ~~Authentication deliberately deferred for PoC~~ | Superseded 2026-04-18 — Keycloak OIDC with JWKS-validated JWTs in `app/api/deps/auth.py`; realm-per-tenant; role hierarchy |
 | ADR-0012 | Hybrid scraping tool selection per data source | Implemented |
 | ADR-0013 | CopilotKit v2 migration (supersedes ADR-0004) | Accepted |
-| ADR-0014 | Neo4j knowledge graph (CQRS read layer) | Implemented |
-| ADR-0015 | React Query for frontend caching | Implemented |
-| ADR-0016 | Tiered Scan Agent (portfolio-scale entity screening) | Implemented |
-| ADR-0017 | Compliance Memory System | Accepted |
+| ADR-0014 | Native bi-temporal graph (drop Graphiti) | Implemented |
+| ADR-0015 | Session-based investigation diagnostics | Implemented |
+| ADR-0016 | Shared regulatory corpus (Lex) without tenant RLS | Implemented |
+| ADR-0017 | Trust Capsule cryptographic architecture | Implemented |
 | ADR-0018 | Dynamic document requirements — pre-investigation resolution | Implemented |
 | ADR-0019 | Multi-agent OSINT pipeline with country routing | Implemented |
 | ADR-0020 | EBA risk matrix with weighted-max aggregation | Implemented |
@@ -186,7 +192,20 @@ All significant technical decisions are documented as ADRs in `docs/adr/`. The p
 | ADR-0033 | Document gap analysis engine | Implemented |
 | ADR-0034 | Multi-country registry architecture (12 countries, 21 services) | Implemented |
 | ADR-0035 | Atlas reference documentation within Docusaurus | Implemented |
-| ADR-0036 | Structured JSON logging with correlation IDs | Implemented |
+| ADR-0036 | PII classification with hybrid annotations and generated manifest | Implemented |
+| ADR-0037 | Shared package extraction (trustrelay-* monorepo) | Implemented |
+| ADR-0038 | Shell company detection via establishment address comparison | Implemented |
+| ADR-0039 | Resilience rollout completion and KBC gap signals | Implemented |
+| ADR-0040 | Observability metrics + breaker state persistence | Implemented |
+| ADR-0041 | Pure-mailbox detection for shell companies | Implemented |
+| ADR-0042 | CZ regulatory and professional registries (CNB, debarment, KDP, sbírka listin) | Implemented |
+| ADR-0043 | Cross-country registry parity (decoders, director shapes, KBO layout fix) | Implemented |
+| ADR-0044 | *(Withdrawn during review — number reserved)* | Withdrawn |
+| ADR-0045 | Sanctions false-positive suppression (3-tier, evidence-based, always visible) | Implemented |
+| ADR-0046 | NBB CBSO CSV endpoint degradation and honest data-gap surfacing | Implemented |
+| ADR-0047 | Async Docling extraction (Option B — background activity, idempotent MinIO writes) | Implemented |
+| ADR-0048 | Financial Analysis Agent — ratios + Altman/Ohlson/Zmijewski distress models | Implemented |
+| ADR-0049 | Cross-reference registration-number identity-mismatch detection | Implemented |
 
 ## Architecture Documentation
 
@@ -194,7 +213,7 @@ This overview connects to detailed documentation for each subsystem:
 
 - **[Data Flow](./data-flow)** — 12-step investigation-first compliance loop
 - **[Temporal Workflows](./temporal-workflows)** — State machine, signals, queries, and retry policies
-- **[OSINT Pipeline](./osint-pipeline)** — 13-agent investigation engine with circuit breakers
+- **[OSINT Pipeline](./osint-pipeline)** — multi-agent investigation engine with circuit breakers
 - **[AI Agents](./ai-agents)** — PydanticAI agents, CopilotKit integration, AG-UI protocol
 - **[Knowledge Graph](./knowledge-graph)** — Neo4j CQRS read layer with 20-step ETL
 - **[Security](./security)** — Authentication, RLS, PII classification, Trust Capsules

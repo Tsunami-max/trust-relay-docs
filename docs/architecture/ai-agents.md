@@ -16,13 +16,17 @@ components:
   - app/agents/finding_debugger.py
   - app/agents/models.py
   - app/agents/sanctions_resolver_agent.py
-last_verified: 2026-03-31
+  - app/agents/financial_analysis_agent.py
+  - app/agents/social_intelligence_agent.py
+  - app/agents/mcc_classifier.py
+  - app/agents/task_generator.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
 # AI Agent Architecture
 
-The AI agent layer is one of the strongest parts of the system. All 25 agents and engines follow a consistent pattern built on PydanticAI, producing structured Pydantic model outputs that integrate cleanly with the rest of the codebase.
+The AI agent layer is one of the strongest parts of the system. The `app/agents/` package contains 33 modules: the agents and engines listed below plus their supporting helpers (the OSINT orchestrator is split across `osint_agent.py`, `osint_phases.py`, `osint_network_phase.py`, `osint_post_processing.py`, `osint_belief_updates.py`, `osint_cache_reuse.py`, `osint_context_builders.py`, `osint_evoi_init.py`, `osint_reasoning_eval.py`, and `osint_reasoning_filters.py`). All agents follow a consistent pattern built on PydanticAI, producing structured Pydantic model outputs that integrate cleanly with the rest of the codebase.
 
 ## Agent Inventory
 
@@ -32,7 +36,7 @@ The AI agent layer is one of the strongest parts of the system. All 25 agents an
 | 2 | Belgian Agent | `belgian_agent.py` | Belgian 4-source investigation | GPT-5.2 | None (tools via services) |
 | 3 | Belgian Scraping Agent | `belgian_scraping_agent.py` | Gazette web scraping | GPT-4.1-mini | crawl4ai |
 | 4 | Person Validation Agent | `person_validation_agent.py` | LinkedIn profile validation | GPT-5.2 | BrightData MCP (SSE) |
-| 5 | Adverse Media Agent | `adverse_media_agent.py` | Sanctions, fraud, PEP screening | GPT-5.2 | Tavily MCP (StreamableHTTP) |
+| 5 | Adverse Media Agent | `adverse_media_agent.py` | Sanctions, fraud, PEP screening | GPT-5.2 | Tavily REST (httpx, no MCP) |
 | 6 | Synthesis Agent | `synthesis_agent.py` | Risk assessment synthesis | GPT-5.2 | None (reasoning only) |
 | 7 | Document Validator | `document_validator.py` | Document-to-requirement validation | GPT-5.2 | None |
 | 8 | MCC Classifier | `mcc_classifier.py` | Merchant Category Code assignment | GPT-5.2 | NACE-to-MCC lookup (local) |
@@ -53,6 +57,8 @@ The AI agent layer is one of the strongest parts of the system. All 25 agents an
 | 23 | Finding Debugger | `finding_debugger.py` | Root cause analysis when officer rejects a finding (prompt gap, hallucination, missing data) | GPT-5.2 | Investigation trace retrieval |
 | 24 | Document Extractor | `document_extractor.py` | Structured data extraction from Docling-converted documents (UBO ownership, director details) | GPT-4.1-mini | None |
 | 25 | Country Registry | `country_registry.py` | Country-specific registry provider abstraction routing to BE, CZ, EE, CH, FR, NL, NO, DK, FI agents | N/A | Provider dispatch |
+| 26 | Social Intelligence Agent | `social_intelligence_agent.py` | Social/web-presence intelligence (LinkedIn, Google Maps, Yahoo Finance, etc.) | GPT-5.2 | BrightData MCP (StreamableHTTP) |
+| 27 | Financial Analysis Agent | `financial_analysis_agent.py` | Ratio analysis + Altman/Ohlson/Zmijewski distress models + peer benchmarks (ADR-0048) | N/A | Deterministic computation |
 
 ## Dashboard Agent Write Tools
 
@@ -111,13 +117,12 @@ async def run_agent(company_name: str, ...) -> AgentOutput:
 
 ## MCP Tool Integration
 
-Three MCP (Model Context Protocol) transports are used:
+Two MCP (Model Context Protocol) transports are used. Tavily is **no longer** accessed via MCP — adverse-media searches run as deterministic REST calls (`https://api.tavily.com/search`) through `httpx`; `get_tavily_server()` is a legacy stub.
 
 | Transport | Provider | Used By | Connection |
 |-----------|----------|---------|------------|
 | `MCPServerStdio` | NorthData | Registry Agent | Local subprocess |
-| `MCPServerSSE` | BrightData | Person Validation, Crunchbase enrichment | Remote SSE endpoint |
-| `MCPServerStreamableHTTP` | Tavily | Adverse Media | Remote HTTP endpoint |
+| `MCPServerStreamableHTTP` | BrightData | Person Validation, Social Intelligence, Crunchbase enrichment | Remote streaming-HTTP endpoint |
 
 ```python
 # Stdio (local process)
@@ -127,20 +132,28 @@ mcp_server = MCPServerStdio(
     env={"NORTHDATA_API_KEY": settings.northdata_api_key},
 )
 
-# SSE (remote)
-mcp_server = MCPServerSSE(
-    url=f"https://mcp.brightdata.com/sse?token={settings.brightdata_api_token}"
+# Streamable HTTP (remote) — BrightData
+mcp_server = MCPServerStreamableHTTP(
+    url=f"https://mcp.brightdata.com/mcp?token={settings.brightdata_api_token}"
 )
 
-# Streamable HTTP (remote)
-mcp_server = MCPServerStreamableHTTP(
-    url=f"https://mcp.tavily.com/mcp?tavilyApiKey={settings.tavily_api_key}"
-)
+# Tavily adverse media — REST, not MCP
+results = await httpx_client.post("https://api.tavily.com/search", json={...})
 ```
+
+### MCP hard timeouts (2026-04-13)
+
+BrightData-backed calls wrap `agent.run()` inside `async with agent:`
+with `asyncio.wait_for(..., timeout=N)` so cancellation cleanly tears
+down the MCP client instead of leaking a CLOSE_WAIT socket. This
+eliminates the worker-zombie pattern observed during multi-country
+validation. Timeouts: social intelligence 180s, person validation 300s,
+Crunchbase enrichment 90s. On timeout the agent emits a LOW-severity
+`*_timeout` finding and the pipeline continues. Commit `1baa085c`.
 
 ## Mock Mode System
 
-Every agent has a corresponding mock mode flag in the configuration. When mock mode is enabled (default in development), agents use PydanticAI's `TestModel` which returns deterministic outputs matching the output schema without making real LLM calls.
+Every agent has a corresponding mock mode flag in the configuration. All mock-mode flags default to `False` (real calls); they are opt-in. The `get_agent_model()` helper also falls back to `"test"` automatically when no LLM API key is configured. When a flag is enabled, agents use PydanticAI's `TestModel` which returns deterministic outputs matching the output schema without making real LLM calls.
 
 ```python
 def get_agent_model(model_field: str, mock_flag: str | None = None) -> str:
@@ -158,8 +171,14 @@ def get_agent_model(model_field: str, mock_flag: str | None = None) -> str:
 | `mcc_mock_mode` | MCC Classifier |
 | `doc_validation_mock_mode` | Document Validator |
 | `belgian_mock_mode` | Belgian Agent + scraping |
-| `brightdata_mock_mode` | BrightData MCP tools |
-| `tavily_mock_mode` | Tavily search tools |
+| `brightdata_mock_mode` | BrightData MCP tools (Person Validation, Social Intelligence) |
+| `social_intelligence_mock_mode` | Social Intelligence Agent |
+| `tavily_mock_mode` | Tavily REST search (adverse media) |
+| `doc_extraction_mock_mode` | Document Extractor |
+| `gleif_mock_mode` | GLEIF/LEI check |
+| `case_intelligence_mock_mode` | Case Intelligence Agent |
+| `quality_scoring_mock_mode` | Quality Scorer |
+| `finding_debugger_mock_mode` | Finding Debugger |
 
 Mock modes can be toggled at runtime via `PATCH /api/test/mock-modes` (PoC mode only), with overrides persisted to a shared file that both the backend and worker processes read.
 
@@ -189,8 +208,10 @@ graph LR
 ```
 
 1. **Registry Agent** runs first (must complete to provide director/UBO names)
-2. **Person Validation** and **Adverse Media** run in parallel via `asyncio.gather`
-3. **Synthesis Agent** runs last, combining all three outputs
+2. **Person Validation**, **Adverse Media**, **Social Intelligence**, and **Financial Analysis** run in parallel via `asyncio.gather`
+3. **Synthesis Agent** runs last, combining the parallel agent outputs
+
+(The mermaid above is simplified to the two original screening branches; `social_intelligence` and `financial_analysis` join the same parallel fan-out at column 6 — see [Agentic OS Foundation](/docs/architecture/agentic-os) for the full topology.)
 
 Each agent reports its status (pending, running, success, failed, reused) to the `agent_executions` table for real-time pipeline visualization in the dashboard.
 

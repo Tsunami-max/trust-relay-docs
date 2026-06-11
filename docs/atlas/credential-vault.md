@@ -2,7 +2,7 @@
 sidebar_position: 6
 title: "Atlas — Credential Vault & Resolution"
 description: "Per-tenant credential storage with AES-256-GCM and HKDF-SHA256-derived subkeys, the five-branch resolver chain, the rollback flag, the grandfather mechanism, and the contract that lets tenants bring their own keys."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
 ---
 

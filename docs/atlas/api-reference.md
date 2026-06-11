@@ -1,13 +1,13 @@
 ---
 sidebar_position: 17
 title: "Atlas — API Reference"
-last_verified: 2026-04-08
+last_verified: 2026-06-11
 status: reference
 ---
 
 # Atlas — API Reference
 
-Atlas exposes a comprehensive REST API with **250+ endpoints** organized across **30+ domain routers**. The API is built on FastAPI with OpenAPI documentation, Keycloak JWT authentication, and tiered rate limiting. An embedded Swagger UI is available at the `/api-docs` route for interactive endpoint exploration and testing.
+Atlas exposes a comprehensive REST API with **250+ endpoints** (257 route handlers at last count) organized across **30+ domain routers**. The API is built on FastAPI with OpenAPI documentation, Keycloak JWT authentication, and tiered rate limiting. An embedded Swagger UI is available at the `/api-docs` route for interactive endpoint exploration and testing. Several routers now live in their domain packages (e.g., `src/risk_matrix/router.py`, `src/reference_data/router.py`, `src/workflows/router.py`, `src/mutation_queue/router.py`, `src/source_contracts/router.py`, `src/ontology_schema/router.py`) rather than under `src/api/`.
 
 ## Overview
 
@@ -53,6 +53,10 @@ flowchart LR
         R29[ontology_schema_router]
         R30[source_contracts_router]
         R31[mutation_router]
+        R32[tenant_router]
+        R33[data_provider_credentials_router]
+        R34[people_router]
+        R35[analytics_router]
     end
 
     App --> Routers
@@ -68,9 +72,9 @@ flowchart LR
 All endpoints (except `/health` and `/public/*`) require a valid **Keycloak JWT** in the `Authorization: Bearer <token>` header. The `PlatformAuthMiddleware` validates tokens and extracts `AuthContext` with `user_id`, `tenant_id`, and roles.
 
 Three platform roles gate access:
-- **atlas-viewer**: Read-only access to investigations, companies, risk data
-- **atlas-editor**: Create/modify investigations, manage companies, submit decisions
-- **atlas-admin**: Full access including settings, MCP servers, role management
+- **viewer**: Read-only access to investigations, companies, risk data
+- **editor**: Create/modify investigations, manage companies, submit decisions
+- **admin**: Full access including settings, MCP servers, role management
 
 ## Rate Limiting
 
@@ -78,7 +82,7 @@ Rate limiting uses **SlowAPI** with Redis-backed distributed storage (falls back
 
 | Tier | Limit | Applied To |
 |------|-------|-----------|
-| **Default** | 60/minute | All read endpoints |
+| **Default** | 120/minute | All read endpoints |
 | **Write** | 30/minute | POST/PUT/DELETE mutations |
 | **Expensive** | 10/minute | AI-powered operations (investigations, evaluations) |
 | **Status** | 120/minute | Health checks, status polling |
@@ -637,3 +641,45 @@ Prefix: `/ontology/schemas`
 | GET | `/ontology/schemas/{id}/crew-format/{crew}` | Get crew-specific output format | Yes |
 | GET | `/ontology/schemas/{id}/simplified` | Get simplified schema for agents | Yes |
 | GET | `/ontology/schemas/{id}/export` | Export schema as YAML | Yes |
+
+## Tenant Administration Endpoints (v5.0)
+
+The multi-tenancy milestone added a tenant registry and a public realm-resolution endpoint.
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/tenants/resolve` | Resolve a Keycloak realm / domain to a `tenant_id` (also mounted at `/api/tenants/resolve`) | **No** |
+| POST | `/admin/tenants` | Create a tenant | Yes (admin) |
+| GET | `/admin/tenants` | List tenants | Yes (admin) |
+| GET | `/admin/tenants/{tenant_id}` | Get tenant detail | Yes (admin) |
+| PATCH | `/admin/tenants/{tenant_id}/status` | Activate / suspend a tenant | Yes (admin) |
+
+## Data Provider Credentials Endpoints (v5.1)
+
+Prefix: `/data-provider-credentials`. The per-tenant credential vault (AES-256-GCM with HKDF-derived subkeys) is managed through this router, separate from the legacy `/settings/data-providers/{name}/credentials` route.
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/data-provider-credentials` | List credential metadata for the tenant (no plaintext) | Yes |
+| GET | `/data-provider-credentials/_meta` | Get credential vault metadata (providers, BYOK status) | Yes |
+| GET | `/data-provider-credentials/{provider}` | Get credential metadata for one provider | Yes |
+| GET | `/data-provider-credentials/{provider}/schema` | Get the provider's credential field schema | Yes |
+| PUT | `/data-provider-credentials/{provider}` | Store / rotate the tenant's encrypted credential | Yes |
+| DELETE | `/data-provider-credentials/{provider}` | Delete the tenant's credential | Yes |
+| POST | `/data-provider-credentials/{provider}/test-connection` | Test the stored credential against the provider | Yes |
+
+## People Endpoints (Phase 113)
+
+Prefix: `/companies`. Cross-source deduplicated person records with per-attribute provenance.
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/companies/{company_id}/people` | List deduplicated persons for a company with provenance envelopes and merge metadata | Yes |
+
+## Analytics Endpoints
+
+Prefix: `/analytics`.
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/analytics/operations` | Operational analytics (investigation throughput, status breakdowns) | Yes |

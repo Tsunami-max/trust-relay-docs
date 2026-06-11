@@ -7,7 +7,7 @@ components:
   - app/services/whois_service.py
   - app/services/vop_service.py
   - app/services/vop_providers/mock.py
-last_verified: 2026-03-30
+last_verified: 2026-06-11
 status: implemented
 ---
 

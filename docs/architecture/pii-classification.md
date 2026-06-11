@@ -11,8 +11,9 @@ components:
   - app/pii/jsonb_crypto.py
   - app/pii/person_index.py
   - app/pii/dsr_service.py
+  - app/pii/backfill.py
   - app/api/data_subject.py
-last_verified: 2026-04-07
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -38,14 +39,14 @@ graph TD
     end
 
     subgraph Encryption["Layer 2: Encryption"]
-        KeyProvider["KeyProvider Interface\nEnvKeyProvider / VaultKeyProvider"]
+        KeyProvider["KeyProvider Interface\nEnvKeyProvider / NullKeyProvider"]
         EncryptedText["EncryptedText TypeDecorator\nAES-256-GCM transparent"]
         SearchHash["HMAC-SHA256 Search Hashes\nEquality lookups on encrypted columns"]
         JsonbCrypto["JSONB Crypto Service\nNested PII in JSON arrays"]
     end
 
     subgraph DSR["Layer 3: GDPR DSR"]
-        PersonIndex["PersonDataIndex\nCross-case person resolution"]
+        PersonIndex["PersonIndexService\nCross-case person resolution"]
         DSRService["DSRService\naccess / erase / rectify"]
         DSREndpoints["3 API Endpoints\n/api/data-subject/*"]
         AuditTrail["Audit Events\nDSR_ACCESS / DSR_ERASURE"]
@@ -79,7 +80,11 @@ Six classification levels, three requiring encryption:
 | `SENSITIVE` | RLS only | PEP status, sanctions hits |
 | `DOCUMENT` | RLS only | Uploaded ID documents (MinIO) |
 
-Categories are declared as `info={"pii": PIIField(category=PIICategory.X)}` on SQLAlchemy columns. The `PIIRegistry` scans all ORM models at runtime and builds an in-memory index of classified fields.
+Categories are declared as `info={"pii": PIIField(category=PIICategory.X)}` on SQLAlchemy columns. The `PIIRegistry` scans all ORM models at runtime and builds an in-memory index of classified fields. As of 2026-06-11 the codebase carries **20 PII-classified fields across 5 tables** (`users`, `cases`, `person_verifications`, `investigation_persons`, `investigation_accounts`).
+
+:::warning RLS is not active in the shipped configuration
+The categories marked "RLS only" above rely on PostgreSQL Row Level Security for tenant isolation. **RLS is currently inert** because the application connects as the bootstrap PostgreSQL superuser (`temporal`, the `database_url` default in `app/config.py`), and superusers bypass even `FORCE ROW LEVEL SECURITY`. The non-superuser application role exists in `scripts/create_app_role.sql` (`trustrelay_app`) but is not wired into the runtime `DATABASE_URL`. Until the app connects as `trustrelay_app`, "RLS only" fields have no enforced at-rest isolation. See [Security](/docs/architecture/security#multi-tenancy-row-level-security).
+:::
 
 ## Encryption Architecture
 
@@ -101,9 +106,10 @@ class KeyProvider(ABC):
     def get_key_by_id(self, key_id: str) -> bytes: ...   # For decrypting existing data
 ```
 
-- **EnvKeyProvider** -- reads `PII_ENCRYPTION_KEY` env var (PoC/staging)
-- **VaultKeyProvider** -- HashiCorp Vault integration (production, planned)
-- **NullKeyProvider** -- bypass mode for development/testing
+- **EnvKeyProvider** -- reads `PII_ENCRYPTION_KEY` env var (hex-encoded 32-byte AES-256 key, validated at construction). PoC/staging.
+- **NullKeyProvider** -- returns empty key material for the disabled/bypass path
+
+A KMS-backed provider (AWS KMS / HashiCorp Vault) for production key rotation is anticipated but **not yet implemented** -- only `EnvKeyProvider` and `NullKeyProvider` exist in `key_providers.py` today. `EncryptedText` currently instantiates `EnvKeyProvider` directly rather than selecting a provider through the `KeyProvider` ABC.
 
 ### HMAC Search Hashes
 
@@ -145,7 +151,7 @@ This file is committed to the repository and serves as the compliance artifact f
 
 ## GDPR Data Subject Requests
 
-Three endpoints handle natural person rights under GDPR:
+Three endpoints handle natural person rights under GDPR. All three require the `compliance_manager` or `super_admin` role (`require_role(...)` in `app/api/data_subject.py`) and run inside a `get_tenant_session(user.tenant_id)` scope, so a request only resolves people within the caller's tenant:
 
 ### Subject Access (Art. 15)
 ```
@@ -204,7 +210,7 @@ backend/app/pii/
     jsonb_crypto.py         # Encrypt/decrypt PII inside JSONB arrays
     registry.py             # PIIRegistry -- scans models, builds field index
     manifest.py             # CLI: generates docs/pii_manifest.json
-    person_index.py         # PersonDataIndex service
+    person_index.py         # PersonIndexService
     dsr_service.py          # GDPR access/erase/rectify logic
     backfill.py             # Encrypt existing plaintext data
 

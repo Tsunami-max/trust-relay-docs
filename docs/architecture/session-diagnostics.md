@@ -4,7 +4,8 @@ title: "Session Diagnostics"
 components:
   - app/services/diagnostic_service.py
   - app/services/failure_classifier.py
-last_verified: 2026-03-29
+  - app/api/diagnostics.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -78,7 +79,7 @@ The `FailureClassifier` is a deterministic, rule-based engine (no LLM calls) tha
 
 ## Session Reconstruction
 
-The reconstruction endpoint (`GET /diagnostics/{case_id}/iterations/{n}`) joins across all 6 telemetry tables to produce a complete investigation session view:
+The reconstruction endpoint (`GET /api/diagnostics/{case_id}/iterations/{iteration}`, in `app/api/diagnostics.py`) joins across all 6 telemetry tables to produce a complete investigation session view:
 
 | Table | Key Columns | Join Key |
 |-------|------------|----------|
@@ -96,7 +97,7 @@ The response includes `total_duration_ms` computed as the sum of all stage durat
 - **Pillar 1 (Confidence Scoring)** -- Stage 8 (`confidence_scoring`) records the 4-dimension confidence breakdown. Low confidence scores correlate with negative feedback, enabling calibration via `CalibrationService`.
 - **Pillar 3 (Cross-Case Patterns)** -- Aggregated failure patterns from `GET /stats` feed into `PatternEngine` to detect systemic issues (e.g., a source failing across multiple cases).
 - **Pillar 4 (Supervised Autonomy)** -- Stage 11 (`automation_tier`) records the tier assignment. Negative feedback on auto-processed cases triggers tier downgrade via rolling window analysis.
-- **Audit compliance** -- All telemetry tables include `tenant_id` and `created_at` for multi-tenant isolation and retention compliance.
+- **Audit compliance** -- All telemetry tables carry `tenant_id` and `created_at` columns for retention compliance. The reconstruction read path scopes queries via `get_tenant_session(tenant_id)`. Note: the stage and feedback *write* paths (`record_stage`, feedback recording) currently open `get_session()`, so `current_setting('app.current_tenant')` resolves to the demo tenant default — telemetry rows are not yet correctly tagged with the case's own tenant. This shares the same root cause as the workflow audit-event tenant gap (see [EU AI Act Compliance → Known Gaps](/docs/architecture/eu-ai-act-compliance)).
 
 ## Configuration
 

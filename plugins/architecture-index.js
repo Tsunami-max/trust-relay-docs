@@ -361,8 +361,14 @@ module.exports = function architectureIndexPlugin(context) {
       };
 
       // -- Assemble output -------------------------------------------------
+      const now = new Date();
       const index = {
-        generated_at: new Date().toISOString(),
+        generated_at: now.toISOString(),
+        // ``last_verified`` is a date-only (YYYY-MM-DD) snapshot used by the
+        // staleness-check protocol in CLAUDE.md. It is set on every build so
+        // any consumer of the index can compare against ``now - 30 days`` to
+        // decide whether the index is fresh enough to trust.
+        last_verified: now.toISOString().slice(0, 10),
         stats: {
           total_doc_files: mdFiles.length,
           files_with_metadata: pages_with_metadata.length,

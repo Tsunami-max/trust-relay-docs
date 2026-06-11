@@ -7,11 +7,20 @@ components:
   - app/services/registries/fr_bodacc_service.py
   - app/services/registries/ee_ariregister_service.py
   - app/services/registries/cz_ares_service.py
+  - app/services/registries/cz_cnb_service.py
+  - app/services/registries/cz_justice_service.py
+  - app/services/registries/cz_ubo_service.py
+  - app/services/registries/cz_debarment_service.py
+  - app/services/registries/cz_kdp_service.py
+  - app/services/registries/cz_isir_service.py
+  - app/services/registries/cz_financials_extractor.py
+  - app/services/registries/cz_bank_financials_extractor.py
   - app/services/registries/no_regnskapsregisteret.py
   - app/services/registries/ro_anaf_service.py
   - app/services/registries/ro_anaf_company_service.py
   - app/services/registries/ro_onrc_service.py
   - app/services/registries/ro_nomenclator.py
+  - app/services/registries/sk_orsr_service.py
   - app/services/registries/sk_ruz_service.py
   - app/services/registries/nl_kvk_jaarrekeningen.py
   - app/services/registries/ch_zefix_service.py
@@ -20,15 +29,17 @@ components:
   - app/services/registries/financial_utils.py
   - app/services/registries/nl_kvk_service.py
   - app/services/registries/no_brreg_service.py
+  - app/services/registries/no_regnskapsregisteret.py
+  - app/agents/country_registry.py
 tests:
   - tests/test_countries.py
-last_verified: 2026-04-05
+last_verified: 2026-06-11
 status: implemented
 ---
 
 # Multi-Country Registry Services
 
-Trust Relay integrates with **10 official business registries** across Europe to retrieve authoritative company data during OSINT investigations. Each registry provider follows a common interface pattern but implements country-specific API protocols, authentication schemes, and data extraction logic. The country routing system automatically dispatches investigations to the correct provider based on the target company's jurisdiction.
+Trust Relay integrates with **11 official business registries** across Europe (BE, NL, CH, CZ, EE, FR, DK, NO, FI, RO, SK) to retrieve authoritative company data during OSINT investigations. Each registry provider follows a common interface pattern but implements country-specific API protocols, authentication schemes, and data extraction logic. The country routing system automatically dispatches investigations to the correct provider based on the target company's jurisdiction.
 
 ---
 
@@ -58,13 +69,14 @@ flowchart TB
         BE["Belgian Agent<br/>KBO/BCE + Gazette + NBB"]
         NL["KvK Provider<br/>Basisprofielen API"]
         CH["Zefix Provider<br/>REST API"]
-        CZ["ARES Provider<br/>REST API"]
+        CZ["Czech Agent<br/>ARES + ISIR + Justice.cz"]
         EE["Äriregister Provider<br/>REST API"]
         FR["French Agent<br/>INPI + INSEE + BODACC"]
         DK["CVR Provider<br/>cvrapi.dk"]
         NO["Brreg Provider<br/>REST API"]
         FI["YTJ/PRH Provider<br/>Open Data API"]
         RO["Romanian Agent<br/>ANAF + ONRC/BrightData"]
+        SK["Slovak Agent<br/>ORSR + RUZ"]
         DEF["Default Path<br/>(NorthData fallback)"]
     end
 
@@ -83,6 +95,7 @@ flowchart TB
     CR -->|NO| NO
     CR -->|FI| FI
     CR -->|RO| RO
+    CR -->|SK| SK
     CR -->|other| DEF
     BE --> RAO
     NL --> RAO
@@ -94,6 +107,7 @@ flowchart TB
     NO --> RAO
     FI --> RAO
     RO --> RAO
+    SK --> RAO
     DEF --> RAO
 
     style CR fill:#2563eb,stroke:#38bdf8,color:#fff
@@ -191,17 +205,21 @@ This is the only provider that uses an LLM-orchestrated agent (`model_key: "belg
 
 ---
 
-### CZ -- Czech Republic: ARES (Administrative Register of Economic Subjects)
+### CZ -- Czech Republic: ARES + ISIR + Justice.cz (multi-source)
 
-**Provider**: `backend/app/services/registries/cz_ares_service.py`
+**Provider**: `backend/app/services/registries/cz_ares_service.py` (entry point `run_cz_agent`)
+
+The Czech provider orchestrates three official sources in parallel via `asyncio.gather()`: ARES for company identity, ISIR for insolvency proceedings (`cz_isir_service.py`), and Justice.cz for corporate documents/sbírka listin (`cz_justice_service.py`). Additional CZ-specific services exist for downstream enrichment: `cz_cnb_service.py` (CNB financial-market entity register), `cz_debarment_service.py`, `cz_kdp_service.py` (tax-advisor register), `cz_ubo_service.py` (beneficial-owner register), and the `cz_financials_extractor.py` / `cz_bank_financials_extractor.py` extractors.
 
 | Aspect | Detail |
 |--------|--------|
-| API | `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{ico}` |
-| Authentication | None (public API) |
+| API (ARES) | `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/{ico}` |
+| Authentication | None (public APIs) |
 | Identifier | ICO (Czech registration number) |
 | Data returned | Company name (obchodniJmeno), registered address (sidlo), legal form, founding date, NACE codes |
 | Directors | Available via `statutarniOrgan.clenove` -- natural persons or legal entities |
+| Insolvency | ISIR insolvency register checked in parallel (`cz_isir_service.fetch_insolvency`) |
+| Documents | Justice.cz sbírka listin enumerated in parallel (`cz_justice_service.fetch_justice_documents`) |
 
 ---
 
@@ -224,7 +242,7 @@ This is the only provider that uses an LLM-orchestrated agent (`model_key: "belg
 
 **Orchestrator**: `backend/app/services/registries/fr_insee_service.py`
 
-The French provider is the second multi-source provider (after Belgium), orchestrating three official data sources in parallel via `asyncio.gather()`. INPI is primary for directors and documents, INSEE for status and legal form, BODACC for lifecycle events. If any source fails, the investigation degrades gracefully and reports the gap.
+The French provider is one of several multi-source providers (alongside Belgium, Czech Republic, Romania, and Slovakia), orchestrating three official data sources in parallel via `asyncio.gather()`. INPI is primary for directors and documents, INSEE for status and legal form, BODACC for lifecycle events. If any source fails, the investigation degrades gracefully and reports the gap.
 
 #### Source 1: INPI RNE (Registre National des Entreprises)
 
@@ -299,7 +317,7 @@ The agent accepts multiple identifier formats and normalizes to a 9-digit SIREN:
 
 #### Document Auto-Retrieval
 
-France is the first country with **automatic document collection**. During the `collect_registry_documents` Temporal activity, the agent downloads articles of association and financial statement PDFs from INPI and stores them in MinIO at `{case_id}/iteration-{n}/registry-docs/`. These documents feed into the dynamic document requirements system -- for French companies, the compliance officer may only need to request a Director ID from the end customer, since corporate documents are already available from the registry.
+France was the first country with **automatic document collection**, and the `collect_registry_documents` Temporal activity now also handles **BE** (NBB filings) and **CZ** (Justice.cz sbírka listin) — see `app/services/document_evidence_collector.py` (`country_upper in {"FR", "BE", "CZ"}`; other countries degrade gracefully with no downloadable documents). For France, the activity downloads articles of association and financial statement PDFs from INPI and stores them in MinIO. Recency filtering (the last `DOCUMENT_RECENCY_YEARS`) avoids downloading decades of filing history. These documents feed into the dynamic document requirements system -- for French companies, the compliance officer may only need to request a Director ID from the end customer, since corporate documents are already available from the registry.
 
 ---
 
@@ -345,16 +363,35 @@ France is the first country with **automatic document collection**. During the `
 
 ---
 
+### SK -- Slovakia: ORSR (Obchodný register) + RUZ
+
+**Provider**: `backend/app/services/registries/sk_orsr_service.py` (entry point `run_sk_agent`)
+
+| Aspect | Detail |
+|--------|--------|
+| Source | `https://www.orsr.sk` -- Slovak Ministry of Justice Commercial Register (HTML scraping, windows-1250 encoding) |
+| Authentication | None (public website) |
+| Identifier | Slovak IČO (Identifikačné číslo organizácie) |
+| Lookup strategy | Two-step: search by IČO to find the `vypis.asp` detail link, then parse the detail-page HTML table |
+| Data returned | Legal name, address, IČO, legal form, directors, business activities, company status |
+| Status mapping | Normalizes Slovak status labels (`aktívna` → active, `v likvidácii` → in_liquidation, `vymazaná`/`zrušená` → dissolved) |
+| Financials | RUZ (Register Účtovných Závierok) provides annual filings -- see Country Financial Scrapers below (`sk_ruz_service.py`) |
+
+ORSR is the company-identity source registered in the country router for `country="SK"`; RUZ supplies financial filings. Together they make Slovakia a multi-source provider (`source_label: "ORSR/RUZ"`).
+
+---
+
 ## Authentication Summary
 
 | Pattern | Countries | Mechanism |
 |---------|-----------|-----------|
-| **Open access** | CH, CZ, EE, DK, NO, FI | No authentication -- public APIs |
+| **Open access** | CH, CZ, EE, DK, NO, FI, RO | No authentication -- public APIs |
+| **HTML scraping** | SK | Public website (orsr.sk), no API |
 | **API key** | NL, FR (INSEE) | `apikey` / `X-INSEE-Api-Key-Integration` header |
 | **Bearer token** | FR (INPI) | POST `/api/sso/login` with email/password, token returned in response |
 | **No auth** | FR (BODACC) | Open data API -- no credentials required |
 | **Composite (mixed)** | BE | KBO public + gazette scraping + NBB public |
-| **Multi-source orchestration** | BE, FR | Multiple sources called in parallel, results merged |
+| **Multi-source orchestration** | BE, FR, CZ, RO, SK | Multiple sources called in parallel, results merged |
 
 ---
 
@@ -422,16 +459,19 @@ For several European countries, the VAT number can be derived deterministically 
 
 | Country | Algorithm | Example |
 |---|---|---|
-| **FR** (France) | SIREN → VAT: `"FR" + luhn_key(siren) + siren` where luhn_key = `(12 + 3 × (siren % 97)) % 97` | SIREN `123456789` → `FR40123456789` |
-| **BE** (Belgium) | Enterprise number → VAT: prepend `"BE0"` after stripping non-digits | `0123456789` → `BE0123456789` |
-| **IT** (Italy) | Registration number is already the VAT base; prepend `"IT"` | `12345678901` → `IT12345678901` |
-| **ES** (Spain) | NIF/CIF → VAT: prepend `"ES"` | `A12345678` → `ESA12345678` |
-| **PT** (Portugal) | NIF → VAT: prepend `"PT"` | `123456789` → `PT123456789` |
-| **PL** (Poland) | NIP → VAT: prepend `"PL"` | `1234567890` → `PL1234567890` |
+| **FR** (France) | SIREN (9 digits) → VAT: `"FR" + key + SIREN` where key = `(12 + 3 × (SIREN % 97)) % 97` | SIREN `123456789` → `FR…123456789` |
+| **BE** (Belgium) | Enterprise number (10 digits) → VAT: prepend `"BE"` | `0123456789` → `BE0123456789` |
+| **IT** (Italy) | Registration number (11 digits) is already the partita IVA base; prepend `"IT"` | `12345678901` → `IT12345678901` |
+| **ES** (Spain) | NIF/CIF (≥8 chars) → VAT: prepend `"ES"` | `A12345678` → `ESA12345678` |
+| **PT** (Portugal) | NIPC (9 digits) → VAT: prepend `"PT"` | `123456789` → `PT123456789` |
+| **PL** (Poland) | NIP (10 digits) → VAT: prepend `"PL"` | `1234567890` → `PL1234567890` |
+| **CZ** (Czech Republic) | IČO (8 digits) → DIČ: prepend `"CZ"` | `14706725` → `CZ14706725` |
 
-The derived VAT number is validated against the **VIES API** (`https://ec.europa.eu/taxation_customs/vies/rest-api/ms/{country_code}/vat/{vat_number}`) before being stored. A VIES `isValid: false` response generates a MEDIUM severity finding; a validation timeout falls back gracefully without blocking the investigation.
+Countries where the VAT number **cannot** be derived from the registration number (require a separate VAT registration and an explicit `vat_number`): DE, NL, LU, AT, SK, HU, RO, DK, SE, FI, IE, GB.
 
-All derivation logic lives in `backend/app/services/vat_derivation.py`. The function signature is `derive_vat_number(country_code: str, registration_number: str) -> str | None`.
+The derived VAT number is later validated against the **VIES API** before being stored. A VIES `isValid: false` response generates a finding; a validation timeout falls back gracefully without blocking the investigation.
+
+> **Code note:** the derivation logic currently lives inline in the case-creation router, not in a standalone service module. The function is `_derive_vat_number(registration_number: str, country: str) -> str | None` in `backend/app/api/case_crud.py` (called from the `_run_pre_enrichment` path). There is no `app/services/vat_derivation.py`.
 
 ---
 
@@ -449,13 +489,13 @@ The `no_brreg_service.py` provider extends its basic company lookup with a call 
 | Data returned | Revenue, profit/loss, total assets, equity, employee count (from the most recent filed annual accounts) |
 | Authentication | None (public API) |
 
-Financial metrics are extracted from the `regnskapsprinsipper` and `resultatregnskapsprinsipper` fields and mapped to the `FinancialHealthReport` model.
+Financial metrics are extracted from the `resultatregnskapResultat` / `eiendeler` / `egenkapitalGjeld` sections (revenue from `driftsinntekter`/`sumDriftsinntekter`, profit from `aarsresultat`) and mapped to the `FinancialHealthReport` model (`fetch_financials` in `no_regnskapsregisteret.py`).
 
 ### RO — Romania: ANAF + ONRC
 
 **Provider**: `backend/app/services/registries/ro_onrc_service.py` (composite agent)
 
-Romania is the second multi-source provider (after Belgium), combining three data sources:
+Romania is one of several multi-source providers (alongside Belgium, France, Czech Republic, and Slovakia), combining three data sources:
 
 | Source | Service File | Data | Authentication |
 |--------|-------------|------|----------------|
@@ -477,7 +517,7 @@ All three sources are queried in parallel via `asyncio.gather()`. The ANAF endpo
 
 ### SK — Slovakia: RUZ (Register Účtovných Závierok)
 
-**Provider**: `backend/app/services/registries/sk_ruz_service.py`
+**Provider**: `backend/app/services/registries/sk_ruz_service.py` (financials companion to the ORSR registry provider documented above)
 
 | Aspect | Detail |
 |---|---|
@@ -486,7 +526,7 @@ All three sources are queried in parallel via `asyncio.gather()`. The ANAF endpo
 | Identifier | Slovak ICO (Identifikačné číslo organizácie) |
 | Data returned | Annual account filings list; detail endpoint returns revenue, assets, equity per year |
 
-The service fetches the latest filing year and extracts key financial metrics for `FinancialHealthReport`.
+The service fetches the latest filing year and extracts key financial metrics for `FinancialHealthReport`. Company-identity data (name, directors, status) comes from the ORSR provider — see the SK registry coverage section above.
 
 ### NL — Netherlands: KvK Open Dataset
 
@@ -534,6 +574,6 @@ To add a new country provider:
 2. Return a `RegistryAgentOutput` with findings, directors, corroboration summary
 3. Register the provider in `backend/app/agents/country_registry.py` inside `_init_registry()`
 4. Add any required API credentials to `backend/app/config.py` (pydantic-settings)
-5. Add tests in `backend/tests/services/registries/`
+5. Add tests under `backend/tests/` (e.g. `test_countries.py`, `test_country_registry.py`)
 
 The standardized interface means no changes are needed to the OSINT agent, graph ETL, or risk engine -- they consume `RegistryAgentOutput` regardless of which country produced it.

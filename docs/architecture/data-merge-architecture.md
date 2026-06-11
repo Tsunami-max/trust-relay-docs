@@ -6,10 +6,12 @@ components:
   - app/agents/osint_agent.py
   - app/services/northdata_service.py
   - app/agents/person_validation_agent.py
+  - app/services/network_scan_service.py
+  - app/workflows/compliance_case.py
 tests:
   - tests/test_pillar35_integration.py
   - tests/test_network_scan_service.py
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -188,7 +190,7 @@ The adverse media agent receives `company_name` -- the officer-submitted name, n
 
 ### Gap 1: NorthData API Directors Arrive Post-Synthesis (Severity: Medium)
 
-**What happens:** The NorthData API call (lines 1584-1654 in `osint_agent.py`) runs AFTER the synthesis agent completes. Directors discovered here are added to `result_dict["directors"]` but are never validated via LinkedIn or screened for adverse media.
+**What happens:** The NorthData API call (in the post-synthesis enrichment block of `osint_agent.py`, where `NorthDataService` is instantiated and assigns `result_dict["directors"]`) runs AFTER the synthesis agent completes. Directors discovered here are added to `result_dict["directors"]` but are never validated via LinkedIn or screened for adverse media.
 
 **Impact:** If the registry agent and pre-enrichment both missed a director, that director appears in the final result but without LinkedIn validation or sanctions screening. The network investigation may scan their companies, but the person themselves is not screened.
 
@@ -198,7 +200,7 @@ The adverse media agent receives `company_name` -- the officer-submitted name, n
 
 ### Gap 2: Document-Extracted UBOs Arrive After OSINT Pipeline (Severity: Low)
 
-**What happens:** UBO document extraction (`extract_document_data`) runs in the Temporal workflow AFTER the OSINT pipeline completes. Extracted UBOs are merged into the investigation result at the workflow level (lines 826-849 in `compliance_case.py`), but they are never fed back into person validation or adverse media screening.
+**What happens:** UBO document extraction (`extract_document_data`) runs in the Temporal workflow AFTER the OSINT pipeline completes. Extracted UBOs are merged into the investigation result at the workflow level (the "Merge document-extracted UBOs into investigation" block in `compliance_case.py`, gated on `s.document_extracted_data.get("ubos")` and emitting a `ubo_data_merged` audit event), but they are never fed back into person validation or adverse media screening.
 
 **Impact:** UBOs discovered from customer-uploaded documents (e.g., UBO register extracts) appear in the final result but without LinkedIn validation or sanctions screening. They are included in the graph ETL and confidence scoring, but not in the OSINT agents' analysis.
 
@@ -226,7 +228,7 @@ The adverse media agent receives `company_name` -- the officer-submitted name, n
 
 ### Gap 5: Financial Data Not Available to Synthesis Agent (Severity: Medium)
 
-**What happens:** For non-Belgian countries, structured financial data from the NorthData API is extracted AFTER synthesis (lines 1584-1665 in `osint_agent.py`). The synthesis agent only sees `financials_summary` (a text field from the registry agent), not the structured `FinancialHealthReport`.
+**What happens:** For non-Belgian countries, structured financial data from the NorthData API is extracted AFTER synthesis (in the same post-synthesis `NorthDataService` enrichment block of `osint_agent.py`). The synthesis agent only sees `financials_summary` (a text field from the registry agent), not the structured `FinancialHealthReport`.
 
 **Impact:** The synthesis agent cannot perform quantitative financial analysis (solvency ratios, trend analysis, revenue decline detection) for non-Belgian companies. Belgian companies are unaffected because the NBB financial data is included in the registry agent output.
 
@@ -236,7 +238,7 @@ The adverse media agent receives `company_name` -- the officer-submitted name, n
 
 ### Gap 6: Cached Results Skip Director Merge on Retry (Severity: Low)
 
-**What happens:** When retrying failed agents from cache (lines 734-801 in `osint_agent.py`), the director list is reconstructed from the cached `registry_data` but does NOT include pre-enrichment directors from `additional_data.northdata_enrichment`.
+**What happens:** When retrying failed agents from cache (the cache self-healing retry path in `osint_agent.py`, around the `_load_osint_cache` / cached-agent-reuse logic), the director list is reconstructed from the cached `registry_data` but does NOT include pre-enrichment directors from `additional_data.northdata_enrichment`.
 
 **Impact:** On follow-up iterations where person validation is retried, the retry may use a smaller director list than the original run.
 

@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: "Atlas — Tech Stack"
-last_verified: 2026-04-08
+last_verified: 2026-06-11
 status: reference
 ---
 
@@ -25,14 +25,14 @@ Atlas is a full-stack KYB/KYC/AML compliance investigation platform built on Pyt
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| LangGraph | 1.0.10 | Pipeline orchestration -- investigation modules are LangGraph nodes executing in parallel |
-| LangChain | 1.2.10 | Agent framework -- wraps LLM calls, tool invocations, and structured output behind a unified interface |
+| LangGraph | 1.2.4 | Pipeline orchestration -- investigation modules are LangGraph nodes executing in parallel |
+| LangChain | 1.3.4 | Agent framework -- wraps LLM calls, tool invocations, and structured output behind a unified interface |
 | langchain-mcp-adapters | 0.2.2 | MCP tool integration -- bridges MCP servers into the LangChain tool ecosystem |
-| langchain-anthropic | 1.4.0 | Claude model adapter for direct Anthropic API access |
-| langchain-openai | 1.1.12 | OpenAI model adapter for GPT-series models |
+| langchain-anthropic | 1.4.1 | Claude model adapter for direct Anthropic API access |
+| langchain-openai | 1.1.14 | OpenAI model adapter for GPT-series models |
 | langchain-openrouter | >=0.0.2 | OpenRouter multi-model gateway adapter |
-| langchain-ollama | >=0.3.0 | Local model adapter for self-hosted LLMs via Ollama |
-| langchain-core | 1.2.23 | Core abstractions shared across all LangChain adapters |
+| langchain-ollama | >=1.1.0 | Local model adapter for self-hosted LLMs via Ollama |
+| langchain-core | 1.4.1 | Core abstractions shared across all LangChain adapters |
 
 ### LLM Gateway
 
@@ -65,7 +65,7 @@ PostgreSQL is the system of record. Neo4j is a derived view -- investigation ent
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| Flyway | 10 | SQL schema migrations. 105+ versioned migration files (`V001__` through `V105__+`) executed as a Docker init container before the API starts |
+| Flyway | 10 | SQL schema migrations. 138 versioned migration files (`V1__` through `V138__scrub_leaked_osint_mcp_tokens`) executed as a Docker init container before the API starts |
 
 Flyway runs as a separate container (`flyway/flyway:10-alpine`) with a `service_completed_successfully` dependency, guaranteeing the schema is fully up to date before any application container starts.
 
@@ -158,9 +158,9 @@ The Langfuse deployment includes 5 containers: web UI, background worker, ClickH
 | Technology | Version | Purpose |
 |-----------|---------|---------|
 | React | 18.2 | UI framework -- single-page application with client-side rendering |
-| TypeScript | 5.4.2 | Type system for compile-time safety across the entire frontend |
-| Vite | 7.3.1 | Build tool with hot module replacement for fast development cycles |
-| react-router-dom | 7.14 | Client-side routing with nested layouts |
+| TypeScript | 6.0.3 | Type system for compile-time safety across the entire frontend |
+| Vite | 7.3.2 | Build tool with hot module replacement for fast development cycles |
+| react-router-dom | 7.16 | Client-side routing with nested layouts |
 
 Atlas is a single-page application (SPA) with client-side routing. Vite provides sub-second hot module replacement during development and optimized production builds with tree-shaking and code splitting.
 
@@ -180,7 +180,7 @@ Blueprint.js packages used:
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| Zustand | 4.5 | Client state management with minimal boilerplate |
+| Zustand | 5.0 | Client state management with minimal boilerplate |
 | TanStack React Query | 5.28 | Server state management with automatic caching, background refetching, and optimistic updates |
 
 React Query integrates with `@tanstack/query-sync-storage-persister` for offline persistence, enabling the UI to display cached data immediately while background refetches update stale entries.
@@ -189,7 +189,7 @@ React Query integrates with `@tanstack/query-sync-storage-persister` for offline
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| Cytoscape.js | 3.28 | Graph visualization for entity relationships, ownership chains, and network analysis. Supports dagre and fcose layout algorithms |
+| Cytoscape.js | 3.33 | Graph visualization for entity relationships, ownership chains, and network analysis. Supports dagre and fcose layout algorithms |
 | Recharts | 2.12 | Charts for risk distributions, investigation statistics, and timeline visualizations |
 | d3-geo + world-atlas | -- | Geographic visualization for mapping company locations across jurisdictions |
 

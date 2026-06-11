@@ -4,15 +4,20 @@ title: Prompt Management
 description: Centralized prompt versioning with Jinja2 templates, DB-backed storage, admin API, and EU AI Act traceability
 components:
   - app/prompts/registry.py
+  - app/prompts/seed.py
+  - app/prompts/schemas.py
+  - app/api/admin_prompts.py
 tests:
-  - tests/test_prompts.py
-last_verified: 2026-03-29
+  - tests/test_prompts/test_registry.py
+  - tests/test_prompts/test_prompt_api.py
+  - tests/test_prompts/test_prompt_parity.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
 # Prompt Management
 
-Atlas uses 20 AI agent prompts across 16 agent files. The Prompt Management system centralizes these prompts with **version control**, **DB-backed storage**, and **EU AI Act traceability** — every AI output is linked to the exact prompt version that produced it.
+Atlas ships **31 named AI agent prompt templates** (plus 5 reusable `_`-prefixed partials) in `app/prompts/templates/`, spanning ~25 distinct agents. The Prompt Management system centralizes these prompts with **version control**, **DB-backed storage**, and **EU AI Act traceability** — every AI output is linked to the exact prompt version that produced it.
 
 ## Architecture Evolution
 
@@ -51,11 +56,11 @@ graph LR
 
 ## Prompt Registry
 
-The `PromptRegistry` singleton manages all 20 prompts with a layered loading strategy:
+The `PromptRegistry` singleton (`app/prompts/registry.py`) manages all named prompts with a layered loading strategy. Filesystem `.jinja2` templates form the baseline; active rows from the `prompt_versions` table are overlaid on top (DB-first, FS fallback) and refreshed on a 60-second TTL:
 
 ```mermaid
 graph TD
-    REQ[Agent requests prompt<br/>registry.render'synthesis_agent']
+    REQ[Agent requests prompt<br/>registry.render'synthesis']
 
     REQ --> DB_CHECK{DB has active<br/>version?}
     DB_CHECK -->|Yes| DB_LOAD[Load from prompt_versions<br/>table]
@@ -77,30 +82,45 @@ graph TD
     style CV fill:#059669,color:#fff
 ```
 
-## Prompt Inventory (20 Prompts)
+## Prompt Inventory (31 named templates)
 
-| # | Prompt Name | Agent | Domain |
-|---|---|---|---|
-| 1 | `synthesis_agent` | SynthesisAgent | Investigation analysis |
-| 2 | `portal_investigation` | PortalInvestigationAgent | Customer portal scan |
-| 3 | `scan_agent` | ScanAgent | Document scanning |
-| 4 | `task_generator` | TaskGeneratorAgent | Follow-up task creation |
-| 5 | `document_validation` | DocumentValidationAgent | Doc quality check |
-| 6 | `mcc_classifier` | MccClassificationAgent | Merchant categorization |
-| 7 | `inhoudingsplicht` | InhoudingspichtAgent | Belgian tax/social debt |
-| 8 | `company_profile` | CompanyProfileAgent | Entity profiling |
-| 9 | `financial_health` | FinancialHealthAgent | Financial analysis |
-| 10 | `belgian_evidence` | BelgianEvidenceAgent | BE data collection |
-| 11 | `risk_assessment` | RiskAssessmentAgent | Risk scoring |
-| 12 | `finding_debugger` | FindingDebuggerAgent | Signal analysis |
-| 13 | `case_intelligence` | CaseIntelligenceAgent | Decision support |
-| 14 | `copilot_system` | CopilotRuntime | Copilot behavior |
-| 15 | `copilot_case_analysis` | CopilotRuntime | Case-specific tools |
-| 16 | `copilot_regulatory` | CopilotRuntime | Regulatory domain |
-| 17 | `copilot_memory` | CopilotRuntime | Memory domain |
-| 18 | `copilot_entity` | CopilotRuntime | Entity intelligence |
-| 19 | `report_generator` | ReportService | KYB report |
-| 20 | `regulatory_knowledge` | RegulatoryKnowledgeTool | Lex queries |
+Each template's `name` and `agent` are declared in its YAML frontmatter. The `name` is the key passed to `registry.render(name, ...)`. Files prefixed with `_` are partials included via `{% include %}` and are not directly renderable.
+
+| Prompt Name | Agent | Domain |
+|---|---|---|
+| `synthesis` | synthesis_agent | Investigation synthesis |
+| `task_generator` | task_generator | Follow-up task creation |
+| `registry_investigation` | registry_agent | Company registry OSINT |
+| `belgian_investigation` | belgian_agent | Belgian data collection |
+| `belgian_gazette` | belgian_scraping_agent | Belgian Gazette scrape |
+| `belgian_gazette_detail` | belgian_scraping_agent | Gazette detail extraction |
+| `belgian_inhoudingsplicht` | belgian_scraping_agent | Belgian tax/social debt |
+| `adverse_media` | adverse_media_agent | Adverse media scan |
+| `social_intelligence` | social_intelligence_agent | Social intelligence |
+| `sanctions_resolver` | sanctions_resolver_agent | Sanctions FP resolution |
+| `person_validation` | person_validation_agent | Natural-person validation |
+| `mcc_classifier` | mcc_classifier | Merchant categorization |
+| `document_extractor` | document_extractor | Document field extraction |
+| `document_validator` | document_validator | Doc quality / validation |
+| `finding_debugger` | finding_debugger | Signal / finding analysis |
+| `case_intelligence` | case_intelligence_agent | Decision support |
+| `quality_scorer` | quality_scorer | LLM-as-judge quality |
+| `scan_synthesis` | scan_synthesis_agent | Document scan synthesis |
+| `dashboard` | dashboard_agent | Copilot dashboard tools |
+| `dashboard_stats` | dashboard_stats_agent | Dashboard statistics |
+| `memory_admin` | memory_admin_agent | Compliance memory admin |
+| `osint_legacy` | osint_agent | Legacy OSINT prompt |
+| `precious_metals_risk_assessment` | risk_classifier | HVG/precious-metals risk |
+| `customs_guarantee_extraction` | guarantee_validator | Customs guarantee extraction |
+| `customs_poa_classification` | poa_classifier | Customs power-of-attorney |
+| `shipment_document_classifier` | shipment_classifier | Shipment doc classification |
+| `shipment_invoice_extraction` | shipment_extractor | Shipment invoice extraction |
+| `shipment_packing_list_extraction` | shipment_extractor | Packing list extraction |
+| `shipment_bill_of_lading_extraction` | shipment_extractor | Bill-of-lading extraction |
+| `shipment_certificate_origin_extraction` | shipment_extractor | Certificate-of-origin extraction |
+| `shipment_transit_document_extraction` | shipment_extractor | Transit document extraction |
+
+**Partials (5):** `_eea_registries`, `_guardrails`, `_minimum_sources`, `_regulatory_basis`, `_severity_matrix` — shared fragments included by other templates; they carry no frontmatter.
 
 ## Database Model
 
@@ -110,8 +130,8 @@ erDiagram
 
     prompt_versions {
         int id PK "auto-increment"
-        varchar name "e.g. synthesis_agent"
-        varchar agent "e.g. SynthesisAgent"
+        varchar name "e.g. synthesis"
+        varchar agent "e.g. synthesis_agent"
         text description
         int version_number "append-only"
         varchar status "active|draft|archived"
@@ -154,8 +174,8 @@ sequenceDiagram
     participant CV as Contextvar
     participant AE as AgentExecution
 
-    Agent->>Reg: registry.render("synthesis_agent", vars)
-    Reg->>DB: SELECT ... WHERE name='synthesis_agent' AND status='active'
+    Agent->>Reg: registry.render("synthesis", vars)
+    Reg->>DB: SELECT ... WHERE name='synthesis' AND status='active'
     DB-->>Reg: PromptVersion(id=42, v3, hash=a3f8b2...)
     Reg->>CV: Set prompt_version_id = 42
     Reg-->>Agent: RenderedPrompt(text, version_id=42, hash)
@@ -173,16 +193,20 @@ This satisfies **EU AI Act Article 12** (automatic logging) — every AI output 
 
 ## Admin API
 
+Implemented in `app/api/admin_prompts.py`, mounted at prefix `/api/admin/prompts`:
+
 ```
-GET    /api/admin/prompts                    # List all prompts with active versions
-GET    /api/admin/prompts/{name}             # Get prompt with version history
-GET    /api/admin/prompts/{name}/versions    # List all versions
-POST   /api/admin/prompts/{name}/versions    # Create new version (draft)
-PUT    /api/admin/prompts/{name}/activate    # Activate a version (deactivates previous)
-PUT    /api/admin/prompts/{name}/archive     # Archive a version
+GET    /api/admin/prompts                              # List all prompts with active versions
+GET    /api/admin/prompts/{name}                       # Get prompt (active version)
+GET    /api/admin/prompts/{name}/versions              # List all versions
+GET    /api/admin/prompts/{name}/versions/{version}    # Get a specific version
+POST   /api/admin/prompts/{name}/draft                 # Create a new draft version
+POST   /api/admin/prompts/{name}/activate/{version}    # Activate a version (deactivates previous)
+POST   /api/admin/prompts/{name}/archive/{version}     # Archive a version
+GET    /api/admin/prompts/{name}/diff                  # Diff two versions
 ```
 
-**Authorization:** `admin` or `compliance_manager` roles only.
+**Authorization:** the entire router is guarded by `Depends(require_role("super_admin"))` — `super_admin` role only.
 
 ## Jinja2 Template Format
 
@@ -190,9 +214,9 @@ Templates use Jinja2 with YAML frontmatter:
 
 ```jinja2
 ---
-name: synthesis_agent
+name: synthesis
 version: 3
-agent: SynthesisAgent
+agent: synthesis_agent
 description: Main synthesis prompt for investigation analysis
 variables:
   - company_name
@@ -210,22 +234,22 @@ Risk context from prior investigations:
 
 {% if regulatory_context %}
 Applicable regulations:
-{{ regulatory_context | truncate_items(5) }}
+{{ regulatory_context | truncate_json }}
 {% endif %}
 ```
 
-**Custom Jinja2 filters:** `truncate_items(n)`, `format_date`, `join_bullets` — domain-specific formatting for compliance prompts.
+**Custom Jinja2 filters** (registered in `PromptRegistry.__init__`): `truncate_json` (serialize + truncate large context dicts) and `inhoudingsplicht_status` (build Belgian tax/social debt status text). The `tojson` policy is also overridden with a datetime-aware serializer so KBO/NBB date objects render cleanly.
 
 ## Parity Testing
 
 Every prompt migration from inline strings to templates includes a **parity test** that proves zero behavioral change:
 
 ```python
-def test_synthesis_agent_prompt_parity():
+def test_synthesis_parity():
     """Template renders identically to the original inline prompt."""
     original = _get_original_inline_prompt()
-    rendered = registry.render("synthesis_agent", test_vars)
-    assert rendered.text.strip() == original.strip()
+    rendered = registry.render("synthesis", test_vars)
+    assert rendered.strip() == original.strip()
 ```
 
-20 parity tests — one per prompt — ensure the migration is invisible to the AI agents.
+The parity suite (`tests/test_prompts/test_prompt_parity.py`) holds one test per prompt that was migrated from an inline string, ensuring the migration is invisible to the AI agents. Prompts authored as templates from the start (e.g. the customs/shipment extractors) have no inline original and so carry no parity test.

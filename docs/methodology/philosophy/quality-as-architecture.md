@@ -1,10 +1,9 @@
 ---
 sidebar_position: 4
 title: "Quality as Architecture"
-description: "Quality enforcement is built into the development infrastructure as automated structural constraints, not maintained through discipline"
+description: "**What:** Quality enforcement is built into the development infrastructure as automated structural constraints, not maintained through discipline, code review"
 ---
 
-# Quality as Architecture
 
 **What:** Quality enforcement is built into the development infrastructure as automated structural constraints, not maintained through discipline, code review guidelines, or team agreements. The system makes producing high-quality work the path of least resistance and producing low-quality work difficult.
 
@@ -32,11 +31,9 @@ The net effect is that quality violations require more effort than quality compl
 
 *Audit trail.* An append-only `audit_events` table that records every state transition in the compliance workflow. The table schema prevents updates and deletes — the quality guarantee (immutable audit trail) is enforced by the database, not by application code that might forget to call the audit function.
 
-See the [Evidence appendix](../evidence/trust-relay-metrics) for the complete metrics. For the quality gate architecture, see [Quality Gates](../infrastructure/quality-gates).
+See [appendix-f-evidence.md](../appendix-f-evidence) for the complete metrics. For the quality gate architecture, see [appendix-e-hooks.md](../appendix-e-hooks).
 
-## The Four Layers
-
-The quality architecture has four layers:
+**How:** The quality architecture has four layers:
 
 1. **Instruction layer** (CLAUDE.md + Memory) — Rules that shape AI behavior at session start. "No mocking by default." "Always use Alembic." "No `time.sleep()` in tests." These are read once and applied throughout the session.
 
@@ -47,3 +44,5 @@ The quality architecture has four layers:
 4. **Agent layer** (Reviewer Agents) — Specialized review agents that check for domain-specific quality: API consistency, security patterns, compliance requirements, migration correctness. These provide automated second opinions that do not suffer from reviewer fatigue.
 
 These layers are independent and redundant. A quality failure must pass through all four layers undetected to reach the codebase. This defense-in-depth approach is borrowed from security engineering — the principle that no single control should be the sole protection against any category of failure.
+
+---

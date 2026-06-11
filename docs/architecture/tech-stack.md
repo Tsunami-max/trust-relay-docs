@@ -1,8 +1,10 @@
 ---
 sidebar_position: 2
 title: "Tech Stack"
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
+components:
+  - app/config.py
 ---
 
 # Technology Stack
@@ -14,8 +16,8 @@ status: implemented
 | Next.js | 16 | React framework, routing, SSR capabilities | Production-ready |
 | React | 19 | UI library | Production-ready |
 | Tailwind CSS | v4 | Utility-first styling | Production-ready |
-| shadcn/ui | latest | Component primitives (25 components installed) | Production-ready |
-| CopilotKit | v1.52.1 (v2 APIs) | AI assistant integration in dashboard | Production-ready -- migrated to v2 APIs (ADR-0013) |
+| shadcn/ui | latest | Component primitives (29 components installed) | Production-ready |
+| CopilotKit | v1.56.5 (v2 APIs) | AI assistant integration in dashboard | Production-ready -- migrated to v2 APIs (ADR-0013) |
 | Recharts | latest | Financial charts and analytics visualizations | Production-ready |
 | Framer Motion | latest | Animations (particle background, transitions) | Production-ready |
 | @uiw/react-json-view | latest | JSON data viewer for evidence display | Production-ready |
@@ -31,7 +33,7 @@ All frontend rendering is client-side. Next.js SSR/RSC capabilities are availabl
 
 | Technology | Version | Purpose | Maturity |
 |-----------|---------|---------|----------|
-| Python | 3.11+ | Runtime | Production-ready |
+| Python | 3.13+ | Runtime (`requires-python = ">=3.13"`) | Production-ready |
 | FastAPI | latest | HTTP API framework | Production-ready |
 | Pydantic | v2 | Data validation and serialization | Production-ready |
 | pydantic-settings | latest | Configuration management (.env + env vars) | Production-ready |
@@ -41,7 +43,7 @@ All frontend rendering is client-side. Next.js SSR/RSC capabilities are availabl
 | uvicorn | latest | ASGI server | Production-ready |
 
 :::note
-SQLAlchemy ORM models are defined for all 50 tables in `app/db/models.py`. Alembic is configured with async support and 50 migrations covering the full schema evolution (initial schema, portal token expiry, calibration, reasoning templates, alerts, tool invocations, governance checks, EVOI decisions, automation tiers, signal events, multi-tenancy RLS, diagnostics, finding intelligence, Lex knowledge layer, PII classification, risk configurations, discrepancy resolutions, and more). The current query layer uses `sqlalchemy.text()` with parameterized queries. ORM query migration is planned as a follow-up refinement.
+SQLAlchemy ORM models are defined as 63 mapped classes in `app/db/models.py`. Alembic is configured with async support and 58 migrations covering the full schema evolution (initial schema, portal token expiry, calibration, reasoning templates, alerts, tool invocations, governance checks, EVOI decisions, automation tiers, signal events, multi-tenancy RLS, diagnostics, finding intelligence, Lex knowledge layer, PII classification, risk configurations, discrepancy resolutions, sanctions suppression rules, and decision memoranda; latest is `058_decision_memoranda`). Per ADR-0008 (now superseded), the data layer is migrating from raw `sqlalchemy.text()` queries to a generic ORM `BaseRepository[T]` pattern; `admin.py` and `auth.py` are fully migrated, with remaining modules converted incrementally.
 :::
 
 ## Workflow Engine
@@ -60,7 +62,7 @@ Temporal was chosen over alternatives (Celery, custom state machines) for its du
 |-----------|---------|---------|----------|
 | PydanticAI | v1.60+ | Agent framework with structured outputs | Production-ready |
 | AG-UI Protocol | latest | Agent-to-UI communication standard | PoC -- emerging standard |
-| OpenAI GPT-4.1-mini / GPT-5.2 | latest | LLM for all 18+ agents | Production-ready API |
+| OpenAI GPT-4.1-mini / GPT-5.2 | latest | LLM for the agent fleet (33 agent modules) | Production-ready API |
 | MCP (Model Context Protocol) | latest | Tool integration (NorthData, BrightData, Tavily) | PoC -- Anthropic protocol |
 
 ### Per-Agent Model Configuration
@@ -73,7 +75,7 @@ SYNTHESIS_AGENT_MODEL=openai:gpt-5.2
 BELGIAN_SCRAPING_AGENT_MODEL=openai:gpt-4.1-mini
 ```
 
-All agents default to `openai:gpt-5.2` except the Belgian scraping agent which uses `gpt-4.1-mini` for cost efficiency. In test mode, all agents use PydanticAI's `TestModel`.
+Most agents default to `openai:gpt-5.2`; the Belgian scraping agent and the document extractor use `gpt-4.1-mini` for cost efficiency (see ADR-0029, cost-optimized model tiers). In test mode, all agents use PydanticAI's `TestModel`.
 
 ## Data Layer
 
@@ -84,7 +86,7 @@ All agents default to `openai:gpt-5.2` except the Belgian scraping agent which u
 | MinIO | latest | S3-compatible object storage for documents | Production-ready |
 | Redis | 8 (Alpine) | Cache layer (PEPPOL, inhoudingsplicht results) | Production-ready |
 
-### Database Schema (50 tables)
+### Database Schema (63 ORM-mapped tables)
 
 | Table | Purpose |
 |-------|---------|
@@ -128,7 +130,7 @@ Each data source uses the scraping tool best suited to its protection level. See
 | pytest | Backend test runner | 4,117+ tests |
 | Testcontainers | Isolated database containers for integration tests | 20 PostgreSQL integration tests |
 | respx | HTTP mock library for httpx | OSINT and scraping service tests |
-| PydanticAI TestModel | Deterministic AI agent testing | All 18+ agents |
+| PydanticAI TestModel | Deterministic AI agent testing | Entire agent fleet (33 modules) |
 | Jest | Frontend test runner | 59 test files |
 | React Testing Library | Component testing | 59 test suites covering dashboard, portal, entity-network, memory |
 | Playwright | End-to-end browser testing | 6 E2E specs |

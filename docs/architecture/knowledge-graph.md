@@ -4,12 +4,13 @@ title: "Knowledge Graph"
 components:
   - app/services/graph_service.py
   - app/services/graph_etl.py
+  - app/services/graph_ontology_data.py
   - app/api/graph.py
   - app/services/pattern_engine.py
   - app/services/recursive_discovery_service.py
 tests:
   - tests/test_graph_service.py
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -62,27 +63,41 @@ flowchart LR
 
 The `GraphETL` class (`backend/app/services/graph_etl.py`) transforms compliance case data into graph nodes and relationships. It runs **after each OSINT investigation iteration** (not only on final approval) and is fully idempotent via Cypher `MERGE`.
 
-### ETL Steps (12 steps, best-effort isolation)
+### ETL Steps (best-effort isolation)
 
-Each step is wrapped in try/catch — failures are logged and collected but never block subsequent steps.
+The full-case ETL (`GraphETL.run`) first creates the Investigation node (step 0), the Company node via `MERGE` on `registration_number` (step 1), and the `Investigation → Company` `TARGETS` edge (step 1b). When a valid registration number is present, it then iterates a list of **22 named steps** in a single best-effort loop — each step is wrapped in try/except, failures are appended to an `errors` list and logged but never block subsequent steps. After the loop, two further best-effort post-ETL steps run: recursive entity discovery and cross-case pattern detection.
 
-| Step | Creates | Depends on |
-|------|---------|------------|
-| 0. Investigation | Investigation node + TARGETS relationship | case_id |
-| 1. Company | Company node (MERGE on registration_number) | case_data |
-| 2. Directors | Person nodes + HAS_DIRECTOR relationships | registration_number |
-| 3. UBOs | Person nodes + HAS_UBO relationships | registration_number |
-| 4. Establishments | Establishment nodes + HAS_ESTABLISHMENT | registration_number |
-| 5. Findings | Finding nodes + HAS_FINDING relationships | investigation_result |
-| 6. Evidence | Evidence nodes + BASED_ON relationships | findings |
-| 7. Sanctions | SanctionMatch nodes + SANCTIONED relationships | sanctions_hits |
-| 8. Financial Metrics | FinancialMetric nodes + FILED_FINANCIALS | financial_health_report |
-| 9. Contagion Detection | CONTAGION_FROM cross-company relationships | shared directors |
-| 10. Evidence Links | EVIDENCED_BY: Company → Evidence | evidence list |
-| 11. **Provenance Records** | ProvenanceRecord + EvidenceArtifact nodes with PROVED_BY/SOURCE | finding details |
-| 12. **Regulatory Linkage** | SUBJECT_TO: Company → RegulatoryArticle | country |
+| # | Step label | Creates | Depends on |
+|---|-----------|---------|------------|
+| 0 | `investigation` | Investigation node | case_id |
+| 1 | `company` | Company node (MERGE on registration_number) | case_data |
+| 1b | TARGETS edge | Investigation → Company `TARGETS` | both above |
+| 2 | `directors` | Person nodes + HAS_DIRECTOR relationships | registration_number |
+| 3 | `stale_directors` | Bi-temporal invalidation of directors no longer in registry | registration_number |
+| 4 | `ubos` | Person nodes + HAS_UBO relationships | registration_number |
+| 5 | `establishments` | Establishment nodes + HAS_ESTABLISHMENT | registration_number |
+| 6 | `addresses` | Address nodes + REGISTERED_AT / OPERATES_AT | case_data |
+| 7 | `domains` | Domain nodes + OWNS_DOMAIN | case_data |
+| 8 | `findings` | Finding nodes + HAS_FINDING relationships | investigation_result |
+| 9 | `evidence` | Evidence nodes + BASED_ON relationships | findings |
+| 10 | `sanctions` | SanctionMatch nodes + SANCTIONED relationships | sanctions_hits |
+| 11 | `financial_metrics` | FinancialMetric nodes + FILED_FINANCIALS | financial_health_report |
+| 12 | `contagion` | CONTAGION_FROM cross-company relationships | shared directors |
+| 13 | `evidence_links` | EVIDENCED_BY: Company → Evidence | evidence list |
+| 14 | `provenance` | ProvenanceRecord + EvidenceArtifact nodes with PROVED_BY/SOURCE | finding details |
+| 15 | `regulatory_linkage` | SUBJECT_TO: Company → RegulatoryArticle | country |
+| 16 | `compliance_evaluation` | ComplianceRule evaluation against findings | findings |
+| 17 | `peppol` | PEPPOL participant data on completion | peppol_verification |
+| 18 | `corporate_events` | CorporateEvent nodes from gazette events | gazette_events |
+| 19 | `nace_codes` | NACECode nodes + HAS_ACTIVITY | nace_codes |
+| 20 | `documents` | Document nodes from uploaded documents | documents |
+| 21 | `ownership` | IS_SUBSIDIARY_OF ownership relationships | ownership_chain |
+| 22 | `gleif_ownership` | GLEIF-sourced ownership relationships | case_data |
+| 23 | `customs` | AEO / customs-authorization / EORI / POA nodes (gated on `fiscal_rep_data`) | fiscal_rep_data |
+| post | recursive discovery | Triggers `RecursiveDiscoveryService` + `ScanAgent` to discover and scan connected entities | registration_number |
+| post | cross-case patterns | `_step_cross_case_patterns` runs Pillar 3 cross-case motif detection | registration_number |
 
-### Provenance Creation (Step 11)
+### Provenance Creation (`provenance` step)
 
 Each finding's `details` dict generates per-property provenance chains:
 
@@ -95,7 +110,7 @@ Company ──PROVED_BY──▸ ProvenanceRecord ──SOURCE──▸ Evidence
 
 Tool ID mapping is automatic: `source` strings like "KBO/BCE public search" map to `kbo_registry_lookup`, "NBB/CBSO filings" maps to `nbb_financial_lookup`, etc.
 
-### Regulatory Linkage (Step 12)
+### Regulatory Linkage (`regulatory_linkage` step)
 
 Companies are linked to applicable `RegulatoryArticle` nodes via `SUBJECT_TO` based on country:
 - **All EEA companies**: AMLD6
@@ -136,12 +151,17 @@ Examples with their source authority:
 
 | Relationship | Source |
 |---|---|
-| `:IS_DIRECTOR_OF` | Registry filing / gazette publication |
+| `:HAS_DIRECTOR` | Registry filing / gazette publication |
+| `:HAS_UBO` | Registry filing / UBO register |
 | `:REGISTERED_AT` | Registry / gazette publication |
 | `:OWNS_DOMAIN` | WHOIS / imprint extraction |
 | `:IS_SUBSIDIARY_OF` | Ownership filing |
 | `:SENT` / `:RECEIVED` | Transaction ledger |
 | `:PUBLISHED_IN` | Belgisch Staatsblad / Moniteur Belge |
+
+:::note Relationship naming — runtime vs. ontology specification
+The runtime `GraphETL` writes directorship and UBO edges as `HAS_DIRECTOR` and `HAS_UBO` (Company → Person direction). The formal ontology specification in `graph_ontology_data.py` (`RELATIONSHIP_TYPE_DEFINITIONS`) and the Cypher motif examples elsewhere in these docs use the canonical names `IS_DIRECTOR_OF` / `IS_UBO_OF` (Person → Company direction). The two have not been reconciled in code — the seeded `RelationshipTypeDefinition` catalogue is canonical while the ETL emits the `HAS_*` form. Treat any Cypher example using `IS_DIRECTOR_OF` as ontology-specification pseudocode, not as a query that runs against the current ETL-produced graph.
+:::
 
 ### Not stored — computed at query time
 
@@ -226,7 +246,7 @@ RETURN other, p,
 
 ## Node Types
 
-19 node labels across six domains.
+The seeded application ontology (`NODE_TYPE_DEFINITIONS` in `graph_ontology_data.py`) defines **20 catalogue node types**, with **4 additional customs/fiscal-representative types** (`AEOCertification`, `CustomsAuthorization`, `EORIRecord`, `CustomsPOA`) added in ontology v4.1.0. Counting the meta-ontology and compliance labels seeded by `graph_service.py` (`OntologyVersion`, `NodeTypeDefinition`, `RelationshipTypeDefinition`, `DerivedQueryDefinition`, `PipelineRun`, `Motif`, `Rule`, `RegulatoryArticle`, `SegmentConfig`, `ComplianceRule`, `NACECode`, `CorporateEvent`, `Document`), the live schema spans roughly **37 distinct node labels** across the domains below. Note the primary legal-entity label is `Company` (not `Entity`); the diagram below shows the canonical ontology grouping.
 
 ```mermaid
 graph TD
@@ -267,7 +287,7 @@ graph TD
     subgraph Meta["Meta-Ontology"]
         OV["OntologyVersion"]
         NTD["NodeTypeDefinition"]
-        RTD["RelTypeDefinition"]
+        RTD["RelationshipTypeDefinition"]
         DQD["DerivedQueryDefinition"]
         PLR["PipelineRun"]
     end

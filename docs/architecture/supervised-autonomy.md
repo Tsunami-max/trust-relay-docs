@@ -3,9 +3,12 @@ sidebar_position: 24
 title: "Supervised Autonomy"
 components:
   - app/services/automation_tier_service.py
+  - app/services/governance_engine.py
+  - app/models/automation_tier.py
+  - app/api/automation.py
 tests:
   - tests/test_evoi_engine.py
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -57,12 +60,13 @@ Compliance Manager can force/release tiers via API.
 
 ## Key Components
 
-- **`automation_tier_service.py`** — Tier computation, assignment, rolling window downgrade
-- **`automation_tier.py`** — Data models
-- **`automation.py`** — 5 API endpoints
-- **`ExpressQueue.tsx`** — One-click approval cards
-- **`TierBadge.tsx`** — Colored tier indicators
-- **`RecommendationBanner.tsx`** — AI recommendation display
+- **`app/services/automation_tier_service.py`** — Tier computation, assignment, rolling-window downgrade; calls the governance engine on each assignment
+- **`app/services/governance_engine.py`** — `GovernanceEngine.check_tier_eligibility()` — the override safety net
+- **`app/models/automation_tier.py`** — Data models (shim re-exporting `trustrelay_models.automation_tier`, which defines `AutomationTier`, `TierConfig`, and `TIER_CONFIGS`)
+- **`app/api/automation.py`** — 5 API endpoints (`router` tagged `automation`)
+- **`frontend/src/components/dashboard/ExpressQueue.tsx`** — One-click approval cards
+- **`frontend/src/components/dashboard/TierBadge.tsx`** — Colored tier indicators
+- **`frontend/src/components/dashboard/RecommendationBanner.tsx`** — AI recommendation display
 
 ## API Endpoints
 

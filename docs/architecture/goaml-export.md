@@ -2,10 +2,15 @@
 sidebar_position: 31
 title: "goAML XML Export"
 components:
-  - app/goaml/builder.py
+  - app/goaml/xml_builder.py
+  - app/goaml/export_service.py
+  - app/goaml/mapper.py
   - app/goaml/readiness.py
+  - app/goaml/validator.py
+  - app/goaml/profile_loader.py
+  - app/goaml/indicator_service.py
   - app/api/goaml.py
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -30,12 +35,20 @@ Belgium's CTIF-CFI has mandated goAML exclusively since September 2024. The EU A
 
 Phase 2 will add CTR (Cash Transaction Report), TFTR/TFAR (Terrorism Financing), and PEPR/PEPTR (PEP Reports).
 
-### Supported Countries (Phase 1)
+### Supported Countries
 
-| Country | FIU | Profile |
-|---------|-----|---------|
-| Belgium | CTIF-CFI | `profiles/be.toml` |
-| Luxembourg | CRF-FIU | `profiles/lu.toml` |
+Nine country profiles ship under `app/goaml/profiles/` (plus the shared `_base.toml`). The profile loader auto-discovers any `<cc>.toml` file, so `GET /goaml/profiles` lists all of them. Indicator code sets (`app/goaml/indicators/<cc>_indicators.toml`) currently exist for Belgium, Czechia, and Luxembourg; the remaining profiles load with their structural rules and an empty indicator set until indicator files are authored.
+
+| Country | FIU | Profile | Indicator set |
+|---------|-----|---------|---------------|
+| Belgium | CTIF-CFI | `profiles/be.toml` | yes (`be_indicators.toml`) |
+| Czechia | FAÚ | `profiles/cz.toml` | yes (`cz_indicators.toml`) |
+| Luxembourg | CRF-FIU | `profiles/lu.toml` | yes (`lu_indicators.toml`) |
+| France | TRACFIN | `profiles/fr.toml` | not yet |
+| Germany | FIU (Zoll) | `profiles/de.toml` | not yet |
+| Netherlands | FIU-NL | `profiles/nl.toml` | not yet |
+| Romania | ONPCSB | `profiles/ro.toml` | not yet |
+| Slovakia | FSJ | `profiles/sk.toml` | not yet |
 
 ---
 
@@ -93,7 +106,7 @@ flowchart LR
 
 ## Canonical Entities (Shared Foundation)
 
-The canonical entity model (`app/models/canonical_entities.py`) is the shared data foundation that feeds the goAML export pipeline and will be reused by future products (Shield customs screening, VoP verification). Three entity types mirror the goAML schema structure:
+The canonical entity model (`app/models/canonical_entities.py`) is the shared data foundation that feeds the goAML export pipeline and will be reused by future products (customs compliance vertical — EORI + guarantee validator + shipment workflow, VoP verification). Three entity types mirror the goAML schema structure:
 
 | Entity | Schema | Key Fields |
 |--------|--------|------------|
@@ -208,14 +221,14 @@ The builder output is validated before storage and the raw XML bytes are persist
 
 ## API Endpoints
 
-Nine endpoints cover the full regulatory filing workflow:
+Ten endpoints cover the full regulatory filing workflow:
 
 ### Profile & Indicator Discovery
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/goaml/profiles` | List available FIU country profiles |
-| GET | `/goaml/profiles/{country_code}/indicators` | List indicator codes filtered by report type |
+| GET | `/goaml/profiles/{country_code}/indicators` | List indicator codes grouped by category (predicate offences, reason for suspicion, report-type-specific) |
 
 ### Draft Lifecycle
 
@@ -224,6 +237,7 @@ Nine endpoints cover the full regulatory filing workflow:
 | POST | `/cases/{case_id}/goaml/drafts` | Create a new report draft (auto-populates from investigation data) |
 | GET | `/cases/{case_id}/goaml/drafts/active` | Get the currently active draft |
 | PATCH | `/cases/{case_id}/goaml/drafts/{draft_id}` | Update draft fields + recompute readiness |
+| DELETE | `/cases/{case_id}/goaml/drafts/{draft_id}` | Discard (soft-delete) a draft so a new one can be created |
 
 ### Validation & Export
 

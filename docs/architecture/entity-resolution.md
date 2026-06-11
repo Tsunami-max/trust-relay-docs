@@ -7,7 +7,7 @@ components:
   - app/services/survivorship.py
   - app/services/company_profile_service.py
   - app/services/gleif_service.py
-last_verified: 2026-03-30
+last_verified: 2026-06-11
 status: implemented
 ---
 

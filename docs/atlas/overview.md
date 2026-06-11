@@ -2,11 +2,13 @@
 sidebar_position: 1
 title: "Atlas — Product Overview"
 description: "Atlas is an AI-powered KYC/KYB/AML compliance investigation platform with parallel OSINT modules, ontology-driven entity resolution, EBA risk scoring, declarative workflows, knowledge graph exploration, multi-tenant RLS isolation, plugin-based data providers, per-tenant credential vault, and claim-plus-rank entity history."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
 ---
 
 # Atlas — Product Overview
+
+> **Scope note.** "Atlas" is the sibling KYC/KYB/AML investigation platform developed in the separate `trustrelay-atlas` repository (Python 3.14, LangChain/LangGraph + CrewAI, `src/` layout, Flyway migrations, Blueprint.js + Cytoscape.js frontend, OpenRouter LLM gateway, `osint`/`atlas_app` PostgreSQL roles). These reference pages document **that** codebase, not the Trust Relay `backend/` (PydanticAI, FastAPI, Alembic, Next.js). For features Trust Relay has adopted or could adopt from Atlas, see [Import Candidates](./import-candidates).
 
 Atlas is an AI-powered KYC/KYB/AML compliance investigation platform. It automates due diligence by deploying specialized AI agents against target companies, reconciling discovered entities into a unified knowledge graph, scoring risk through a configurable EBA-aligned matrix, and presenting findings through an analyst-focused dashboard.
 
@@ -247,7 +249,7 @@ Platform configuration covering LLM providers and model selection, MCP server ma
 
 ## Version History
 
-Atlas has shipped 17 production milestones across **110+ development phases** with **126+ Flyway database migrations**. The current milestone (v5.1) is in progress at 84% complete (38 of 45 phases as of 2026-05-09).
+Atlas has shipped 17 production milestones across **110+ development phases** with **138 Flyway database migrations** (latest `V138__scrub_leaked_osint_mcp_tokens.sql`). The v5.1 milestone (plugin architecture, entity claims) has landed — the `entity_claims` write-path shipped through V126–V133, followed by BYOK and OSINT-source seeding work (V135–V138).
 
 | Version | Milestone | Shipped | Key Capabilities |
 |---|---|---|---|
@@ -270,7 +272,7 @@ Atlas has shipped 17 production milestones across **110+ development phases** wi
 | **v5.0** | Multi-Tenancy Architecture | 2026-04-20 | `tenants` + `tenant_domains` tables; RLS on ~46 tables; `atlas_app` non-owner role; FORCE ROW LEVEL SECURITY; tenant-scoped sessions; payload-level Temporal isolation; **editorial-grade reports** |
 | **v5.1** | Data Provider Plugin Architecture | in progress (84%) | Formal `plugin.yaml` contract; declarative `mapping_spec.yaml`; per-tenant credentials with AES-256-GCM + HKDF subkeys; OSINT-as-plugin with redeploy-required immutability; entity claims (claim-plus-rank); per-tenant LLM keys; per-tenant health probes |
 
-**Current focus (v5.1):** Phase 110.2 — one-shot backfill of legacy entity data into the new `entity_claims` table with KVK + NorthData integration tests and operator runbook.
+**Recent focus (post-v5.1):** the `entity_claims` backfill landed (V128, `V128__backfill_entity_claims_from_entity_data.sql`), followed by provenance-column hotfixes (V127, V129, V131), provider-run tracking (V132, V134), and a BYOK-by-default rollout (V136) with OSINT source-definition seeding (V135, V137).
 
 **Newly documented architectural pillars (this revision):**
 
@@ -295,9 +297,9 @@ Atlas has shipped 17 production milestones across **110+ development phases** wi
 | **Graph Visualization** | Cytoscape.js (3 layout engines) |
 | **Authentication** | Keycloak 26 (JWT/OIDC, RBAC; one realm per tenant) |
 | **Observability** | Langfuse 3 (self-hosted with ClickHouse) |
-| **PDF Generation** | WeasyPrint with Source Serif 4 + Inter Tight, 11 Jinja partials, 801-line theme CSS |
+| **PDF Generation** | WeasyPrint with Source Serif 4 + Inter Tight, 11 Jinja partials, ~925-line theme CSS |
 | **Cryptography** | AES-256-GCM for credentials at rest; HKDF-SHA256 for per-tenant subkey derivation |
-| **Migrations** | Flyway 10 (126+ SQL migrations through V126 `entity_claims`) |
+| **Migrations** | Flyway 10 (138 SQL migrations through V138 `scrub_leaked_osint_mcp_tokens`) |
 | **Plugin Substrate** | `plugins/<name>/` directory layout; `plugin.yaml` + `mapping_spec.yaml`; three-layer pytest harness |
 
 ## Reading Guide

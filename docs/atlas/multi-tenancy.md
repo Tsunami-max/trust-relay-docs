@@ -2,11 +2,13 @@
 sidebar_position: 4
 title: "Atlas — Multi-Tenancy & Row-Level Security"
 description: "How Atlas isolates tenants at the database, application, and orchestration layers using PostgreSQL FORCE ROW LEVEL SECURITY, an unprivileged atlas_app role, request-scoped GUC sessions, and payload-level Temporal isolation."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
 ---
 
 # Atlas — Multi-Tenancy & Row-Level Security
+
+> **Verified against `trustrelay-atlas`.** Unlike the Trust Relay backend — where the application connects as the PostgreSQL **owner/superuser** `temporal` and RLS policies are therefore *defined but not enforced at runtime* (see migration `017_row_level_security.py`, which documents this caveat explicitly) — the Atlas codebase genuinely ships the non-owner runtime role. `src/config.py` sets `postgres_app_user = "atlas_app"`, `src/database/connection.py` defaults to the `atlas_app` DSN and logs *"Database pool initialized with atlas_app role (FORCE RLS enforced on tenant-owned tables)"*, and `ALLOW_OWNER_DB_FALLBACK` defaults to `false` (fail-closed). The owner role is `osint` (per `.env.example` / `docker-compose.yml`). The FORCE RLS guarantee described below is real in Atlas's shipped connection config.
 
 Atlas is a multi-tenant compliance platform: a single deployment serves many financial-services customers, each of which must be unable — by construction — to read or write another tenant's investigations, entities, credentials, or audit trails. This page documents the four-layer isolation architecture that delivers that guarantee, the threat model it defends against, and the explicit operational levers that exist to bend the guarantee under emergency conditions.
 

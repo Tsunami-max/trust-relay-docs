@@ -6,9 +6,10 @@ components:
   - app/services/reasoning_template_registry.py
   - app/services/rule_evaluation_service.py
   - app/models/reasoning_template.py
+  - app/api/reasoning.py
 tests:
   - tests/test_red_flag_engine.py
-last_verified: 2026-04-09
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -487,7 +488,7 @@ Regulatory segment profiles compile country+vertical YAML definitions into workf
 
 | File | Role |
 |------|------|
-| `app/models/reasoning_template.py` | Pydantic models: `ReasoningTemplate`, `RedFlagRule`, `RuleCondition`, `RuleAction`, `VerificationStep`, `ConfidenceAdjustment`, `ReasoningResult` |
+| `app/models/reasoning_template.py` | Re-export shim (ADR-0037) for the Pydantic models that now live in `trustrelay_models.reasoning_template`: `ReasoningTemplate`, `RedFlagRule`, `RuleCondition`, `RuleAction`, `VerificationStep`, `ConfidenceAdjustment`, `ReasoningResult`, plus `ConditionType`/`ActionType`/`RuleSeverity`/`EDDLevel` enums |
 | `app/services/reasoning_template_registry.py` | In-memory registry with 9 seed templates, lookup functions (`get_reasoning_template_for_case`, DB-first variant) |
 | `app/services/red_flag_engine.py` | Deterministic rule evaluation: `evaluate_rule()`, `evaluate_template()`, source alias normalization |
 | `app/services/rule_evaluation_service.py` | PostgreSQL persistence of evaluation results for audit trail |
@@ -497,9 +498,11 @@ Regulatory segment profiles compile country+vertical YAML definitions into workf
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/reasoning/templates` | List available templates (optionally filtered by country) |
-| GET | `/api/reasoning/templates/{id}` | Get template details including all rules and verification steps |
-| GET | `/api/reasoning/evaluations/{case_id}` | Get rule evaluation results for a case |
+| GET | `/api/reasoning-templates` | List available templates (optionally filtered by country) |
+| GET | `/api/reasoning-templates/{template_id}` | Get template details including all rules and verification steps |
+| GET | `/api/cases/{workflow_id}/rule-evaluations` | Get rule evaluation results for a case/workflow |
+
+The router (`app/api/reasoning.py`) is mounted under `/api` and requires an authenticated user (`Depends(get_current_user)`).
 
 ## Configuration
 

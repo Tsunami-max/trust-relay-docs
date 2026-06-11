@@ -2,11 +2,13 @@
 sidebar_position: 2
 title: "Atlas — System Architecture"
 description: "Deep architecture documentation for the Atlas compliance platform. Covers layered design, multi-tenant isolation, plugin substrate, investigation lifecycle, deployment topology, and key architectural decisions."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
 ---
 
 # Atlas — System Architecture
+
+> **Scope note.** "Atlas" is the sibling KYC/KYB/AML investigation platform developed in the separate `trustrelay-atlas` repository (Python 3.14, LangChain/LangGraph + CrewAI, `src/` + `plugins/` layout, Flyway migrations, Blueprint.js + Cytoscape.js frontend, OpenRouter LLM gateway, `osint`/`atlas_app` PostgreSQL roles). These reference pages document **that** codebase, not the Trust Relay `backend/` (PydanticAI, FastAPI, Alembic, Next.js).
 
 Atlas follows a **modular monolith** architecture with strict internal layering. The backend is a single Python package (`src/`) plus a sibling `plugins/` top-level package; the frontend is a React SPA using Blueprint.js, built with Vite. PostgreSQL is the system of record, Neo4j is a derived knowledge-graph view, Redis is cache and rate-limiter backend, Temporal is the durable workflow engine, and Keycloak is the identity provider — one realm per tenant.
 
@@ -210,7 +212,7 @@ The core domain. Temporal workflows orchestrate 7 parallel investigation modules
 
 Key components:
 - `workflows.py` -- `InvestigationWorkflow` Temporal workflow definition
-- `activities.py` -- generic `execute_module` activity (~900 lines)
+- `activities.py` -- generic `execute_module` activity and supporting activities (~2,700 lines)
 - `module_config.py` -- 7 module configurations (CIR, ROA, MEBO, SPEPWS, AMLRR, DFWO, FRLS)
 - `enrichment_activities.py` -- pre-investigation data provider enrichment
 - `sync_activities.py` -- Neo4j sync as detached child workflow
@@ -270,14 +272,18 @@ Key components:
 
 ### 7. Integrations (`src/integrations/`)
 
-External data provider connectors. Each integration implements a base provider interface and maps external data to the ontology schema. Includes stale data detection and provider health monitoring.
+External data provider connectors and the v5.1 plugin runtime. Each integration implements a base provider interface and maps external data to the ontology schema. Includes stale data detection and provider health monitoring. NorthData was migrated out of `src/integrations/` into the plugin substrate (`plugins/northdata/`) during Phases 97-99; KVK retains a legacy module here alongside its plugin.
 
 Key components:
 - `base.py` -- `ProviderResponse` base class
-- `northdata/` -- NorthData company enrichment
-- `kvk/` -- Dutch KVK registry
+- `kvk/` -- Dutch KVK registry (legacy module; KVK also ships as `plugins/kvk/`)
+- `provider_router.py` -- routes provider calls and resolves per-tenant credentials (five-branch chain)
+- `plugin_loader.py` / `plugin_manifest.py` / `mapping_spec.py` -- v5.1 plugin loading and declarative mapping
+- `llm_credentials.py` -- per-tenant LLM key resolution
 - `keycloak_client.py` -- Keycloak administration
 - `stale_check.py` -- data freshness detection
+
+> NorthData company enrichment now lives at `plugins/northdata/` (sync-mode plugin). See [Plugin Architecture](./plugin-architecture).
 
 ### 8. Reference Data (`src/reference_data/`)
 
@@ -359,7 +365,7 @@ flowchart TD
 
 ## Deployment Architecture
 
-Atlas runs as a Docker Compose stack with 16 containers organized into 6 categories.
+Atlas runs as a Docker Compose stack with ~20 services (16 long-running containers plus run-once init containers) organized into 6 categories.
 
 ```mermaid
 flowchart TD
@@ -617,14 +623,14 @@ Atlas implements defense in depth across the API, data, and deployment layers.
 
 - **Network binding** -- The API server binds to `127.0.0.1` in production, accessible only through a reverse proxy (nginx). Direct external access to the FastAPI process is not possible.
 - **Authentication** -- Every API request passes through `PlatformAuthMiddleware`, which validates Keycloak JWTs, extracts tenant and user context, and rejects unauthenticated requests. RBAC roles are enforced at the router level.
-- **Rate limiting** -- Four tiers of rate limiting protect against abuse:
+- **Rate limiting** -- Four cost-based tiers of rate limiting protect against abuse (configured in `src/config.py`):
 
 | Tier | Scope | Limit |
 |------|-------|-------|
-| **Global** | All requests per IP | 100 req/min |
-| **Authentication** | Login/token endpoints | 10 req/min |
-| **Investigation** | Investigation creation | 20 req/hour |
-| **AI Pipeline** | LLM-backed endpoints | 30 req/min |
+| **Default** | All read endpoints (GET) | 120/min |
+| **Write** | Create/update/delete mutations | 30/min |
+| **Expensive** | AI-powered operations (investigation, evaluation, report) | 10/min |
+| **Status** | Health checks, status polling | 120/min |
 
 - **Input sanitization** -- All user-supplied HTML content is sanitized with `nh3` before storage, preventing XSS injection in investigation notes, report content, and workflow descriptions.
 

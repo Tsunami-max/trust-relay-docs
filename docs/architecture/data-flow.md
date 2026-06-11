@@ -4,13 +4,14 @@ title: "Data Flow"
 components:
   - app/workflows/compliance_case.py
   - app/workflows/activities.py
+  - app/workflows/registry_activity.py
   - app/services/docling_service.py
   - app/services/minio_service.py
   - app/services/workflow_schema.py
   - app/services/document_evidence_collector.py
   - app/services/cross_reference_service.py
   - app/services/document_gap_analyzer.py
-last_verified: 2026-04-02
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -180,12 +181,15 @@ Each downloaded PDF is stored in MinIO at `{case_id}/registry-documents/{source}
 All evidence collected so far — OSINT findings, pre-enrichment data, and downloaded registry documents — is compared across sources to build a **corroboration matrix**. For each key data point, the engine collects the value reported by every source, compares them pairwise, and classifies the result.
 
 **Data points cross-referenced:**
+- **Registration number (identity layer, runs first — see ADR-0049)**
 - Company name (legal name vs. trading name)
 - Registered address (city, street, postal code)
 - Directors and UBOs
 - Legal form
 - Share capital
 - Business activity (NACE codes)
+
+**Identity-mismatch detection.** The registration-number comparator runs **before** every other field comparison. If the submitted registration number (e.g., Czech IČO, Belgian KBO, French SIRET) differs from ≥2 authoritative secondary sources that agree with each other, the engine emits a HIGH-severity `identity_mismatch` finding with the alternative value as a suggested correction. This surfaces root cause before symptomatic findings — a mistyped registration number used to cascade into ~7 unrelated downstream findings (NOT_FOUND, null legal form, null NACE, etc.) that confused officers rather than guiding them. See ADR-0049 for the incident that motivated this.
 
 **Discrepancy severity classification:**
 

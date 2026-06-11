@@ -2,9 +2,11 @@
 sidebar_position: 22
 title: "Cross-Case Patterns"
 components:
-  - app/services/graph_service.py
+  - app/services/pattern_engine.py
   - app/services/alert_service.py
-last_verified: 2026-03-29
+  - app/services/graph_service.py
+  - app/api/intelligence.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -59,16 +61,22 @@ graph TD
 
 ## API Endpoints
 
+The intelligence router (`app/api/intelligence.py`, prefix `/intelligence`) is mounted under `/api`:
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/intelligence/alerts` | List alerts (filterable) |
+| GET | `/api/intelligence/alerts/for-case/{workflow_id}` | Alerts linked to a specific case |
 | GET | `/api/intelligence/alerts/{id}` | Get alert details |
-| POST | `/api/intelligence/alerts/{id}/acknowledge` | Acknowledge alert |
-| POST | `/api/intelligence/alerts/{id}/dismiss` | Dismiss with reason |
-| POST | `/api/intelligence/alerts/{id}/resolve` | Resolve alert |
-| GET | `/api/intelligence/dashboard` | Dashboard statistics |
+| PATCH | `/api/intelligence/alerts/{id}` | Lifecycle action — `acknowledge` or `dismiss` (dismiss requires a reason, EU AI Act Art. 14) |
+| GET | `/api/intelligence/stats` | Aggregate alert / reliability statistics |
+| GET | `/api/intelligence/trends` | Risk trend statistics |
+
+:::note
+Acknowledge and dismiss are a single `PATCH` endpoint driven by an `action` field, not separate `POST` routes. There is no separate `resolve` endpoint — the `RESOLVED` state in the lifecycle below is a model-level status, not a dedicated route.
+:::
 
 ## Configuration
 
-- `cross_case_detection_enabled` — Feature flag (default: `true`)
+- `pattern_detection_enabled` — Feature flag (default: `true`)
 - Alembic migration: `008_pattern_alerts`

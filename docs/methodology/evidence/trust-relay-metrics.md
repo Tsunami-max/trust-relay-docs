@@ -172,6 +172,6 @@ ls backend/alembic/versions/*.py | wc -l
 
 ## Velocity Context
 
-These metrics represent work by a single architect (Adrian, Soft4U BV) collaborating with Claude Opus via the methodology described in this document over 25 active development days within a 29-day calendar period. The 95.8% co-authoring rate reflects the [human-AI collaboration model](../philosophy/human-ai-collaboration): the human architects, reviews, and validates; Claude implements, tests, and iterates.
+These metrics represent work by a single architect (Adrian, Soft4U BV) collaborating with Claude Opus via the methodology described in this document over 25 active development days within a 29-day calendar period. The 95.8% co-authoring rate reflects the [human-AI collaboration model](../philosophy/human-ai-collaboration-model): the human architects, reviews, and validates; Claude implements, tests, and iterates.
 
 This methodology specification was itself designed using the brainstorm-to-spec-to-plan lifecycle it describes, authored collaboratively with Claude Opus, and reviewed by project agents — a practical demonstration of the process.

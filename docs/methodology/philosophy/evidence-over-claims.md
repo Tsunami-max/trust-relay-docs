@@ -1,10 +1,9 @@
 ---
 sidebar_position: 3
 title: "Evidence Over Claims"
-description: "No implementation is considered complete until fresh verification output confirms the claim — 'it should work now' is not evidence"
+description: "**What:** No implementation is considered complete until fresh verification output (test results, coverage report, runtime behavior) confirms the claim."
 ---
 
-# Evidence Over Claims
 
 **What:** No implementation is considered complete until fresh verification output (test results, coverage report, runtime behavior) confirms the claim. The statement "it should work now" is treated as semantically equivalent to "I have not verified it."
 
@@ -20,13 +19,13 @@ The methodology therefore mandates verification at multiple levels:
 2. **Coverage must meet thresholds.** 90% for workflow state machine and activities (the system's correctness-critical core), 70% for all other layers. These thresholds are enforced by tooling, not by discipline.
 3. **Linting must pass.** Post-edit hooks run linters automatically. Code that introduces lint errors is flagged before it reaches review.
 
-**Evidence:** Trust Relay has 3,769 backend test functions across 225 test files, plus 59 frontend test files. This test density — approximately 1 test function per 38 lines of production code — is a structural outcome of the evidence-over-claims principle: every feature implementation includes test implementation as a non-optional deliverable. The testing standard prohibits mocking by default (real PostgreSQL via testcontainers, real MinIO, real Temporal test server). When mocking is necessary (third-party APIs with rate limits or costs), each mock requires an explicit `MOCK APPROVED` comment documenting the reason, the approver, and the alternative for running against real services. Trust Relay has 241 such documented mock approvals across 232 test files. These are not arbitrary bureaucracy — they are an audit trail proving that every deviation from real-service testing was a conscious, justified decision. See the [Evidence appendix](../evidence/trust-relay-metrics) for the full testing metrics.
+**Evidence:** Trust Relay has 3,769 backend test functions across 225 test files, plus 59 frontend test files. This test density — approximately 1 test function per 38 lines of production code — is a structural outcome of the evidence-over-claims principle: every feature implementation includes test implementation as a non-optional deliverable. The testing standard prohibits mocking by default (real PostgreSQL via testcontainers, real MinIO, real Temporal test server). When mocking is necessary (third-party APIs with rate limits or costs), each mock requires an explicit `MOCK APPROVED` comment documenting the reason, the approver, and the alternative for running against real services. Trust Relay has 241 such documented mock approvals across 232 test files. These are not arbitrary bureaucracy — they are an audit trail proving that every deviation from real-service testing was a conscious, justified decision. See [appendix-f-evidence.md](../appendix-f-evidence) for the full testing metrics.
 
-The 3-layer quality gate system implements this principle at the tooling level:
+The 3-layer quality gate system (Section 7) implements this principle at the tooling level:
 
 - **Layer 1 (post-edit):** Linters run automatically after file edits. Immediate feedback.
-- **Layer 2 (stop verification):** When the AI signals task completion, a verification prompt fires asking for proof of completion. This catches the "it should work now" failure mode directly.
-- **Layer 3 (pre-push):** Blocking gate before code reaches the remote. Tests must pass, coverage must meet thresholds.
+- **Layer 2 (pre-push):** Blocking gate before code reaches the remote. Tests must pass, coverage must meet thresholds.
+- **Layer 3 (stop verification):** When the AI signals task completion, a verification prompt fires asking for proof of completion. This catches the "it should work now" failure mode directly.
 
 **How:** The Superpowers `verification-before-completion` skill governs the completion gate. Before marking any task complete, the skill requires:
 
@@ -37,4 +36,6 @@ The 3-layer quality gate system implements this principle at the tooling level:
 
 The Stop hook (configured in `.claude/settings.json`) reinforces this at the infrastructure level. When Claude attempts to conclude a response with implementation claims, the hook prompt asks: "Have you shown the test output? Have you verified the change works?" This is a structural safeguard against the AI's tendency to declare victory prematurely.
 
-For the full testing standard, see the [Testing Standard](../standards/testing-standard). For quality gate architecture, see [Quality Gates](../infrastructure/quality-gates).
+For the full testing standard, see [appendix-a-testing.md](../appendix-a-testing). For quality gate architecture, see [appendix-e-hooks.md](../appendix-e-hooks).
+
+---

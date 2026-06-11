@@ -2,7 +2,7 @@
 sidebar_position: 16
 title: "Atlas — Infrastructure & Deployment"
 description: "The Docker Compose deployment topology, init-chain, container inventory, security posture, and the v5.0 / v5.1 changes — atlas_app role, ATLAS_CREDENTIALS_MASTER_KEY, entity_claims migration."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
 ---
 
@@ -99,7 +99,7 @@ flowchart TD
 | `workflow-engine-worker` | Custom (Dockerfile) | -- | Dynamic compliance workflow execution (YAML-compiled schemas) |
 | `osint-ui` | Custom (frontend/) | 3000:80 (nginx) | React SPA served via nginx reverse proxy |
 | `postgres` | postgres:15-alpine | 5432 | Shared database for app, Keycloak, Langfuse, and Temporal |
-| `flyway` | flyway/flyway:10-alpine | -- | Schema migrations (init container, 105+ versioned SQL files) |
+| `flyway` | flyway/flyway:10-alpine | -- | Schema migrations (init container, 138 versioned SQL files) |
 | `redis` | redis:7-alpine | 6379 | Cache layer and rate limiting backend |
 | `temporal` | temporalio/auto-setup:1.24 | 7233 | Durable workflow orchestration server |
 | `temporal-ui` | temporalio/ui:2.26.2 | 8080 | Temporal monitoring and debugging dashboard |
@@ -146,7 +146,7 @@ flowchart LR
 ```
 
 1. **PostgreSQL** starts first (health check: `pg_isready`)
-2. **Flyway** runs all 105+ versioned SQL migrations after PostgreSQL is healthy (runs once, exits)
+2. **Flyway** runs all 138 versioned SQL migrations after PostgreSQL is healthy (runs once, exits)
 3. **Keycloak DB init** creates the Keycloak database after PostgreSQL is healthy (runs once, exits)
 4. **Keycloak** starts after its DB init completes
 5. **Temporal** starts after PostgreSQL is healthy (uses PostgreSQL as its backing store)
@@ -170,9 +170,9 @@ The entry points differ per service:
 
 | Container | Entry Point |
 |---|---|
-| `osint-api` | `uvicorn src.main:app --host 0.0.0.0 --port 8000` |
-| `temporal-worker` | `python -m src.worker` (investigation modules — async-mode plugin runtime) |
-| `workflow-engine-worker` | `python -m src.workflow_worker` (DynamicComplianceWorkflow runtime) |
+| `osint-api` | `uvicorn src.api.main:app --host 0.0.0.0 --port 8000` |
+| `temporal-worker` | `python -m src.temporal.worker` (investigation modules — async-mode plugin runtime) |
+| `workflow-engine-worker` | `python -m src.workflows.worker` (DynamicComplianceWorkflow runtime) |
 
 Both worker containers prime the OSINT file-loader cache at startup — exactly the same way `osint-api` does at FastAPI lifespan — so prompts, agent configs, and MCP tool definitions are byte-identical across all three runtimes for a given deployment.
 
@@ -180,7 +180,7 @@ Both worker containers prime the OSINT file-loader cache at startup — exactly 
 
 The frontend uses a multi-stage Docker build for production-optimized images:
 
-**Stage 1 -- Builder** (`node:25-alpine`):
+**Stage 1 -- Builder** (`node:26-alpine`):
 - Installs dependencies via `npm ci`
 - Runs `npm run build` to produce a static Vite bundle
 
@@ -220,7 +220,7 @@ Atlas uses a single PostgreSQL 15 instance hosting four logical databases. This 
 | Langfuse DB | `langfuse` | LLM traces, observations, scores, prompt versions |
 | Temporal DB | `temporal` | Workflow execution history, task queues, visibility records |
 
-Flyway runs **126+ versioned migrations** through `V126__entity_claims.sql` (Phase 110) on the `osint_reports` schema. Other databases use their own migration strategies (Keycloak auto-migrates on startup, Temporal uses `auto-setup`, Langfuse manages its own migrations).
+Flyway runs **138 versioned migrations** on the `osint_reports` schema, through `V138__scrub_leaked_osint_mcp_tokens.sql`. The `entity_claims` table (Phase 110) was introduced at `V126__entity_claims.sql` and refined by several follow-up migrations (V127–V133). Other databases use their own migration strategies (Keycloak auto-migrates on startup, Temporal uses `auto-setup`, Langfuse manages its own migrations).
 
 ### The `atlas_app` Role and FORCE Row-Level Security (v5.0)
 
@@ -263,7 +263,7 @@ Rate limiting uses SlowAPI with Redis-backed distributed storage. When Redis is 
 
 | Tier | Limit | Applied To |
 |------|-------|-----------|
-| **Default** | 60/minute | All read endpoints (GET) |
+| **Default** | 120/minute | All read endpoints (GET) |
 | **Write** | 30/minute | Create/update/delete mutations (POST, PUT, DELETE) |
 | **Expensive** | 10/minute | AI-powered operations (start investigation, risk evaluation, report generation) |
 | **Status** | 120/minute | Health checks, status polling, progress queries |
@@ -328,7 +328,7 @@ Dependabot is configured for weekly automated dependency update pull requests ac
 
 ## Configuration
 
-Atlas uses `pydantic-settings` for configuration management. Settings are loaded from environment variables with `.env` file fallback. The `.env.example` file contains 196 lines covering all configurable parameters.
+Atlas uses `pydantic-settings` for configuration management. Settings are loaded from environment variables with `.env` file fallback. The `.env.example` file contains 245 lines covering all configurable parameters.
 
 ### Configuration Categories
 

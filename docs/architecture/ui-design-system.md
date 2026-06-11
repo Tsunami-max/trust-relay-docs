@@ -1,7 +1,7 @@
 ---
 sidebar_position: 11
 title: "UI Design System"
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -30,23 +30,26 @@ This approach means:
 - No version lock to a component library release cycle
 - Tailwind CSS is the only styling dependency
 
-### Installed Components (25)
+### Installed Components (29)
 
 | Category | Components |
 |----------|-----------|
-| Layout | card, separator, sheet, collapsible |
-| Input | button, checkbox, input, label, select, textarea, toggle, toggle-group |
+| Layout | card, separator, sheet, collapsible, collapsible-panel, surface |
+| Input | button, checkbox, input, label, select, textarea, toggle, toggle-group, switch |
 | Data Display | badge, table, progress, skeleton, tooltip |
-| Navigation | tabs, command, popover |
+| Navigation | tabs, command, popover, dropdown-menu |
 | Feedback | dialog, sonner (toast) |
+| Theming | theme-toggle |
 
-### Custom Components (3)
+### Custom Components
 
 | Component | Purpose |
 |-----------|---------|
-| `GlassCard` | Frosted glass card effect with backdrop blur, used for dashboard stat cards |
 | `JsonViewer` | Wrapper around `@uiw/react-json-view` with custom dark theme colors |
 | `ParticleBackground` | Animated particle effect using canvas, used on the portal landing page |
+| `Surface` | Themed surface/card container primitive |
+| `CollapsiblePanel` | Reusable collapsible content panel |
+| `ThemeToggle` | Dark/light theme switcher |
 
 ## Color System
 

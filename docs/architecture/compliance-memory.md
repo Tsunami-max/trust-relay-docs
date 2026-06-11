@@ -10,7 +10,9 @@ components:
   - app/services/signal_capture_service.py
   - app/services/signal_ingestion.py
   - app/services/signal_ingestion_worker.py
-last_verified: 2026-03-29
+  - app/agents/synthesis_agent.py
+  - app/agents/dashboard_agent.py
+last_verified: 2026-06-11
 status: implemented
 ---
 

@@ -7,7 +7,7 @@ components:
   - app/services/eid_easy_service.py
   - app/services/kyc_screening.py
   - app/services/poa_classifier.py
-last_verified: 2026-03-30
+last_verified: 2026-06-11
 status: implemented
 ---
 

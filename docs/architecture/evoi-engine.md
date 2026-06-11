@@ -11,8 +11,9 @@ tests:
   - tests/test_evoi_engine.py
   - tests/test_network_investigation.py
   - tests/test_network_scan_service.py
+  - tests/test_network_scan_data_quality.py
   - tests/test_pillar35_integration.py
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -211,6 +212,19 @@ When Network EVOI is positive, the connected entity is assigned to an investigat
 
 If a connected entity was investigated within `evoi_recent_data_threshold_days` (default 30), the engine returns a `"reuse"` decision rather than re-investigating. This prevents redundant work when the same entity appears across multiple cases.
 
+### Tier 0 Data-Quality Guards
+
+Network scan results are rendered **directly** onto the officer-facing Network Intelligence Hub card. Garbage upstream becomes garbage on screen unless gated at the scan boundary. The network_scan_service applies four guards before emitting any result:
+
+| Guard | What it does | Failure mode it prevents |
+|---|---|---|
+| **Legal-form sanitization** | Regex-nulls opaque ISO 20275 ELF codes (e.g. `3W7E`, `R85P`) | NorthData emits ELF codes when it has no human-readable mapping; showing them is noise |
+| **Self-referential director filter** | Drops entries where a listed director is literally the entity itself (normalized exact match) | NorthData quirk around nominee structures — a company cannot legally be its own director under Belgian or Czech company law |
+| **Connection dedup** | LEI → registerId → euId → normalized-name key chain ensures one row per entity | Multiple sources for the same entity producing apparent duplicates |
+| **Sanctions Tier 0 suppression** | Jaro-Winkler surname gate (threshold 0.88, reused from ADR-0045) suppresses **Person-schema** false positives; LegalEntity matches pass through | The "Van Eetvelde class": a company name containing a common Belgian/Dutch/Czech surname fuzzy-matching an unrelated sanctioned person |
+
+Regression suite: `tests/test_network_scan_data_quality.py` (22 tests). The schema-scope refinement (Person schema only) is tested specifically to prevent over-suppression of legitimate corporate sanctions hits.
+
 ## Architecture
 
 ```mermaid
@@ -228,7 +242,7 @@ graph TD
     end
 
     subgraph "Dependencies"
-        AR["AgentRegistry<br/>(14 manifests)"] --> EVOI
+        AR["AgentRegistry<br/>(15 manifests)"] --> EVOI
         GE["GovernanceEngine<br/>(mandatory agents)"] --> EVOI
         TA["ToolAuditService<br/>(decision logging)"] --> EVOI
     end
@@ -249,7 +263,7 @@ graph TD
 | `backend/app/models/evoi.py` | BeliefState, UtilityFunction, EVOIResult, NetworkEVOIResult |
 | `backend/app/models/agent_manifest.py` | AgentManifest with `information_gain_domains` |
 | `backend/app/models/investigation_episode.py` | EpisodicPrior for Bayesian adjustment |
-| `backend/app/services/agent_registry.py` | Registry of 14 agent manifests |
+| `backend/app/services/agent_registry.py` | Registry of agent manifests (15 registered in `app/services/agent_manifests.py`) |
 | `backend/app/services/governance_engine.py` | Safety net enforcing mandatory agents |
 | `backend/alembic/versions/011_evoi_decisions.py` | Database migration for the audit table |
 

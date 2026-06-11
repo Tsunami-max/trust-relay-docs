@@ -1,7 +1,7 @@
 ---
 sidebar_position: 14
 title: "Atlas — Frontend Architecture"
-last_verified: 2026-04-08
+last_verified: 2026-06-11
 status: reference
 ---
 
@@ -15,13 +15,13 @@ Atlas ships a **React 18 + Blueprint.js** single-page application built with Vit
 |-------|-----------|---------|---------|
 | **UI Framework** | React | 18.2 | Component library |
 | **Design System** | Blueprint.js (Palantir) | 5.10+ | Enterprise UI components |
-| **Build Tool** | Vite | 7.3.1 | Fast HMR + production bundling |
-| **Language** | TypeScript | 5.4.2 | Type system (`strict: false`) |
-| **Client State** | Zustand | 4.5 | 5 domain-specific stores |
+| **Build Tool** | Vite | 7.3.2 | Fast HMR + production bundling |
+| **Language** | TypeScript | 6.0.3 | Type system (`strict: false`) |
+| **Client State** | Zustand | 5.0 | 5 domain-specific stores |
 | **Server State** | TanStack React Query | v5.28 | Caching with localStorage persistence |
-| **Routing** | react-router-dom | 7.14 | Client-side routing (30+ routes) |
+| **Routing** | react-router-dom | 7.16 | Client-side routing (30+ routes) |
 | **Auth** | Keycloak.js | 26 | OIDC PKCE with silent SSO |
-| **Graph Visualization** | Cytoscape.js | 3.28 | Entity network graphs |
+| **Graph Visualization** | Cytoscape.js | 3.33 | Entity network graphs |
 | **Graph Layouts** | dagre, cose-bilkent, fcose | - | 3 layout algorithms |
 | **Charts** | Recharts | 2.12 | Risk charts and dashboards |
 | **PDF Generation** | @react-pdf/renderer | 4.3 | Client-side investigation reports |
@@ -205,7 +205,7 @@ Uses the `yaml` npm package's `Document` class for comment-preserving round-trip
 | **Studio** | 20 | OntologyColumn, SourceColumn, MatrixColumn, ConnectionLines (SVG wires), FieldConfigPanel |
 | **Workflow** | 17 | PhaseTimeline, PhaseInteraction, PortalForm, DocumentUploader, ReviewPanel, SlaCountdown |
 
-**Total: ~200+ TypeScript components**
+**Total: ~256 TypeScript component files (`.tsx`)**
 
 ## PDF Generation
 
@@ -255,6 +255,6 @@ Axios instance with:
 ## Testing
 
 - **Framework**: Vitest 4.1 + jsdom + React Testing Library
-- **Test files**: 36 test files
+- **Test files**: 61 test files
 - **Setup**: `src/test/setup.ts` with global configuration
 - **Pattern**: Component rendering + user interaction testing

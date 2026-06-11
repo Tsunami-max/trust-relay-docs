@@ -10,7 +10,9 @@ components:
   - app/services/entity_matcher.py
   - app/services/survivorship.py
   - app/services/workflow_schema.py
+  - app/workflows/dynamic_workflow.py
   - app/api/risk_config.py
+  - app/api/workflow_schemas.py
 tests:
   - tests/test_reference_data_service.py
   - tests/test_quality_scorer.py
@@ -20,7 +22,7 @@ tests:
   - tests/test_entity_matcher.py
   - tests/test_survivorship.py
   - tests/test_workflow_schema.py
-last_verified: 2026-03-31
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -135,28 +137,31 @@ A singleton that loads 12 JSON compliance datasets at startup from `backend/conf
 
 `backend/app/services/quality_scorer.py`
 
-An LLM-as-judge evaluator that runs after every investigation, before the `REVIEW_PENDING` transition. It scores the synthesis report on 4 dimensions and stores the result in `additional_data.quality_scores`.
+An LLM-as-judge evaluator that runs after the pre-investigation OSINT pass and stores the result in `additional_data.quality_scores`. It scores the investigation on 5 dimensions, gated by `settings.quality_scoring_enabled` (with a `quality_scoring_mock_mode` for demos).
 
-**QualityScore dimensions:**
+**QualityScore dimensions** (each scored `0.0–1.0` by the judge):
 
-| Dimension | Scale | Criterion |
-|-----------|-------|-----------|
-| Completeness | 1–10 | All required verification domains covered with substantive content? No obvious gaps? |
-| Accuracy | 1–10 | Facts properly attributed to specific sources? No sign of hallucinated or unverified information? |
-| Formatting | 1–10 | Professional structure? Findings clearly separated with severity levels? No placeholder text? |
-| Actionability | 1–10 | Clear risk assessment? Recommendations specific and decision-ready for a compliance officer? |
+| Dimension | Weight | Criterion |
+|-----------|--------|-----------|
+| `completeness` | 0.25 | Are all required verification domains covered with substantive content? No obvious gaps? |
+| `source_diversity` | 0.20 | Findings drawn from a diverse set of independent sources, not a single feed? |
+| `evidence_quality` | 0.25 | Facts attributed to specific data points? No sign of hallucinated or unverified information? |
+| `risk_justification` | 0.20 | Risk assessment logically follows from the evidence? |
+| `actionability` | 0.10 | Recommendations specific and decision-ready for a compliance officer? |
 
-`overall` is the mean of the four dimensions, rounded to one decimal place.
+`overall` is the **weighted average** of the five dimensions (weights above, summing to 1.0), rounded to 3 decimals via `QualityScore.compute_overall()`.
 
 **Key functions:**
 
-- `score_investigation(report_text)` — async entry point; calls `_call_judge()` and returns a `QualityScore`
-- `_call_judge(report_text)` — calls GPT-4.1-mini (cost-efficient judge model), truncates at 12,000 characters, parses JSON response
-- `QualityScore.to_dict()` — serialises to dict for JSON storage
+- `score_investigation(case_id, findings, synthesis, sources, discrepancies, verification_checks)` — async entry point; renders the `quality_scorer` prompt via `PromptRegistry`, runs a PydanticAI `Agent` with `output_type=QualityScore`, and returns a `QualityScore` (or `None` on failure / when disabled)
+- `QualityScore.compute_overall()` — computes the weighted average and sets `overall`
+- `QualityScore.to_dict()` — serialises to dict for JSONB storage
 
-**Threshold:** A score below 5.0 triggers automatic re-investigation (the Temporal activity signals the workflow to retry synthesis before transitioning to `REVIEW_PENDING`).
+**Judge model:** `settings.quality_scoring_model`, default `openai:gpt-4.1` (overridable by env var). The findings list is truncated to the first 20 entries when building the prompt.
 
-**Integration:** Called as a Temporal activity in `activities.py` after `run_osint_investigation`. Scores appear as a small badge on the case detail page ("Quality: 8.2/10").
+**Best-effort, non-blocking:** Scoring runs as the Temporal activity `score_investigation_quality` and is wrapped in a try/except in `compliance_case.py` — failures are logged and the workflow continues. There is **no automatic re-investigation or synthesis-retry threshold**; the score is stored and surfaced for human review only.
+
+**Integration:** Invoked as the `score_investigation_quality` Temporal activity in the pre-investigation tail of `compliance_case.py`. Scores appear on the case detail page.
 
 **Why it exists:** Establishes a quality baseline before prompt changes are made in Wave 2. Measures regression when switching model tiers.
 
@@ -168,43 +173,43 @@ An LLM-as-judge evaluator that runs after every investigation, before the `REVIE
 
 Maps each agent to a cost tier, and each tier to a specific model. Environment variables override the defaults, enabling deployment-time model swaps without code changes.
 
-**4 tiers:**
+**4 tiers** (defaults in `_DEFAULT_TIER_MODELS`):
 
 | Tier | Criterion | Default Model |
 |------|-----------|---------------|
 | `premium` | Accuracy critical (sanctions, synthesis) | `openai:gpt-5.2` |
-| `mid` | Moderate judgment (adverse media, scan synthesis) | `openai:gpt-5.2` |
-| `value` | Structured extraction (registry, person validation) | `openai:gpt-4.1-mini` |
-| `budget` | Simple tasks (task generator, MCC classifier) | `openai:gpt-4.1-mini` |
+| `mid` | Judgment-heavy tasks (most agents) | `openai:gpt-5.2` |
+| `value` | Reserved for future cost optimisation | `openai:gpt-4.1-mini` |
+| `budget` | Reserved for future cost optimisation | `openai:gpt-4.1-mini` |
 
-**13 agent-to-tier assignments:**
+**13 agent-to-tier assignments** (`AGENT_TIERS`). Note: several agents originally placed in `value`/`budget` were **upgraded back to `mid`** after the budget tier (`gpt-4.1-mini`) was found to drop documents with OCR noise and to under-synthesise officer-facing output. As a result only `sanctions_resolver` and `synthesis` use `premium`; everything else currently resolves to `mid`:
 
-| Agent | Tier |
-|-------|------|
-| `sanctions_resolver` | premium |
-| `synthesis` | premium |
-| `adverse_media` | mid |
-| `scan_synthesis` | mid |
-| `case_intelligence` | mid |
-| `precious_metals_risk` | mid |
-| `registry_investigation` | value |
-| `belgian_investigation` | value |
-| `person_validation` | value |
-| `task_generator` | budget |
-| `document_validator` | budget |
-| `mcc_classifier` | budget |
-| `document_extraction` | budget |
+| Agent | Tier | Note |
+|-------|------|------|
+| `sanctions_resolver` | premium | |
+| `synthesis` | premium | |
+| `registry_investigation` | mid | |
+| `belgian_investigation` | mid | |
+| `person_validation` | mid | upgraded from value — identity validation is compliance-critical |
+| `adverse_media` | mid | |
+| `task_generator` | mid | upgraded from budget — synthesises all findings into officer actions |
+| `document_validator` | mid | upgraded from budget — `gpt-4.1-mini` drops documents with OCR noise |
+| `mcc_classifier` | mid | |
+| `scan_synthesis` | mid | |
+| `case_intelligence` | mid | |
+| `document_extraction` | mid | upgraded from budget — same OCR-noise issue |
+| `precious_metals_risk` | mid | |
 
 **Key functions:**
 
-- `get_model_for_agent(agent_name)` — resolves agent → tier → model, with fallback to `DEFAULT_TIER` (`mid`)
+- `get_model_for_agent(agent_name, override_tier=None)` — resolves agent → tier → model, with fallback to `DEFAULT_TIER` (`mid`)
 - `get_agent_tier(agent_name)` — returns the tier string for a given agent
 - `get_tier_config()` — returns the current tier-to-model mapping (used by health endpoint)
 - `_reload_config()` — re-reads environment variables (called by tests to reset state)
 
 **Env var overrides:** `MODEL_TIER_PREMIUM`, `MODEL_TIER_MID`, `MODEL_TIER_VALUE`, `MODEL_TIER_BUDGET`
 
-**Estimated cost impact:** Dropping registry, person validation, task generation, and MCC classification from premium to value/budget models reduces per-investigation LLM cost by approximately 60–80%.
+**Cost impact:** The tier indirection lets a deployment swap models per tier without code changes. The aggressive value/budget assignments that originally targeted a ~60–80% per-investigation cost reduction have largely been rolled back to `mid` for accuracy reasons, so the realised cost saving today is smaller; the saving is realised only when a deployment overrides the `value`/`budget` tiers to a cheaper model via env vars.
 
 ---
 
@@ -247,9 +252,10 @@ These hashes allow an auditor to verify that a stored result was produced from a
 
 **Key functions:**
 
-- `score(input: EBARiskInput) -> EBARiskResult` — entry point; runs all 5 dimensions, applies weighted_max, hashes input and output
-- `map_risk_level(score) -> str` — converts 0-100 score to level string
-- `_hash_canonical(obj) -> str` — SHA-256 of JSON-serialised dict with sorted keys
+- `compute_eba_risk(inp: EBARiskInput, config: dict | None = None) -> EBARiskResult` — entry point; runs all 5 dimensions, applies `_aggregate_weighted_max`, hashes input and output. `config` allows the versioned `risk_configurations` row to override weights/thresholds
+- `apply_risk_calibration(...)` — applies segment-specific calibration to a raw score
+- `map_risk_level(score) -> str` — converts 0–100 score to level string
+- `_hash_canonical(obj) -> str` — SHA-256 of JSON-serialised dict with sorted keys (`MATRIX_VERSION = "eba_standard_v1"`)
 
 **Reference data integration:** Geographic dimension calls `get_reference_data()` for `fatf_black_list`, `fatf_grey_list`, `eu_high_risk_third_countries`, `eu_tax_blacklist`, `secrecy_jurisdictions`, and `cpi_below_40`. Customer dimension uses `pep_tiers` and `product_risk_taxonomy`.
 
@@ -422,9 +428,9 @@ WorkflowPhase
 - `compile_workflow(schema) -> ExecutionPlan` — runs validation then topological sort; returns `ExecutionPlan` with `has_errors=True` and populated `errors` if validation fails.
 - `load_workflow_yaml(yaml_text) -> WorkflowSchema` — parses YAML, constructs Pydantic model.
 
-**Migration path:** The existing hardcoded `compliance_case.py` Temporal workflow becomes the first YAML template (`kyb_onboarding.yaml`). New workflow types — periodic review, vendor due diligence — are created as YAML files without requiring code changes.
+**Migration path:** The hardcoded `compliance_case.py` Temporal workflow is mirrored by the first YAML template, `backend/config/workflow_schemas/kyb_onboarding_v1.yaml`. Two further workflow types already ship as YAML templates without code changes — `periodic_review_v1.yaml` and `vendor_due_diligence_v1.yaml` — and are listed/inspectable through the workflow-schemas API and admin page (though, as noted above, they are not yet registered as runnable Temporal workflows).
 
-**Integration:** The compiled `ExecutionPlan` is consumed by a dynamic Temporal workflow that iterates through the ordered steps. This is architecturally planned but not yet wired to the live Temporal execution engine — the schema compiler is fully functional and tested; the Temporal execution layer is Wave 4's implementation work.
+**Integration:** The compiled `ExecutionPlan` is consumed by `DynamicWorkflowEngine` in `app/workflows/dynamic_workflow.py`, which walks the topologically sorted steps via a `DynamicWorkflowState` machine (tested in `tests/test_dynamic_workflow.py`). The compiler and engine are exposed through the `app/api/workflow_schemas.py` router and the `/admin/workflow-schemas` frontend page (lists schemas, shows the compiled execution plan). **Not yet fully wired to live Temporal execution:** `DynamicWorkflowEngine` is **not registered in `app/worker.py`** (the worker registers `ComplianceCaseWorkflow`, `ShipmentComplianceWorkflow`, `ContinuousMonitoringWorkflow`, `BatchRiskReEvaluationWorkflow`, and `SanctionsSuppressionRefreshWorkflow`), so YAML-defined workflows are compiled and inspected but the hardcoded `compliance_case.py` workflow still runs production cases.
 
 ---
 
@@ -453,10 +459,10 @@ flowchart LR
         WS["WorkflowSchema"]
     end
 
-    T1 -->|"start_chain(case_id)"| DE
+    T1 -->|"create_investigation_chain(case_id)"| DE
     A1 -->|"get_model_for_agent()"| MT
     A2 -->|"score_investigation()"| QS
-    A2 -->|"score(input)"| EBA
+    A2 -->|"compute_eba_risk(input)"| EBA
     EBA -->|"is_in_dataset()"| RDS
     A3 -->|"match_entities()"| EM
     EM -->|"resolve_field()"| SR
@@ -469,7 +475,7 @@ flowchart LR
 | Service | Called From | Returns |
 |---------|-------------|---------|
 | `ReferenceDataService` | `EBARiskMatrix`, risk engine | Risk scores, membership checks |
-| `QualityScorer` | Temporal `score_investigation` activity | `QualityScore` dict → `additional_data.quality_scores` |
+| `QualityScorer` | Temporal `score_investigation_quality` activity | `QualityScore` dict → `additional_data.quality_scores` |
 | `ModelTiers` | All agent invocations via `get_model_for_agent()` | Model name string for PydanticAI |
 | `EBARiskMatrix` | Temporal `compute_eba_risk` activity | `EBARiskResult` with SHA-256 hashes |
 | `DomainEvents` | All Temporal activities | `DomainEvent` → `audit_events` table |
@@ -489,8 +495,8 @@ These services address areas where the Atlas co-founder's codebase had architect
 
 - Risk scoring follows EBA/GL/2021/02 with a published SHA-256 determinism proof — auditors can verify any stored result
 - Entity conflicts are resolved transparently by a trust hierarchy, with protected fields that cannot be overwritten by lower-trust sources
-- Every investigation receives a quality score on 4 dimensions before officer review
-- LLM cost per investigation is reduced approximately 60–80% through tiered model assignments
+- Every investigation receives a quality score on 5 weighted dimensions (best-effort, surfaced for human review)
+- LLM model selection is centralised per-agent through tiered assignments, enabling deployment-time cost/accuracy trade-offs via env-var tier overrides
 - Every audit event carries a `correlation_id` and `causation_id`, enabling full chain reconstruction ("everything that happened because of this sanctions hit")
 - New compliance workflow types are created from YAML without code changes
 

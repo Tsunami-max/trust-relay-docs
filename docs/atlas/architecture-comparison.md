@@ -2,7 +2,7 @@
 sidebar_position: 19
 title: "Atlas vs Trust Relay -- Architecture Comparison"
 description: "Honest, dimension-by-dimension architectural comparison between Trust Relay and Atlas from the compliance officer's perspective. For internal strategy, not marketing."
-last_verified: 2026-04-07
+last_verified: 2026-06-11
 status: reference
 ---
 
@@ -70,7 +70,7 @@ Atlas runs a 7-module parallel pipeline:
 - **Parallel execution**: No inter-module dependencies -- all 7 run concurrently
 - **MCP tool ecosystem**: Web search, sanctions screening, registry lookups, VAT validation, WHOIS, DNS, SSL -- all via MCP server adapters
 - **Ontology validation**: LLM outputs are validated against a versioned entity schema with feedback loops for correction
-- **Entity reconciliation**: Dedicated reconciliation module (1,292 lines) merges duplicate entities discovered by different modules
+- **Entity reconciliation**: Dedicated reconciliation module (~1,520 lines) merges duplicate entities discovered by different modules
 - **Cancellation handling**: Graceful cancellation support -- cancelled workflows clean up all running activities
 - **Focused investigations**: Run any subset of modules (e.g., only SPEPWS for sanctions screening)
 
@@ -83,7 +83,7 @@ Atlas runs a 7-module parallel pipeline:
 | Data source coverage | Trust Relay | 21 direct registry integrations + BrightData social intelligence + PEPPOL + crawl4ai gazette scraping. Atlas relies on MCP tools (Tavily, OpenSanctions, OpenCorporates) which are powerful but less authoritative than direct registry APIs |
 | Quality control | Trust Relay | ModelRetry quality gates catch LLM errors at generation time. Atlas validates against ontology schemas but does not retry on quality issues |
 | Re-investigation | Atlas | Focused investigations (run any module subset) and investigation rerun are both production-ready. Trust Relay has follow-up loops but not focused re-investigation |
-| Entity resolution | Atlas | Dedicated 1,028-line entity resolution module with blocking keys and fuzzy matching vs. Trust Relay's simpler entity matcher |
+| Entity resolution | Atlas | Dedicated ~1,020-line entity resolution module with blocking keys and fuzzy matching vs. Trust Relay's simpler entity matcher |
 
 **Overall winner for compliance officers: Trust Relay** -- the country-specific registry integrations produce higher-fidelity data than generic web search. A Belgian compliance officer investigating a Belgian company gets KBO registry data, NBB financial filings, and gazette publications directly from official sources. Atlas would find the same information via web search but with lower confidence and more noise.
 
@@ -239,7 +239,7 @@ This is the most significant architectural gap between the two systems. A compli
 | State Management | React useState/useEffect (ADR-0010) |
 | Build | Next.js built-in (Turbopack) |
 | Backend | FastAPI, Pydantic v2, SQLAlchemy 2.0 ORM + Repository pattern |
-| Migrations | Alembic (54 migrations through `054_sanctions_suppression_rules`) |
+| Migrations | Alembic (58 migrations through `058_decision_memoranda`) |
 | Workflow | Temporal (single worker) |
 | Document Processing | IBM Docling (local, MIT) |
 | Object Storage | MinIO |
@@ -349,8 +349,8 @@ Trust Relay implements a three-layer PII classification and encryption architect
 
 Atlas does not implement field-level PII classification or column-level encryption. Data protection is handled through:
 
-- **Multi-tenancy isolation**: Tenant-scoped data access (similar to Trust Relay's RLS approach)
-- **No column encryption**: All data stored in plaintext PostgreSQL
+- **Multi-tenancy isolation**: FORCE RLS on ~46 tenant-owned tables via the `atlas_app` role (v5.0) — comparable to Trust Relay's RLS approach
+- **AES-256-GCM credential vault (v5.1)**: Per-tenant data-provider API keys are encrypted at rest with HKDF-derived subkeys; however, entity and PII data are still stored in plaintext (no column-level PII encryption)
 - **No GDPR DSR endpoints**: No automated data subject access, erasure, or rectification
 - **No PII manifest**: No machine-readable inventory of personal data fields
 - **No retention policy enforcement**: Manual data lifecycle management
@@ -360,7 +360,7 @@ Atlas does not implement field-level PII classification or column-level encrypti
 | Aspect | Winner | Why |
 |--------|--------|-----|
 | PII classification | **Trust Relay** | 20 fields classified with 6-category taxonomy; Atlas has no classification |
-| Encryption at rest | **Trust Relay** | AES-256-GCM with key rotation support; Atlas stores all data in plaintext |
+| Encryption at rest | **Trust Relay** | AES-256-GCM column-level PII encryption; Atlas encrypts only data-provider credentials (AES-256-GCM vault), entity/PII data stays plaintext |
 | GDPR Art. 15/16/17 | **Trust Relay** | Three DSR endpoints with AML retention rules; Atlas has none |
 | Compliance artifacts | **Trust Relay** | Machine-generated pii_manifest.json for auditors; Atlas has no equivalent |
 | Key management | **Trust Relay** | Vault-ready KeyProvider abstraction; Atlas has no key management |
@@ -403,10 +403,10 @@ Atlas does not implement field-level PII classification or column-level encrypti
 
 ### Trust Relay
 
-- **SQLAlchemy 2.0 ORM**: 36+ `Mapped[]` model classes as single source of truth for schema
+- **SQLAlchemy 2.0 ORM**: 63 `Mapped[]` model classes as single source of truth for schema
 - **Repository pattern**: `BaseRepository[T]` generic CRUD with `UserRepository` and `TenantRepository` specializations -- migrated from raw SQL (ADR-0008 superseded)
-- **49 Alembic migrations**: Python-native, auto-generated from ORM model diffs
-- **Row-Level Security**: 25+ tables with `FORCE ROW LEVEL SECURITY` -- tenant isolation enforced at the database level, not just the application layer
+- **58 Alembic migrations**: Python-native, auto-generated from ORM model diffs (latest `058_decision_memoranda`)
+- **Row-Level Security**: 22+ tables with `FORCE ROW LEVEL SECURITY` -- tenant isolation enforced at the database level, not just the application layer
 - **Session context managers**: `get_tenant_session()` sets `app.current_tenant` on the connection for RLS policy evaluation; `get_admin_session()` bypasses RLS for cross-tenant operations
 - **EncryptedText TypeDecorator**: AES-256-GCM column encryption with HMAC-SHA256 search hashes -- transparent to application code
 - **Async throughout**: asyncpg driver with SQLAlchemy async session factory
@@ -414,9 +414,9 @@ Atlas does not implement field-level PII classification or column-level encrypti
 ### Atlas
 
 - **AsyncPG direct queries**: No ORM entity classes -- SQL queries written directly against the database
-- **18 repository classes**: Each with hand-written SQL queries, parameter binding, and result mapping
-- **100 Flyway migrations**: SQL-based, database-native migration tooling
-- **Single-tenant**: No Row-Level Security, no tenant isolation at the database level
+- **20 repository classes**: Each with hand-written SQL queries, parameter binding, and result mapping
+- **138 Flyway migrations**: SQL-based, database-native migration tooling (through `V138__scrub_leaked_osint_mcp_tokens`)
+- **Multi-tenant (v5.0)**: FORCE Row-Level Security on ~46 tenant-owned tables via the unprivileged `atlas_app` role -- tenant isolation enforced at the database level (Atlas closed this gap after the April 2026 analysis; see [Multi-Tenancy](./multi-tenancy))
 - **Event sourcing** (ADR-9): Entity mutations stored as an append-only event log with replay capability
 - **No column-level encryption**: All data stored in plaintext PostgreSQL columns
 - **Async throughout**: asyncpg with connection pooling
@@ -426,13 +426,13 @@ Atlas does not implement field-level PII classification or column-level encrypti
 | Aspect | Winner | Why |
 |--------|--------|-----|
 | Schema management | Trust Relay | ORM models as single source of truth vs. hand-written SQL with no schema definition layer |
-| Multi-tenancy | Trust Relay | RLS with FORCE at database level vs. single-tenant. This is a foundational SaaS requirement |
-| Data encryption | Trust Relay | AES-256-GCM column encryption vs. plaintext storage. Required for GDPR and bank security questionnaires |
+| Multi-tenancy | Tie | Both now enforce FORCE RLS at the database level via an unprivileged runtime role. Atlas added this in its v5.0 milestone (after the April 2026 analysis); Trust Relay has had RLS since its multi-tenancy work |
+| Data encryption | Trust Relay | AES-256-GCM column-level PII encryption vs. Atlas's credential-only AES-256-GCM vault (entity/PII data still plaintext). Column-level PII encryption is required for GDPR and bank security questionnaires |
 | Event sourcing | Atlas | Append-only event log with replay is architecturally superior for audit trails and temporal queries |
-| Migration maturity | Atlas | 100 Flyway migrations indicate more schema evolution experience. Trust Relay's 49 Alembic migrations are newer |
+| Migration maturity | Atlas | 138 Flyway migrations indicate more schema evolution experience. Trust Relay's 58 Alembic migrations are newer |
 | Query flexibility | Atlas | Direct SQL gives full PostgreSQL feature access without ORM translation overhead |
 
-**Overall winner: Trust Relay** -- multi-tenancy with RLS and column-level encryption are non-negotiable for SaaS deployment. Atlas's event sourcing is architecturally elegant and worth adopting, but single-tenant plaintext storage is a deployment blocker for enterprise customers.
+**Overall winner: Trust Relay (narrowed)** -- column-level PII encryption remains a Trust Relay differentiator. The multi-tenancy gap has closed: Atlas's v5.0 milestone added FORCE RLS with the `atlas_app` role, so single-tenancy is no longer a deployment blocker. Atlas's event sourcing is architecturally elegant and worth adopting; Trust Relay's edge is now narrower than the April 2026 snapshot suggested.
 
 ---
 
@@ -475,8 +475,8 @@ Atlas does not implement field-level PII classification or column-level encrypti
 
 ### Trust Relay
 
-- **278 test files**: Comprehensive coverage across workflow, API, services, and PII layers
-- **85+ PII-specific tests**: Dedicated test suite for encryption, GDPR DSR endpoints, and person resolution
+- **376 test files**: Comprehensive coverage across workflow, API, services, and PII layers
+- **85+ PII-specific tests**: Dedicated test suite for encryption, GDPR DSR endpoints, and person resolution (10 dedicated PII test modules)
 - **Testcontainer PostgreSQL**: Real database tests with macOS Docker Desktop support -- no mocking of database interactions
 - **pytest asyncio_mode=auto**: No `@pytest.mark.asyncio` decorator boilerplate
 - **Pre-commit quality gates**: `ruff check --select F` (fatal Python errors) + `tsc --noEmit` (TypeScript type checking) enforced before every commit
@@ -485,7 +485,7 @@ Atlas does not implement field-level PII classification or column-level encrypti
 
 ### Atlas
 
-- **89 test files**: ~70% unit tests, ~30% integration tests
+- **213 test files**: ~70% unit tests, ~30% integration tests
 - **Mock-based integration tests**: External dependencies (database, services) stubbed via dependency injection
 - **pytest asyncio_mode=auto**: Same async test configuration
 - **Dependency stub injection**: Clean test architecture with injectable mock implementations
@@ -496,14 +496,14 @@ Atlas does not implement field-level PII classification or column-level encrypti
 
 | Aspect | Winner | Why |
 |--------|--------|-----|
-| Test volume | Trust Relay | 278 test files vs. 89. More than 3x the test surface area |
+| Test volume | Trust Relay | 376 test files vs. 213. Roughly 1.8x the test surface area |
 | Test fidelity | Trust Relay | Testcontainers run real PostgreSQL in tests. Mock-based tests can miss real database behavior (constraint violations, query plan issues) |
 | Test architecture | Tie | Both use clean async patterns. Atlas's dependency injection is well-structured; Trust Relay's testcontainer approach is more realistic |
 | Quality enforcement | Trust Relay | Pre-commit ruff + tsc gates prevent broken code from entering the repository. Atlas has no equivalent guardrails |
-| CI pipeline | Trust Relay | GitHub Actions with service containers vs. no CI configuration found in Atlas |
+| CI pipeline | Tie | Both run GitHub Actions. Trust Relay uses service containers (PostgreSQL, MinIO, Redis); Atlas runs `atlas-ci.yml` plus Docker build and deploy workflows |
 | PII test coverage | Trust Relay | 85+ dedicated PII tests verify encryption, DSR, and person resolution. Atlas has no PII tests (no PII features to test) |
 
-**Overall winner: Trust Relay** -- the combination of testcontainers (real database in tests), pre-commit quality gates (ruff + tsc), and CI pipeline (GitHub Actions) provides significantly more confidence in code correctness. Atlas's tests are well-structured but rely on mocks that can diverge from real service behavior.
+**Overall winner: Trust Relay** -- the combination of testcontainers (real database in tests) and pre-commit quality gates (ruff + tsc) provides more confidence in code correctness. Both projects run GitHub Actions CI. Atlas's tests are well-structured but rely more on mocks that can diverge from real service behavior.
 
 ---
 

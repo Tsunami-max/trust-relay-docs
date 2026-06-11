@@ -2,7 +2,7 @@
 sidebar_position: 8
 title: "Atlas — OSINT-as-Plugin"
 description: "How Atlas's seven-module OSINT investigation engine — prompts, agents, MCP tools, OpenRouter LLM calls — is packaged as an async-mode plugin with redeploy-required immutability and per-tenant credential resolution."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
 ---
 
@@ -41,7 +41,7 @@ Each sub-phase was independently revertable. The platform was working at every c
 ```yaml
 plugin_schema_version: "1"
 plugin: "osint"
-version: "0.2.0"
+version: "0.3.2"
 display_name: "OSINT (Open-Source Intelligence Investigations)"
 description: "Async investigation provider — 7 crew modules powered by OpenRouter LLMs and MCP tools, executed via Temporal."
 provider_type: "investigation"

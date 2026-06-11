@@ -2,7 +2,7 @@
 sidebar_position: 11
 title: "Atlas — Entity Claims & Claim-Plus-Rank"
 description: "Atlas's claim-plus-rank data model — every provider's view of every entity field is preserved, a winner is computed by survivorship strategy, and the UI can surface alternatives. The Phase 109 decision and the Phase 110 write-path."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
 ---
 
@@ -48,7 +48,7 @@ Borrowing the vocabulary means that anyone who has read about Wikidata data mode
 
 ## The Data Model — `entity_claims` (V126)
 
-Phase 110 migration `V126__entity_claims.sql` creates the table:
+Phase 110 migration `V126__entity_claims.sql` creates the table (followed in the live repo by provenance hotfixes `V127`, `V129`, `V131`, and the `discovered_by → retrieval_run_id` FK in `V133`). The original V126 DDL is shown below:
 
 ```sql
 CREATE TABLE entity_claims (
@@ -57,7 +57,7 @@ CREATE TABLE entity_claims (
     entity_id                   UUID        NOT NULL REFERENCES ontology_entities(id) ON DELETE CASCADE,
     attribute_path              TEXT        NOT NULL,      -- "{EntityType}.{field}"
     value                       JSONB       NOT NULL,      -- canonical projected value
-    raw_value                   JSONB,                     -- pre-transform value, for audit
+    raw_value                   TEXT,                      -- pre-transform value, for audit
     source_module               TEXT        NOT NULL,      -- "kvk" | "northdata" | "osint:cir" | …
     source_trust                NUMERIC(3,2),              -- snapshot at write-time
     retrieved_at                TIMESTAMPTZ NOT NULL,      -- when the source produced this claim
@@ -215,7 +215,7 @@ flowchart LR
 |---|---|---|---|
 | **110** | ✅ Shipped 2026-05-06 | V126 + 3 write-path patches + parity | Zero — `entity_claims` populates, nothing reads from it |
 | **110.1** | ✅ Shipped 2026-05-06 | Canonical ontology-shaped API behind `?shape=canonical` feature flag | Zero — default `?shape=legacy` is byte-equivalent |
-| **110.2** | 🟡 Planning | One-shot backfill of legacy `entity_data` into `entity_claims` + KVK+NorthData integration tests + operator runbook | Zero — backfill is read-only against `ontology_entities` |
+| **110.2** | ✅ Shipped | One-shot backfill of legacy `entity_data` into `entity_claims` (`V128__backfill_entity_claims_from_entity_data.sql`) + KVK+NorthData integration tests + operator runbook | Zero — backfill is read-only against `ontology_entities` |
 | **111** (future) | ⏳ Not planned | Frontend cutover of `CompanyDetail.tsx` to consume `?shape=canonical` | Visible — sources & per-field provenance surface in UI |
 | **112** (future) | ⏳ Not planned | Sources panel with alternative-claims-on-hover | Visible — analyst sees losing claims |
 | **113** (future) | ⏳ Not planned | Server-side Person dedup with multi-source view | Visible — analyst sees "this person appeared in 3 sources, here's each source's view" |

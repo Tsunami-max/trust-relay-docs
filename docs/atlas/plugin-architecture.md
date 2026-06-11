@@ -2,7 +2,7 @@
 sidebar_position: 5
 title: "Atlas — Plugin Architecture"
 description: "Atlas's data-provider plugin contract — plugin.yaml, mapping_spec.yaml, the three-layer test harness, sync vs async execution modes, and the disk-authoritative discipline that makes new providers O(1) work."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
 ---
 
@@ -313,7 +313,7 @@ The shadow-mode pattern (`skeleton → parity → cutover+delete`) is itself a c
 
 Two CI gates protect plugin quality beyond the harness:
 
-**Ontology drift check** (Phase 93): the active row of `ontology_schemas` in a freshly-migrated PostgreSQL is `diff -u`'d byte-exact against `schemas/ontology/ontology_v3.5.yaml` in the repo. If they diverge, CI fails with the unified diff and a fix recipe. Plugins cannot rely on a stale schema.
+**Ontology drift check** (Phase 93): the active row of `ontology_schemas` in a freshly-migrated PostgreSQL is `diff -u`'d byte-exact against `schemas/ontology/ontology_v3.5.yaml` in the repo (the active schema declares `version: "3.5.2"`). If they diverge, CI fails with the unified diff and a fix recipe. Plugins cannot rely on a stale schema.
 
 **Plugin version-bump check** (Phase 106): if any of `plugins/<name>/{prompts,agents,tools,mapping_spec.yaml}` changes in a pull request without a corresponding `version:` bump in `plugin.yaml`, the CI job fails closed. The version is treated as the contract identifier; changing the mapping without bumping the version is a contract violation.
 

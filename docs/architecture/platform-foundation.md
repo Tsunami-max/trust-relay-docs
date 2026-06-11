@@ -2,16 +2,17 @@
 sidebar_position: 19
 title: "Platform Foundation"
 components:
-  - app/db/models.py
+  - app/api/deps/auth.py
+  - app/api/deps/tenant.py
+  - app/api/deps/keycloak_admin.py
+  - app/api/templates.py
+  - app/api/tenants.py
+  - app/api/workflow_templates.py
   - app/db/database.py
-  - app/services/cache_service.py
-  - app/services/domain_events.py
-  - app/services/name_matching_service.py
-  - app/services/field_validation.py
-  - app/services/audit_service.py
+  - app/db/models.py
+  - app/models/workflow_template.py
   - app/services/branding_service.py
-  - app/services/reference_data_service.py
-last_verified: 2026-04-07
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -30,8 +31,8 @@ graph TD
     A[Keycloak 26] -->|PKCE + JWT| B[Frontend Auth]
     B -->|Bearer Token| C[FastAPI Backend]
     C --> D[get_current_user]
-    D -->|PoC mode| E[Demo User]
-    D -->|Production| F[JWT Validation + JWKS]
+    D -->|No / invalid token| E[401 Unauthorized]
+    D -->|Valid Bearer JWT| F[JWT Validation + JWKS]
     F --> G[CurrentUser: user_id, tenant_id, role]
     G --> H[require_role Guard]
     G --> I[PostgreSQL RLS]
@@ -48,7 +49,7 @@ Workflow templates are the central configuration object in Trust Relay. Every co
 
 ### Data Model
 
-Three Pydantic models define the template structure (source: `backend/app/models/workflow_template.py`):
+Three Pydantic models define the template structure. Since the shared-package extraction (ADR-0037), the model definitions live in `packages/trustrelay-models/src/trustrelay_models/workflow_template.py` and are re-exported through the backend shim `backend/app/models/workflow_template.py` (which also keeps the DB resolution function `get_template_from_db()`). Each model also carries a `service_scope` / `service_catalog` field for service-driven scoping (omitted from the tables below for brevity):
 
 **`DocumentRequirement`** -- a single document the customer must provide:
 
@@ -541,8 +542,8 @@ The editor supports both creating new templates (`POST`) and editing existing on
 | `016` | Add `tenant_id` FK to all 30+ tenant-scoped tables |
 | `017` | Enable `FORCE ROW LEVEL SECURITY` and create isolation + admin bypass policies |
 | `018` | Extend `workflow_templates` with verification chain, red flag rules, confidence adjustments, regulatory framework; seed 3 Belgian system templates |
-| `026` | Add `risk_configurations` and `risk_config_audit` tables with RLS |
-| `027` | Add `discrepancy_resolutions` table with RLS |
+| `038` | Add `risk_configurations` and `risk_config_audit` tables with RLS |
+| `039` | Add `discrepancy_resolutions` table with RLS |
 
 ## API Endpoints
 
@@ -578,13 +579,16 @@ The editor supports both creating new templates (`POST`) and editing existing on
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `app_mode` | `poc` | `poc` bypasses auth, `production` requires JWT |
-| `auth_jwks_url` | `http://localhost:8180/realms/trust-relay/...` | Keycloak JWKS endpoint |
+| `auth_jwks_url` | `http://localhost:8180/realms/trust-relay/protocol/openid-connect/certs` | Keycloak JWKS endpoint |
 | `auth_issuer` | `http://localhost:8180/realms/trust-relay` | JWT issuer validation |
-| `auth_audience` | `account` | JWT audience claim validation |
+| `auth_audience` | `trust-relay-app` | JWT audience claim validation |
 | `keycloak_url` | `http://localhost:8180` | Keycloak base URL (used by admin client) |
 | `keycloak_realm` | `trust-relay` | Keycloak realm name |
-| `NEXT_PUBLIC_AUTH_DISABLED` | `true` | Frontend auth bypass for development |
+| `keycloak_client_id` | `trust-relay-app` | OIDC client ID |
+
+:::note
+There is no `app_mode`/PoC auth-bypass setting in `app/config.py`. `get_current_user()` **always** requires a valid Bearer JWT from Keycloak — a missing or invalid token returns `401`. The earlier "deferred auth for PoC" design (ADR-0011) was superseded on 2026-04-18 when Keycloak OIDC was implemented.
+:::
 
 ## Source Files
 

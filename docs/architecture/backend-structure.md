@@ -6,20 +6,22 @@ components:
   - app/config.py
   - app/db/database.py
   - app/db/models.py
-last_verified: 2026-03-31
+  - app/workflows/compliance_case.py
+  - app/workflows/activities.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
 # Backend Structure
 
-The backend is a Python 3.11+ application using FastAPI for the HTTP layer and Temporal for workflow orchestration. It runs as two separate processes sharing the same codebase: the FastAPI web server and the Temporal worker.
+The backend is a Python 3.13+ application (`requires-python = ">=3.13"`) using FastAPI for the HTTP layer and Temporal for workflow orchestration. It runs as two separate processes sharing the same codebase: the FastAPI web server and the Temporal worker.
 
 ## Directory Layout
 
 ```
 backend/
   app/
-    api/                    # FastAPI routers (HTTP endpoints) — 41 files, 238 endpoints
+    api/                    # FastAPI routers (HTTP endpoints) — 52 routers
       case_crud.py          # Case create, list, get, delete (8 endpoints)
       case_decisions.py     # Decision submission, MCC operations (5 endpoints)
       case_documents.py     # Document listing, download, markdown (6 endpoints)
@@ -73,7 +75,7 @@ backend/
         api_key_auth.py     # PEPPOL API key validation
         tenant.py           # Tenant context extraction from JWT
 
-    agents/                 # 21 PydanticAI agent definitions
+    agents/                 # 33 PydanticAI agent modules
       osint_agent.py        # OSINT orchestrator (pipeline coordinator)
       registry_agent.py     # NorthData corporate registry
       belgian_agent.py      # Belgian 4-source investigation
@@ -96,7 +98,7 @@ backend/
       scan_synthesis_agent.py    # Scan result synthesis
       models.py             # Shared output models
 
-    models/                 # 35 Pydantic data model files
+    models/                 # 42 Pydantic data model files
       case.py               # CaseStatus, CaseCreateRequest, CaseResponse, etc.
       investigation.py      # Finding, Discrepancy, Severity, CorroborationSummary
       mcc_classification.py # MCCClassificationInput/Output, RiskTier
@@ -133,9 +135,9 @@ backend/
       shipment.py           # Shipment and customs models
       tax_engine.py         # Tax engine models
 
-    services/               # 116 service modules (organized by subdirectory)
+    services/               # 138 service modules (organized by subdirectory)
 
-      # --- Core services (root level, 88 modules) ---
+      # --- Core services (root level) ---
       audit_service.py              # Audit event persistence
       minio_service.py              # MinIO S3 operations
       osint_service.py              # OSINT investigation dispatcher
@@ -281,15 +283,51 @@ backend/
       lex/parsers/
         regulation_parser.py        # Regulation text parser (article extraction)
 
-      # --- registries/ — European Corporate Registry Clients (8 modules) ---
+      # --- registries/ — European Corporate Registry Clients (28 modules) ---
       registries/ch_zefix_service.py    # Switzerland (Zefix)
       registries/cz_ares_service.py     # Czech Republic (ARES)
+      registries/cz_cnb_service.py      # Czech National Bank regulatory register
+      registries/cz_debarment_service.py # CZ debarment register
+      registries/cz_isir_service.py     # CZ insolvency register (ISIR)
+      registries/cz_justice_service.py  # CZ justice / sbírka listin
+      registries/cz_kdp_service.py      # CZ chamber of tax advisors (KDP)
+      registries/cz_ubo_service.py      # CZ UBO register
       registries/dk_cvr_service.py      # Denmark (CVR)
       registries/ee_ariregister_service.py # Estonia (Ariregister)
       registries/fi_ytj_service.py      # Finland (YTJ)
+      registries/fr_inpi_service.py     # France (INPI — RNE)
       registries/fr_insee_service.py    # France (INSEE/Sirene)
+      registries/fr_bodacc_service.py   # France (BODACC gazette)
       registries/nl_kvk_service.py      # Netherlands (KVK)
+      registries/nl_kvk_jaarrekeningen.py # NL annual accounts
       registries/no_brreg_service.py    # Norway (Brreg)
+      registries/no_regnskapsregisteret.py # Norway annual accounts
+      registries/ro_anaf_service.py     # Romania (ANAF)
+      registries/ro_onrc_service.py     # Romania (ONRC)
+      registries/sk_orsr_service.py     # Slovakia (ORSR)
+      registries/sk_ruz_service.py      # Slovakia annual accounts (RUZ)
+      # ... plus financial extractors, decoders, and shared base/utils
+
+      # --- verification/ — Cross-source verification & screening (13 modules) ---
+      verification/opensanctions.py      # OpenSanctions screening
+      verification/gleif.py              # GLEIF LEI verification
+      verification/interpol_notices.py   # INTERPOL notices
+      verification/jurisdiction_risk.py  # Jurisdiction risk scoring
+      verification/virtual_office.py     # Virtual-office / mailbox detection
+      verification/wayback_history.py    # Wayback domain history
+      # ... plus consumer reviews, email security, license registry, name matcher
+
+      # --- financial_analysis/ — Ratios + distress models (6 modules) ---
+      financial_analysis/analyzer.py     # Orchestrator (ADR-0048)
+      financial_analysis/ratios.py       # Financial ratio computation
+      financial_analysis/distress_models.py # Altman / Ohlson / Zmijewski
+      financial_analysis/peer_benchmarks.py # Peer benchmarking
+      financial_analysis/trend_analysis.py  # Trend analysis
+      financial_analysis/anomaly_detection.py # Anomaly detection
+
+      # --- mutation_queue/ — Graph mutation queue (3 modules) ---
+      mutation_queue/processor.py        # Mutation processing
+      mutation_queue/conflict_detector.py # Conflict detection
 
       # --- document_validators/ (1 module) ---
       document_validators/belgian_eid.py # Belgian eID document validation
@@ -319,29 +357,36 @@ backend/
       registry.py           # PromptRegistry singleton (DB-backed with FS fallback)
       schemas.py            # Prompt version schemas
       seed.py               # Default prompt seeding
-      templates/            # 29 Jinja2 prompt templates
+      templates/            # 36 Jinja2 prompt templates
         osint_legacy.jinja2
         synthesis.jinja2
         task_generator.jinja2
         document_validator.jinja2
         mcc_classifier.jinja2
         dashboard.jinja2
-        ... (29 templates total)
+        ... (36 templates total)
 
     workflows/              # Temporal workflow and activity definitions
-      compliance_case.py    # ComplianceCaseWorkflow (1,036 lines)
-      activities.py         # 14 activity functions (2,459 lines)
+      compliance_case.py    # ComplianceCaseWorkflow (2,045 lines)
+      activities.py         # 44 @activity.defn functions (4,071 lines)
+      registry_activity.py  # Registry document collection activities
+      docling_activity.py   # Async Docling extraction (ADR-0047)
+      batch_risk.py         # Batch risk scoring workflow
+      continuous_monitoring.py  # Perpetual KYC monitoring workflow
+      dynamic_workflow.py   # YAML-compiled dynamic workflow runner
+      sanctions_suppression_refresh.py  # Suppression-rule refresh workflow
+      shipment_compliance.py # Per-shipment customs compliance workflow
 
     db/
       database.py           # SQLAlchemy async engine + session factory
-      models.py             # SQLAlchemy ORM models (50 models, DeclarativeBase)
+      models.py             # SQLAlchemy ORM models (63 mapped classes, DeclarativeBase)
       repositories/         # Repository pattern (generic CRUD)
         base.py             # BaseRepository[T] — generic async CRUD operations
         user_repo.py        # UserRepository — user-specific queries
 
     alembic/                # Database migration management
       env.py                # Async migration runner
-      versions/             # 50 migration files (001–050 covering full schema evolution)
+      versions/             # 58 migration files (001–058, latest 058_decision_memoranda)
 
     exceptions.py           # Custom exception hierarchy (TrustRelayError + subtypes)
 
@@ -360,8 +405,8 @@ backend/
       tax_capsule.html      # Tax capsule report
       report_base.css       # Shared report CSS
 
-    config.py               # pydantic-settings configuration (344 lines)
-    main.py                 # FastAPI app + middleware + lifespan (173 lines)
+    config.py               # pydantic-settings configuration (417 lines)
+    main.py                 # FastAPI app + middleware + lifespan (295 lines, 52 routers)
     worker.py               # Temporal worker entry point
 ```
 
@@ -369,7 +414,7 @@ backend/
 
 ### API Layer (`app/api/`)
 
-FastAPI routers that handle HTTP requests, validate input, and delegate to Temporal or services. The API is organized into 41 focused routers with 238 endpoints:
+FastAPI routers that handle HTTP requests, validate input, and delegate to Temporal or services. The API is organized into 52 focused routers (all registered in `app/main.py`). The table below highlights the principal routers; newer additions not shown include `case_notes`, `case_transactions`, `costs`, `data_subject` (GDPR DSR), `decision_memorandum`, `files`, `risk_matrix_settings`, `sanctions_suppression`, and `workflow_schemas`:
 
 | Router | Endpoints | Responsibility |
 |--------|-----------|---------------|
@@ -420,7 +465,7 @@ All officer-facing routers use the `get_current_user` authentication dependency 
 
 ### Agent Layer (`app/agents/`)
 
-21 PydanticAI agents, each following a consistent pattern:
+33 PydanticAI agent modules, each following a consistent pattern:
 
 ```python
 agent = Agent(
@@ -438,15 +483,18 @@ See [AI Agents](/docs/architecture/ai-agents) for the complete inventory.
 
 ### Service Layer (`app/services/`)
 
-116 service modules encapsulating external integrations and business logic, organized into subdirectories by domain. Services are injected via FastAPI's `Depends()` pattern.
+138 service modules encapsulating external integrations and business logic, organized into subdirectories by domain. Services are injected via FastAPI's `Depends()` pattern.
 
 | Subdirectory | Modules | Purpose |
 |-------------|---------|---------|
-| *(root)* | 88 | Core business logic, integrations, and domain services |
+| *(root)* | ~85 | Core business logic, integrations, and domain services |
 | `lex/` | 18 | Regulatory Knowledge Layer: ingestion, chunking, embedding, querying |
 | `lex/fetchers/` | 7 | Source-specific legal text fetchers (EUR-Lex, BWB, Finlex, etc.) |
 | `lex/parsers/` | 1 | Regulation text parsing and article extraction |
-| `registries/` | 8 | European corporate registry clients (CH, CZ, DK, EE, FI, FR, NL, NO) |
+| `registries/` | 28 | European corporate registry clients (BE handled separately; CH, CZ, DK, EE, FI, FR, NL, NO, RO, SK) |
+| `verification/` | 13 | Cross-source verification & screening (OpenSanctions, GLEIF, INTERPOL, jurisdiction risk, virtual-office detection) |
+| `financial_analysis/` | 6 | Ratios + Altman/Ohlson/Zmijewski distress models + peer benchmarks (ADR-0048) |
+| `mutation_queue/` | 3 | Graph mutation queue with conflict detection |
 | `document_validators/` | 1 | Document type validators (Belgian eID) |
 | `vop_providers/` | 1 | Verification of Payee provider implementations |
 
@@ -494,18 +542,20 @@ Centralized prompt management with DB-backed versioning and filesystem fallback:
 | `registry.py` | `PromptRegistry` singleton — loads prompts from DB, falls back to filesystem |
 | `schemas.py` | Prompt version Pydantic schemas |
 | `seed.py` | Seeds default prompts into DB on startup |
-| `templates/` | 29 Jinja2 templates (one per agent) |
+| `templates/` | 36 Jinja2 templates (one per agent) |
 
 The admin API (`admin_prompts.py` router) provides CRUD operations for prompt version management, including diff comparison between versions.
 
 ### Workflow Layer (`app/workflows/`)
 
-Two files define the entire Temporal integration:
+The Temporal integration spans several files:
 
-- **`compliance_case.py`** (1,036 lines) -- The `ComplianceCaseWorkflow` class with signals, queries, the main run loop, and audit logging
-- **`activities.py`** (2,459 lines) -- 14 activity functions that bridge Temporal and the service/agent layers
+- **`compliance_case.py`** (2,045 lines) -- The `ComplianceCaseWorkflow` class with signals, queries, the main run loop, and audit logging
+- **`activities.py`** (4,071 lines) -- 44 `@activity.defn` functions that bridge Temporal and the service/agent layers
+- **`registry_activity.py`**, **`docling_activity.py`** -- registry-document collection and async Docling extraction (ADR-0047)
+- **`batch_risk.py`**, **`continuous_monitoring.py`**, **`dynamic_workflow.py`**, **`sanctions_suppression_refresh.py`**, **`shipment_compliance.py`** -- additional workflows for portfolio-scale risk, perpetual KYC monitoring, YAML-compiled dynamic workflows, suppression-rule refresh, and customs compliance
 
-Activities include: `process_documents`, `validate_documents`, `extract_document_data`, `run_osint_investigation`, `generate_follow_up_tasks`, `classify_mcc`, `persist_audit_event`, `scrape_company_website`, `populate_knowledge_graph`, `consolidate_investigation_memory`, `compute_confidence_score`, `assign_automation_tier`, `run_peppol_verification`, and `verify_identity`.
+Core activities include: `process_documents`, `validate_documents`, `extract_document_data`, `run_osint_investigation`, `collect_registry_documents`, `cross_reference_evidence`, `analyze_document_gaps`, `generate_follow_up_tasks`, `classify_mcc`, `persist_audit_event`, `scrape_company_website`, `populate_knowledge_graph`, `consolidate_investigation_memory`, `compute_confidence_score`, `assign_automation_tier`, `run_peppol_verification`, and `verify_identity`.
 
 See [Temporal Workflows](/docs/architecture/temporal-workflows) for details.
 
@@ -536,7 +586,7 @@ Key modules (`admin.py`, `auth.py`) have been migrated to the Repository pattern
 
 #### ORM Models (`app/db/models.py`)
 
-All 50 database tables have SQLAlchemy ORM models defined using `DeclarativeBase`. Key models include:
+All database tables have SQLAlchemy ORM models defined using `DeclarativeBase` — 63 mapped classes in `app/db/models.py`. Key models include:
 
 | Model | Table | Key Fields |
 |-------|-------|-----------|
@@ -594,7 +644,7 @@ All 50 database tables have SQLAlchemy ORM models defined using `DeclarativeBase
 
 Database migrations are managed by Alembic with async support. The migration environment (`alembic/env.py`) uses `run_async` for async engine compatibility.
 
-50 Alembic migrations covering the full schema evolution:
+58 Alembic migrations covering the full schema evolution (latest: `056_seed_awdc_demo_cases`, `057_awdc_branding_logo`, `058_decision_memoranda`):
 
 | Range | Migrations | Scope |
 |-------|-----------|-------|
@@ -606,10 +656,12 @@ Database migrations are managed by Alembic with async support. The migration env
 | 025–026 | Lex regulatory knowledge layer, prompt versions | Lex + prompt management |
 | 027–028 | Service catalog, fiscal rep data | Shield features |
 | 029–031 | Shipments/monitoring, precious metals, goAML canonical entities | Customs + goAML |
-| seed | KYC natural person template | Template seed data |
+| 032–039 | Graph annotations, entity monitoring, risk configurations, discrepancy resolutions | Graph + risk config |
+| 040–049 | Quality scores, Digiteal tenant seed, decision restrictions, sanctions suppression rules | Quality + suppression |
+| 050–058 | Regulatory radar seed, AWDC tenant/demo-case seed, AWDC branding, decision memoranda | Demo + memoranda |
 
 :::note
-ORM models are in place for all 50 tables. Key modules (`admin.py`, `auth.py`) have been migrated to the ORM Repository pattern (`BaseRepository[T]`), with incremental migration of remaining modules underway. See [ADR-0008](/docs/adr/0008-raw-sql) for details.
+ORM models are in place for all tables (63 mapped classes). Key modules (`admin.py`, `auth.py`) have been migrated to the ORM Repository pattern (`BaseRepository[T]`), with incremental migration of remaining modules underway. ADR-0008 (raw SQL via `text()`) is now superseded by this Repository pattern.
 :::
 
 ### Exception Hierarchy (`app/exceptions.py`)
@@ -632,7 +684,7 @@ All exceptions carry a `message` and optional `details` dict for structured logg
 
 ### Configuration (`app/config.py`)
 
-All configuration is managed through pydantic-settings (344 lines), reading from environment variables and `.env` files:
+All configuration is managed through pydantic-settings (417 lines), reading from environment variables and `.env` files:
 
 - Service connections (Temporal, PostgreSQL, MinIO, Redis, Neo4j)
 - External API keys (OpenAI, BrightData, Tavily, NorthData, Langfuse)
@@ -665,15 +717,15 @@ This separation is a Temporal requirement: workflow code runs in a deterministic
 
 | Area | Current State | Status |
 |------|--------------|--------|
-| API routing | Split into 41 focused routers (238 endpoints) | **Complete** |
-| Service layer | 116 modules, FastAPI `Depends()` injection via `lru_cache` singletons | **Complete** |
-| Agent layer | 21 PydanticAI agents with 29 Jinja2 prompt templates | **Complete** |
-| Database | ORM models (50 tables), Alembic (50 migrations), Repository pattern (incremental migration) | **Complete** |
+| API routing | Split into 52 focused routers | **Complete** |
+| Service layer | 138 modules, FastAPI `Depends()` injection via `lru_cache` singletons | **Complete** |
+| Agent layer | 33 PydanticAI agent modules with 36 Jinja2 prompt templates | **Complete** |
+| Database | ORM models (63 mapped classes), Alembic (58 migrations), Repository pattern (incremental migration) | **Complete** |
 | goAML export | STR/SAR XML generation with country profiles and XSD validation | **Complete** |
 | Prompt management | DB-backed versioning with FS fallback, admin CRUD API | **Complete** |
 | Error handling | Custom exception hierarchy + structured logging | **Complete** |
 | Authentication | Keycloak 26 JWT with JWKS validation, 4 RBAC roles, multi-tenant RLS | **Complete** |
 | Rate limiting | IP-based sliding window (600/min auth, 200/min unauth, configurable) | **Complete** |
 | Configuration | pydantic-settings with env-specific validation and per-agent model overrides | **Complete** |
-| Logging | Python logging to stdout | Production: structured JSON with correlation IDs |
+| Logging | structlog JSON/console modes with X-Correlation-Id middleware + Temporal activity log interceptor (`app/logging_config.py`, `app/middleware/correlation.py`) | **Complete** |
 | Distributed rate limiting | In-memory sliding window | Production: Redis-backed for multi-instance |

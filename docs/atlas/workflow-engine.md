@@ -1,8 +1,11 @@
 ---
 sidebar_position: 13
 title: "Atlas — Workflow Engine"
-last_verified: 2026-04-13
+last_verified: 2026-06-11
 status: reference
+components:
+  - app/services/workflow_schema.py
+  - app/workflows/dynamic_workflow.py
 ---
 
 # Atlas — Workflow Engine

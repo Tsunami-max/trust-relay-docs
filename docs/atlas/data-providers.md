@@ -2,8 +2,12 @@
 sidebar_position: 7
 title: "Atlas — Data Providers"
 description: "How Atlas's KVK, NorthData, and async OSINT plugins fetch and normalize structured company data through the v5.1 plugin contract, the country-routing matrix, and the trust-weighted survivorship that feeds the entity-claims layer."
-last_verified: 2026-05-09
+last_verified: 2026-06-11
 status: reference
+components:
+  - app/services/northdata_service.py
+  - app/services/kbo_service.py
+  - app/services/source_ttl.py
 ---
 
 # Atlas — Data Providers
@@ -190,7 +194,7 @@ The OSINT investigation engine — seven CrewAI-based investigation modules, six
 | Property | Value |
 |---|---|
 | **Plugin path** | `plugins/osint/` |
-| **Plugin version** | `0.2.0` |
+| **Plugin version** | `0.3.2` |
 | **Jurisdictions** | `["XX"]` (sentinel — jurisdiction-agnostic) |
 | **Trust level** | 0.50–0.80 per crew (configured per-source in `MODULE_TRUST_SCORES`) |
 | **Entity types** | LegalEntity, Person, Address |

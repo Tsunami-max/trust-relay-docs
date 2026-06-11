@@ -1,7 +1,7 @@
 ---
 sidebar_position: 22
 title: "Verification Tools"
-description: "Seven point-in-time verification tools for sanctions, jurisdiction, email security, web presence, and reputation checks"
+description: "Point-in-time verification tools for sanctions, jurisdiction, email security, web presence, and reputation checks"
 components:
   - app/services/verification/opensanctions.py
   - app/services/verification/opensanctions_bulk.py
@@ -11,18 +11,24 @@ components:
   - app/services/verification/consumer_reviews.py
   - app/services/verification/interpol_notices.py
   - app/services/verification/virtual_office.py
+  - app/services/verification/gleif.py
+  - app/services/verification/license_registry.py
+  - app/services/verification/name_matcher.py
+  - app/services/verification/screening_derivation.py
   - app/services/verification/models.py
 tests:
   - tests/test_verification_tools.py
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
 # Verification Tools
 
-Trust Relay includes seven verification tools that perform targeted, point-in-time checks during OSINT investigation. Three are deterministic tools that always run as part of the standard pipeline. Four are LLM-available tools that the AI agent can invoke when the investigation context warrants it.
+Trust Relay includes a suite of verification tools that perform targeted, point-in-time checks during OSINT investigation. They split into two groups by how they are invoked. Three checks always run as part of the workflow's `run_verification_checks` activity because their compliance value is unconditional: OpenSanctions screening, jurisdiction risk, and email-security DNS posture. Four further checks are registered as LLM-callable tools on the OSINT agent (`tool_check_wayback`, `tool_check_reviews`, `tool_check_interpol`, `tool_detect_virtual_office`) and are invoked selectively when the investigation context warrants. The verification package also contains supporting modules — `gleif.py` (LEI lookup), `license_registry.py` (regulatory-license verification), `name_matcher.py` (person/company fuzzy matching), `screening_derivation.py` (director screening-status derivation), and `opensanctions_bulk.py` (bulk dataset refresh/match).
 
-All seven tools return a `VerificationResult`:
+Each tool is implemented as a module-level **async function** (e.g. `screen_opensanctions()`, `assess_jurisdiction_risk()`, `check_email_security()`), not as an instantiated tool class. There is no `VerificationToolRegistry` class; the always-run checks are called directly from `app/workflows/activities.py`, and the LLM-callable checks are wrapped as `tool_*` functions in `app/agents/osint_agent.py`.
+
+The seven core checks each return a `VerificationResult`:
 
 ```python
 class VerificationResult(BaseModel):
@@ -40,11 +46,11 @@ The `VerificationResult` feeds into the confidence scoring engine (Pillar 1) and
 
 ## Always-Run (Deterministic) Tools
 
-These three tools execute for every entity regardless of EVOI score or agent selection, because their checks are low-cost and the compliance value is unconditional.
+These three checks execute for every entity regardless of EVOI score or agent selection, because their cost is low and the compliance value is unconditional. They are called directly from the `run_verification_checks` activity in `app/workflows/activities.py`.
 
 ### 1. OpenSanctions
 
-**File**: `backend/app/services/verification/open_sanctions.py`
+**File**: `backend/app/services/verification/opensanctions.py` (entry point `screen_opensanctions()`; bulk dataset refresh/match in `opensanctions_bulk.py`)
 
 OpenSanctions maintains a consolidated dataset of sanctioned entities, politically exposed persons (PEPs), and wanted individuals sourced from 300+ official lists worldwide.
 
@@ -83,7 +89,7 @@ Before matching, both the query name and stored entity names are normalized usin
 
 ### 2. Jurisdiction Risk
 
-**File**: `backend/app/services/verification/jurisdiction_risk.py`
+**File**: `backend/app/services/verification/jurisdiction_risk.py` (entry point `assess_jurisdiction_risk()`)
 
 A static lookup that classifies a country's risk level based on authoritative financial crime watchlists.
 
@@ -102,15 +108,15 @@ Risk classification output:
 | `HIGH` | FATF Grey List |
 | `CRITICAL` | FATF Black List |
 
-The tool evaluates jurisdiction risk for: (1) the entity's country of incorporation, (2) the registered address country, and (3) each director's nationality where known. The highest classification across all evaluated countries determines the finding severity.
+`assess_jurisdiction_risk(country_code)` evaluates a single ISO 3166-1 alpha-2 country code and returns the highest applicable classification (Black List > Grey List/EU high-risk). Callers invoke it per country of interest — typically the entity's country of incorporation — and the verification activity aggregates the worst result.
 
-This tool is entirely deterministic — no API calls, no LLM inference. The watchlist data is hardcoded as a module-level dictionary and updated by the engineering team when official lists change.
+This tool is entirely deterministic — no API calls, no LLM inference. The watchlist data (`fatf_black_list`, `fatf_grey_list`, `eu_high_risk_third_countries`) is loaded from JSON reference-data files in `config/reference_data/` via `ReferenceDataService`, not hardcoded constants.
 
 ---
 
 ### 3. Email Security
 
-**File**: `backend/app/services/verification/email_security.py`
+**File**: `backend/app/services/verification/email_security.py` (entry point `check_email_security()`)
 
 Validates the email security posture of the entity's declared domain by checking three DNS record types using `dnspython`.
 
@@ -128,11 +134,11 @@ The tool also checks whether the domain is a free provider (Gmail, Outlook, Yaho
 
 ## LLM-Available Tools
 
-These four tools are registered in the AI agent's tool manifest but are invoked selectively by the LLM based on investigation context. They are more expensive (latency or rate limits) and are reserved for cases where they add clear investigative value.
+These four checks are registered as tools on the OSINT agent (the `tool_check_wayback`, `tool_check_reviews`, `tool_check_interpol`, and `tool_detect_virtual_office` wrappers in `app/agents/osint_agent.py`) and are invoked selectively by the LLM based on investigation context. They are more expensive (latency or rate limits) and are reserved for cases where they add clear investigative value.
 
 ### 4. Wayback Machine
 
-**File**: `backend/app/services/verification/wayback_machine.py`
+**File**: `backend/app/services/verification/wayback_history.py` (entry point `check_wayback_history()`)
 
 Queries the Internet Archive CDX (Capture/Display/Access) API to retrieve the capture history of the entity's website.
 
@@ -153,7 +159,7 @@ The tool is invoked by the LLM agent when the investigation includes a business 
 
 ### 5. Consumer Reviews
 
-**File**: `backend/app/services/verification/consumer_reviews.py`
+**File**: `backend/app/services/verification/consumer_reviews.py` (entry point `check_consumer_reviews()`)
 
 Searches Trustpilot for consumer reviews of the entity to assess public reputation and detect complaint patterns.
 
@@ -172,7 +178,7 @@ A very low score (< 2.0) or a high volume of fraud-related complaints generates 
 
 ### 6. Interpol Red Notices
 
-**File**: `backend/app/services/verification/interpol_notices.py`
+**File**: `backend/app/services/verification/interpol_notices.py` (entry point `check_interpol_notices()`)
 
 Queries the public Interpol API for Red Notices (international wanted persons alerts) matching director names associated with the entity.
 
@@ -197,7 +203,7 @@ The public Interpol API returns only unclassified notices and may not reflect th
 
 ### 7. Virtual Office Detection
 
-**File**: `backend/app/services/verification/virtual_office.py`
+**File**: `backend/app/services/verification/virtual_office.py` (entry point `detect_virtual_office()`)
 
 Detects whether the entity's registered address is associated with a virtual office, mail forwarding, or co-working provider — a common characteristic of shell companies.
 
@@ -216,29 +222,33 @@ The tool is invoked when the entity's registered address is in a jurisdiction kn
 
 ---
 
-## Tool Registry
+## How Tools Are Wired In
 
-All verification tools are registered in `backend/app/services/verification/__init__.py` and exposed via the `VerificationToolRegistry`:
+There is no central tool-registry class. `backend/app/services/verification/__init__.py` re-exports only `VerificationResult`, `check_licenses`, and `LicenseCheckResult`. The verification checks are wired in at two distinct call sites:
+
+**Always-run checks** are invoked directly from the `run_verification_checks` activity in `app/workflows/activities.py`:
 
 ```python
-ALWAYS_RUN_TOOLS = [
-    OpenSanctionsTool(),
-    JurisdictionRiskTool(),
-    EmailSecurityTool(),
-]
+from app.services.verification.opensanctions import screen_opensanctions
+from app.services.verification.jurisdiction_risk import assess_jurisdiction_risk
+from app.services.verification.email_security import check_email_security
 
-LLM_AVAILABLE_TOOLS = [
-    WaybackMachineTool(),
-    ConsumerReviewsTool(),
-    InterpolNoticesTool(),
-    VirtualOfficeTool(),
-]
+company_result = await screen_opensanctions(company_name, country, entity_type="company")
+jur_result = await assess_jurisdiction_risk(country)
+email_result = await check_email_security(domain)
 ```
 
-The registry is consumed by the OSINT agent to assemble the tool manifest passed to the LLM on each investigation run.
+**LLM-callable checks** are exposed as `tool_*` async wrappers on the OSINT agent in `app/agents/osint_agent.py`, which the LLM may call when the investigation context warrants:
+
+```python
+async def tool_check_wayback(url: str) -> str: ...
+async def tool_check_reviews(company_name: str, country: str) -> str: ...
+async def tool_check_interpol(person_name: str, nationality: str = "") -> str: ...
+async def tool_detect_virtual_office(address: str, company_name: str = "") -> str: ...
+```
 
 ---
 
 ## Evidence Attribution
 
-Every `VerificationResult` includes a `source_url` pointing to the canonical source (e.g., the specific OpenSanctions entity page, the Wayback Machine capture, or the Interpol notice URL). This URL is stored in the `tool_audit_events` table alongside the full result payload, creating a complete evidence chain for regulatory audit purposes.
+Every `VerificationResult` includes a `source_url` pointing to the canonical source (e.g., the specific OpenSanctions entity page, the Wayback Machine capture, or the Interpol notice URL). Tool invocations are logged through the `@audited_tool` decorator to the `tool_invocations` table (SHA-256 input/output hashes), creating a complete evidence chain for regulatory audit purposes. See [Agentic OS Foundation](/docs/architecture/agentic-os) for the tool audit layer.

@@ -8,7 +8,7 @@ components:
   - app/services/peppol_verification_service.py
   - app/services/vies_service.py
   - app/services/eori_service.py
-last_verified: 2026-03-30
+last_verified: 2026-06-11
 status: implemented
 ---
 

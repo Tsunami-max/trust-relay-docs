@@ -4,7 +4,13 @@ title: "Tiered Scanning"
 components:
   - app/agents/scan_agent.py
   - app/agents/scan_synthesis_agent.py
-last_verified: 2026-03-29
+  - app/services/graph_service.py
+  - app/services/portfolio_service.py
+  - app/services/recursive_discovery_service.py
+  - app/services/sanctions_matcher_service.py
+  - app/models/scan.py
+  - app/api/scan.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -366,9 +372,9 @@ Triggered by a compliance officer uploading a list of entity registration number
 
 **Flow:** Officer submits portfolio --> `POST /scan/portfolio` --> `PortfolioService.batch_scan()` --> per-entity Tier 1 scans --> aggregate results
 
-### 3. Continuous Monitoring (Deferred)
+### 3. Continuous Monitoring
 
-Planned but not yet implemented. Will periodically re-scan entities in the graph to detect changes in registry data, new sanctions hits, or adverse media. Expected implementation via a Temporal scheduled workflow that iterates over entities with stale scan results.
+A Temporal scheduled-workflow continuous-monitoring capability now exists (`app/workflows/continuous_monitoring.py` + `app/services/monitoring_schedule_service.py`). It runs as a per-tenant cron-triggered Temporal Schedule (`monitoring-{tenant_id}`) that executes configured monitoring checks. As built, the workflow is scoped to monitoring active **customs cases** (Module C) rather than re-running tiered Tier 0–2 scans over arbitrary graph entities. Periodic re-scanning of graph entities for new sanctions hits / adverse media via the tiered scan engine remains a future extension on top of this scheduling foundation.
 
 ---
 

@@ -2,8 +2,15 @@
 sidebar_position: 20
 title: "Atlas — Import Candidates"
 description: "Features from Atlas that Trust Relay does not yet have, prioritized by compliance value, demo readiness, and implementation complexity."
-last_verified: 2026-04-05
+last_verified: 2026-06-11
 status: reference
+components:
+  - app/services/circuit_breaker.py
+  - app/services/cost_calculation_service.py
+  - app/services/segment_compiler.py
+  - app/services/graph_parity_service.py
+  - app/workflows/batch_risk.py
+  - app/services/mutation_queue/processor.py
 ---
 
 # Atlas — Import Candidates
@@ -11,6 +18,16 @@ status: reference
 After a comprehensive audit of both codebases (April 2026), this page catalogs every Atlas feature that Trust Relay does not yet have and could benefit from adopting. Each is assessed for complexity, architectural alignment, and priority.
 
 Trust Relay already adopted 8 patterns from Atlas in March 2026 (see [Atlas Adoption](/docs/architecture/atlas-adoption)). This page covers the **remaining** importable features.
+
+> **Status update (2026-06-11).** Several candidates below have since been **imported into Trust Relay** and are no longer "not yet imported" — verified present in `backend/`:
+> - **Circuit Breakers (#1)** — `app/services/circuit_breaker.py` + `circuit_breaker_persistence.py` (ADR-0032).
+> - **LLM Cost Tracking (#2)** — `app/api/costs.py` + `app/services/cost_calculation_service.py` (ADR-0029).
+> - **Segment Definitions (#3)** — `app/services/segment_compiler.py` + `app/models/segment_profile.py` (ADR-0031).
+> - **Parity Checking (#5)** — `app/services/graph_parity_service.py`.
+> - **Batch Risk Workflow (#6)** — `app/workflows/batch_risk.py`.
+> - **Mutation Queue (#10)** — `app/services/mutation_queue/` (processor, conflict_detector, models).
+>
+> The tables below preserve the original April-2026 assessment for provenance; the "What Trust Relay has" columns for these rows are now superseded by the adoptions above.
 
 ---
 

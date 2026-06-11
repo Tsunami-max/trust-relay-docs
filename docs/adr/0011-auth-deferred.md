@@ -9,7 +9,7 @@ title: "ADR-0011: Authentication Deferred"
 | | |
 |---|---|
 | **Date** | 2025-12-15 |
-| **Status** | `Accepted (superseded by Pillar 0 implementation)` |
+| **Status** | `Superseded 2026-04-18 — Keycloak OIDC implemented` (see `backend/app/api/deps/auth.py`; realm-per-tenant JWKS-validated JWTs; role hierarchy) |
 | **Deciders** | Adrian Birlogeanu |
 
 ## Context

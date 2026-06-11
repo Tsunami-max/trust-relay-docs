@@ -10,7 +10,7 @@ components:
   - frontend/src/components/network-intelligence/edges/IntelligentEdge.tsx
   - backend/app/api/graph.py
   - backend/app/services/graph_service.py
-last_verified: 2026-03-30
+last_verified: 2026-06-11
 status: design-approved
 ---
 
@@ -45,7 +45,7 @@ A "Trace to UBO" button in the detail panel highlights the complete path from an
 A fixed three-column Sankey-inspired layout that visualises the investigation process itself — a capability unique among the platforms analysed.
 
 - **Left column:** Data sources that fed the investigation (KBO, NBB, GLEIF, OpenSanctions, Tavily, PEPPOL, uploaded documents), each showing fact count and last-fetched timestamp.
-- **Centre:** The subject entity with its ARIA tier, risk score, confidence score, and EVOI belief state rendered as a stacked bar (green p_clean + amber p_risky + red p_critical).
+- **Centre:** The subject entity with its risk tier (SDD/CDD/EDD), risk score, confidence score, and EVOI belief state rendered as a stacked bar (green p_clean + amber p_risky + red p_critical).
 - **Right column:** Investigation outputs — findings by severity and follow-up tasks.
 
 SVG flow lines connect sources to entity to findings. Line width is proportional to evidence contribution; color matches risk category. Clicking a source highlights its connected findings; clicking a finding highlights its contributing sources, providing visual evidence provenance tracing.
@@ -71,8 +71,9 @@ frontend/src/
 │   │   ├── OwnershipTreeView.tsx     # View 2: hierarchical UBO tree
 │   │   └── InvestigationFlowView.tsx # View 3: Sankey-inspired evidence flow
 │   ├── nodes/
-│   │   ├── RiskEnrichedNode.tsx      # Company/Person with donut ring + glyph badges
-│   │   └── OwnershipNode.tsx         # Simplified node for ownership tree
+│   │   └── RiskEnrichedNode.tsx      # Company/Person with donut ring + glyph badges
+│   │                                 #   (also reused by OwnershipTreeView — no
+│   │                                 #    separate OwnershipNode component exists)
 │   ├── edges/
 │   │   └── IntelligentEdge.tsx       # Thickness, dashed/solid, animated, ownership %
 │   ├── panels/
@@ -81,10 +82,14 @@ frontend/src/
 │   │   └── AnnotationPanel.tsx       # Annotation overlay → audit trail
 │   ├── interactions/
 │   │   ├── ContextMenu.tsx           # Right-click context menu
-│   │   └── KeyboardShortcuts.tsx     # Global keyboard shortcuts
+│   │   ├── KeyboardShortcuts.tsx     # Global keyboard shortcuts
+│   │   ├── NodeTooltip.tsx           # Hover tooltip for nodes
+│   │   └── EdgeTooltip.tsx           # Hover tooltip for edges
+│   ├── hooks/                        # Per-view data-fetching hooks
 │   └── shared/
 │       ├── DonutRing.tsx             # SVG risk category donut component
 │       ├── GlyphBadge.tsx            # Sanctions/PEP/UBO indicator badges
+│       ├── GraphLegend.tsx           # Color/shape legend overlay
 │       ├── PerspectiveToggle.tsx     # Compliance / Ownership / Investigation
 │       └── GraphExportService.ts     # Snapshot export for SAR/STR
 ```
@@ -113,7 +118,7 @@ flowchart TD
 
     NGV --> REN["RiskEnrichedNode"]
     NGV --> IE["IntelligentEdge"]
-    OTV --> ON["OwnershipNode"]
+    OTV --> REN
     OTV --> IE
 
     REN --> DR["DonutRing"]
@@ -143,9 +148,9 @@ An SVG ring drawn around the node icon. Segment sizes are proportional to findin
 | Amber | Adverse media + PEP + high findings | findings where `severity == "high"` OR `category in ["PEP", "adverse_media"]` |
 | Blue | Financial health concerns | findings where `category in ["financial_health", "negative_equity", "ratio_violation"]` |
 | Green | Clean evidence | Total evidence count minus red + amber + blue counts |
-| Gray outline only | Not yet assessed | Absence of ARIA tier in properties |
+| Gray outline only | Not yet assessed | Absence of risk tier in properties |
 
-An entity with zero findings but a completed ARIA assessment renders a full green ring. An entity not yet assessed renders only a gray outline.
+An entity with zero findings but a completed risk assessment renders a full green ring. An entity not yet assessed renders only a gray outline.
 
 Pattern origin: Chainalysis Exposure Wheel (dual-ring donut) and Cambridge Intelligence donut nodes.
 
@@ -165,7 +170,7 @@ Pattern origin: Cambridge Intelligence glyph documentation; Linkurious icon badg
 
 ### Layer 3 — Label Block
 
-- **Company nodes:** Country flag + full company name (never truncated) + ARIA tier badge (SDD green / CDD amber / EDD red) + formatted registration number + entity status
+- **Company nodes:** Country flag + full company name (never truncated) + risk tier badge (SDD green / CDD amber / EDD red) + formatted registration number + entity status
 - **Person nodes:** Country flag + full name + role badges (Director, UBO with percentage, PEP)
 
 ### Adaptive Zoom Behavior
@@ -175,14 +180,14 @@ Label density adapts to zoom level, following the Neo4j Bloom semantic zoom patt
 | Zoom level | Visible elements |
 |---|---|
 | Distant (< 0.4×) | Donut ring + center icon only |
-| Medium (0.4×–0.8×) | + entity name + ARIA tier badge |
+| Medium (0.4×–0.8×) | + entity name + risk tier badge |
 | Close (> 0.8×) | + role badges, country flag, registration number |
 
 ### Risk-Based Node Sizing
 
 Available as an opt-in toggle in the filter panel (off by default):
 
-| ARIA tier | Node diameter |
+| Risk tier | Node diameter |
 |---|---|
 | SDD | 48 px |
 | CDD | 56 px (default) |
@@ -260,7 +265,7 @@ The `graph_annotations` table is append-only by design. Annotations are audit ev
 
 Single click on a node selects it, opens the detail panel, highlights connected edges, and dims unrelated nodes to 40% opacity. Double click expands neighbors. Single click on the canvas deselects everything and closes panels.
 
-Hover on a node (200 ms delay) shows a tooltip with entity name, type, ARIA tier, top three risk findings, and connection count. Hover on an edge shows relationship type, connected entities, ownership percentage, mandate dates, and whether the edge is a primary fact (`is_primary_fact` badge).
+Hover on a node (200 ms delay) shows a tooltip with entity name, type, risk tier, top three risk findings, and connection count. Hover on an edge shows relationship type, connected entities, ownership percentage, mandate dates, and whether the edge is a primary fact (`is_primary_fact` badge).
 
 ---
 
@@ -272,7 +277,7 @@ Hover on a node (200 ms delay) shows a tooltip with entity name, type, ARIA tier
 |---|---|---|
 | `/api/graph/ownership-tree/{registration_number}` | GET | Full ownership chain with effective ownership percentages, degree of separation, and OFAC 50% Rule coloring thresholds |
 | `/api/graph/shortest-path` | GET | Shortest path between two nodes; params: `from`, `to`, `max_hops` (default 20) |
-| `/api/cases/{case_id}/evidence-flow` | GET | Pre-computed source→finding mappings, fact counts per source, and EVOI belief state (`p_clean`, `p_risky`, `p_critical`) for the Investigation Flow view |
+| `/api/cases/{workflow_id}/evidence-flow` | GET | Pre-computed source→finding mappings, fact counts per source, and EVOI belief state (`p_clean`, `p_risky`, `p_critical`) for the Investigation Flow view. Lives in `case_analysis.py` (not `graph.py`); the path parameter is named `workflow_id` |
 | `/api/graph/annotations` | POST | Create an officer annotation on a node or edge (persisted to `graph_annotations`) |
 | `/api/graph/annotations/{entity_id}` | GET | Retrieve all annotations for a given node or edge |
 
@@ -298,7 +303,7 @@ The `evidence-flow` endpoint pre-computes source→finding mappings server-side.
 
 ### Database: `graph_annotations` Table
 
-Introduced in Alembic migration 026.
+Introduced in Alembic migration `035_graph_annotations.py`.
 
 | Column | Type | Constraints |
 |---|---|---|
@@ -310,7 +315,7 @@ Introduced in Alembic migration 026.
 | `officer_id` | VARCHAR | NOT NULL |
 | `created_at` | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 
-RLS policy: `tenant_id = current_setting('app.current_tenant')`. `FORCE ROW LEVEL SECURITY` is enabled, consistent with all 22 other tenant-scoped tables.
+RLS policy: `tenant_id = current_setting('app.current_tenant')`. `FORCE ROW LEVEL SECURITY` is enabled, consistent with the project's other tenant-scoped tables (30+ tables across the Alembic migration history carry `FORCE ROW LEVEL SECURITY`).
 
 ---
 
@@ -343,7 +348,7 @@ flowchart LR
 | 1 | None | Linkurious (node styling, expand), Neo4j Bloom (perspectives, adaptive zoom) |
 | 2 | `ownership-tree` endpoint + `get_ownership_tree()` | Dow Jones (degree of separation), NICE Actimize (one-click UBO) |
 | 3 | `shortest-path` endpoint + `evidence-flow` endpoint | Neo4j Bloom / Linkurious (shortest path); exceeds all (investigation flow is unique) |
-| 4 | Alembic 026 (`graph_annotations`), annotation endpoints | Chainalysis Reactor (annotations → evidence), Linkurious (case comments) |
+| 4 | Alembic 035 (`graph_annotations`), annotation endpoints | Chainalysis Reactor (annotations → evidence), Linkurious (case comments) |
 | 5 | None | Full feature set matches or exceeds all 10 analyzed platforms |
 
 ---

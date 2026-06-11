@@ -1,8 +1,11 @@
 ---
 sidebar_position: 12
 title: "Atlas — Risk Engine"
-last_verified: 2026-04-13
+last_verified: 2026-06-11
 status: reference
+components:
+  - app/services/eba_risk_matrix.py
+  - app/services/risk_config_service.py
 ---
 
 # Atlas — Risk Engine
@@ -12,7 +15,9 @@ Atlas implements an EBA/GL/2021/02-compliant risk matrix engine for multi-dimens
 The risk engine operates in two tiers:
 
 1. **Tier 1**: Per-module deterministic risk rules that produce additive scores within each investigation module.
-2. **Tier 2**: An EBA 7-dimension risk matrix that aggregates investigation findings into a holistic, weighted risk assessment with configurable dimensions, factors, and escalation rules.
+2. **Tier 2**: An EBA risk matrix that aggregates investigation findings into a holistic, weighted risk assessment with configurable dimensions, factors, and escalation rules.
+
+> **Shipped vs. extended matrix.** The factory-default matrix shipped in `config/risk_matrix_schemas/eba_standard_v1.yaml` is the **standard EBA 5-dimension** matrix — `customer` (0.30), `geographic` (0.25), `product_service` (0.20), `delivery_channel` (0.10), `transaction` (0.15), aggregated with `method: "weighted_max"`. The **7-dimension** model described in the sections below (adding *Network/Association* and *Temporal/Historical*, with re-balanced weights) is an extended schema design; it is **not** the default schema in the repo today. Treat the 7-dimension tables as the design target and the 5-dimension weights above as the shipped reality. Risk-level thresholds (clear 0–19, low 20–39, medium 40–69, high 70–89, critical 90–100) match the shipped schema.
 
 ---
 

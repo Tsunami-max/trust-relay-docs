@@ -5,9 +5,10 @@ components:
   - app/services/confidence_engine.py
   - app/services/quality_scorer.py
   - app/services/calibration_service.py
+  - app/api/confidence.py
 tests:
   - tests/test_confidence_engine.py
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -78,19 +79,24 @@ Prior to I6, confidence scoring was duplicated inline in both the KYC and KYB br
 
 ## Key Components
 
-- **`confidence_engine.py`** — Core scoring engine with dimensional computation
-- **`calibration_service.py`** — Feedback loop: officer decisions calibrate future scores
+- **`confidence_engine.py`** — Core scoring engine with dimensional computation. The `ConfidenceScore`/`ConfidenceLevel` Pydantic models live in the shared `trustrelay_models.confidence` package (ADR-0037); `level_from_score()` applies the 85/65/40 thresholds.
+- **`calibration_service.py`** — Feedback loop: officer decisions are recorded via `record_data_point()` and surfaced via `get_calibration_stats()`, feeding the Historical Calibration dimension.
+- **`quality_scorer.py`** — LLM-as-judge quality scoring used alongside the deterministic confidence engine.
 - **`ConfidenceScoreCard.tsx`** — Visual breakdown in case detail view
 
-## API Endpoints
+## API Endpoint
+
+The confidence router is mounted under `/api/cases` (`app/api/confidence.py`):
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/confidence/scores/{case_id}` | Get confidence breakdown for a case |
-| GET | `/api/confidence/calibration` | Get calibration statistics |
-| POST | `/api/confidence/feedback` | Submit officer feedback for calibration |
+| GET | `/api/cases/{workflow_id}/confidence` | Get the latest 4-dimension confidence breakdown for a case |
+
+Calibration is not exposed as a standalone REST surface: officer decisions feed
+`CalibrationService.record_data_point()` internally from the decision flow, and
+`get_calibration_stats()` supplies the Historical Calibration dimension at scoring time.
 
 ## Configuration
 
-- `confidence_scoring_enabled` — Feature flag (default: `true`)
+- The confidence score is computed by the `compute_confidence_score` Temporal activity and is best-effort: a scoring failure never blocks case progression. There is no dedicated `confidence_scoring_enabled` feature flag — scoring runs as part of the workflow, gated by the `confidence-score-v1` workflow version guard.
 - Alembic migration: `006_calibration_data`

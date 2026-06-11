@@ -1,8 +1,13 @@
 ---
 sidebar_position: 10
 title: "Atlas — Ontology System"
-last_verified: 2026-04-08
+last_verified: 2026-06-11
 status: reference
+components:
+  - app/services/entity_matcher.py
+  - app/services/survivorship.py
+  - app/services/mutation_queue/processor.py
+  - app/services/mutation_queue/conflict_detector.py
 ---
 
 # Atlas — Ontology System
@@ -19,20 +24,21 @@ The system enforces three invariants:
 
 ## Schema Definition (YAML-Driven)
 
-The ontology schema is defined in YAML and has evolved through four major versions:
+The ontology schema is defined in YAML and has evolved through several major versions:
 
 | Version | Status | Key Changes |
 |---|---|---|
-| v1.0 | Deprecated | Basic entity types: Company, Person, Address. |
-| v2.0 | Deprecated | Agent-optimized output format specifications for LangGraph crew agents. |
-| v3.0 | Deprecated | Added Trust, Document entity types, jurisdiction risk flags, trust relationship types. |
-| **v3.3** | **Active** | `registration_numbers` array, `immutable`/`deprecated` field metadata, `alias_of` field aliasing, per-field `survivorship` strategy declarations. |
+| v1.0 | Archived | Basic entity types: Company, Person, Address. |
+| v2.0 | Archived | Agent-optimized output format specifications for LangGraph crew agents. |
+| v3.0 | Archived | Added Trust, Document entity types, jurisdiction risk flags, trust relationship types. |
+| v3.3 | Archived | `registration_numbers` array, `immutable`/`deprecated` field metadata, `alias_of` field aliasing, per-field `survivorship` strategy declarations. |
+| **v3.5** | **Active** | Current schema (`schemas/ontology/ontology_v3.5.yaml`, declares `version: "3.5.2"`); the plugin `mapping_spec.yaml` files target `ontology_schema_v3_5`. Defines ~22 entity types. |
 
-All schemas live in `config/ontology_schema_v*.yaml`. The `SchemaCache` singleton loads the active schema at startup and caches it in-process with a 60-second TTL for database-loaded schemas.
+Archived schemas live in `config/archived/ontology_schema_v*.yaml`; the active schema is `schemas/ontology/ontology_v3.5.yaml`. The `SchemaCache` singleton loads the active schema at startup and caches it in-process with a 60-second TTL for database-loaded schemas.
 
 ### Entity Types
 
-The v3.3 schema defines nine entity types:
+The schema defines the following core entity types (the active v3.5 schema expands the set to ~22 types; the nine foundational types below are unchanged):
 
 | Entity Type | Color | Description | Key Attributes |
 |---|---|---|---|

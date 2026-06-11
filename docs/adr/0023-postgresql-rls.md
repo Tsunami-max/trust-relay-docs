@@ -24,7 +24,7 @@ Regulatory requirements reinforce this concern. GDPR Art. 25 mandates data prote
 We implement PostgreSQL Row-Level Security (RLS) as the primary tenant isolation mechanism, with application-level filtering as a secondary defense layer.
 
 **RLS configuration:**
-- `FORCE ROW LEVEL SECURITY` enabled on all 25+ tenant-scoped tables (cases, documents, findings, risk_assessments, audit_events, evidence_references, discrepancy_resolutions, risk_configurations, risk_config_audit, etc.)
+- `FORCE ROW LEVEL SECURITY` enabled on all 22+ tenant-scoped tables (cases, documents, findings, risk_assessments, audit_events, evidence_references, discrepancy_resolutions, risk_configurations, risk_config_audit, etc.)
 - Two policies per table:
   1. `tenant_isolation` -- `USING (tenant_id = current_setting('app.current_tenant')::uuid)` -- rows are visible only when the PostgreSQL session variable `app.current_tenant` matches the row's `tenant_id`
   2. `admin_bypass` -- `USING (current_setting('app.rls_bypass', true) = 'true')` -- allows migration tooling and administrative scripts to access all rows when explicitly enabled

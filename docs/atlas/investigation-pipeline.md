@@ -1,7 +1,7 @@
 ---
 sidebar_position: 9
 title: "Atlas — Investigation Pipeline"
-last_verified: 2026-04-13
+last_verified: 2026-06-11
 status: reference
 ---
 

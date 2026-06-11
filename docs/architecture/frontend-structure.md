@@ -1,7 +1,7 @@
 ---
 sidebar_position: 10
 title: "Frontend Structure"
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -14,33 +14,51 @@ The frontend is a Next.js 16 application with React 19, Tailwind CSS v4, and sha
 ```
 frontend/src/
   app/
-    page.tsx                          # Root redirect (5 lines)
+    page.tsx                          # Root redirect
+    login/
+      page.tsx                        # Keycloak login entry
+      callback/page.tsx               # OIDC PKCE callback handler
     dashboard/
       page.tsx                        # Case list + analytics
-      [workflowId]/
-        page.tsx                      # Case detail view (uses custom hooks)
-      peppol/
-        page.tsx                      # Standalone PEPPOL lookup
-      inhoudingsplicht/
-        page.tsx                      # Standalone inhoudingsplicht check
-      memory/
-        page.tsx                      # Memory Admin (blocks, signals, archival, confidence)
+      [workflowId]/page.tsx           # Case detail view (uses custom hooks)
+      network/page.tsx                # Network Intelligence Hub (graph / ownership / flow)
+      graph/page.tsx                  # Knowledge graph explorer
+      memory/page.tsx                 # Memory Admin (blocks, signals, archival, confidence)
+      intelligence/page.tsx           # Cross-case intelligence
+      regulatory/page.tsx             # Regulatory radar
+      standards/page.tsx              # Standards coverage mapping
+      ontology/page.tsx               # Graph ontology browser
+      onboarding/page.tsx             # Tenant setup wizard
+      settings/page.tsx               # Tenant settings
+      settings/risk-matrix/page.tsx   # Risk matrix configuration
+      peppol/page.tsx                 # Standalone PEPPOL lookup
+      inhoudingsplicht/page.tsx       # Standalone inhoudingsplicht check
+      admin/lex/page.tsx              # Lex corpus admin
+    admin/
+      page.tsx                        # Super-admin tenant/platform management
+      prompts/page.tsx                # Prompt version management
+      reference-data/page.tsx         # Reference data browser
+      risk-configuration/page.tsx     # Risk configuration editor
+      workflows/page.tsx              # Workflow schema editor
+      costs/page.tsx                  # Cost tracking dashboard
     portal/
-      [token]/
-        page.tsx                      # Customer document upload portal
+      [token]/page.tsx                # Customer document upload portal
+    api/copilotkit/route.ts           # CopilotRuntime agent registration
     providers.tsx                     # Shared CopilotKit + QueryClient providers
 
   hooks/                              # Custom hooks (extracted from page components)
-    useAsyncData.ts                   # Generic async fetch with loading/error/refetch
-    useCaseDetail.ts                  # Case data fetching + polling
+    useCaseDetail.ts                  # Case data fetching
+    useCasePolling.ts                 # Case status polling
     usePipelineStatus.ts              # Agent pipeline status tracking
     useDecisionSubmit.ts              # Decision submission with optimistic updates
     usePeppolVerify.ts                # PEPPOL verification trigger + result
+    useLocale.ts                      # Locale / i18n context
+    useTheme.ts                       # Theme (dark/light) context
 
   components/
-    dashboard/                        # 27+ officer dashboard components + entity-network
-    portal/                           # 7 customer portal components
-    ui/                               # 25 shadcn/ui primitives + custom components
+    dashboard/                        # 138 officer dashboard components (incl. network/, entity-network)
+    portal/                           # 8 customer portal components
+    ui/                               # 29 shadcn/ui primitives + custom components
 
   lib/
     api.ts                            # Typed Axios HTTP client
@@ -49,9 +67,11 @@ frontend/src/
     colors.ts                         # Shared color constants (risk, status, severity)
 ```
 
+In total the frontend ships **248 `.tsx` components** under `src/components/`. The component tables below cover the most prominent dashboard and portal components; the dashboard tree also includes the Network Intelligence Hub (`network/`), entity-network visualizations, and per-feature subdirectories.
+
 ## Component Inventory
 
-### Dashboard Components (27)
+### Dashboard Components (138 total — most prominent listed)
 
 | Component | Lines | Purpose |
 |-----------|-------|---------|
@@ -83,7 +103,7 @@ frontend/src/
 | `RiskScoreRing` | 86 | Risk score circular visualization |
 | `StatusBadge` | 73 | Case status colored badge |
 
-### Portal Components (7)
+### Portal Components (8)
 
 | Component | Purpose |
 |-----------|---------|
@@ -95,16 +115,18 @@ frontend/src/
 | `StatusScreen` | Final status screen (approved/rejected/pending) |
 | `FollowUpTaskCard` | Follow-up task display for customer |
 
-### UI Primitives (25)
+### UI Primitives (29)
 
-All from shadcn/ui plus three custom components:
+29 components live in `src/components/ui/` — shadcn/ui primitives plus custom components:
 
-**shadcn/ui (22):** badge, button, card, checkbox, collapsible, command, dialog, input, label, popover, progress, select, separator, sheet, skeleton, sonner, table, tabs, textarea, toggle, toggle-group, tooltip
+**shadcn/ui:** badge, button, card, checkbox, collapsible, command, dialog, dropdown-menu, input, label, popover, progress, select, separator, sheet, skeleton, sonner, switch, table, tabs, textarea, toggle, toggle-group, tooltip
 
-**Custom (3):**
-- `glass-card.tsx` -- Frosted glass card effect for the dashboard
+**Custom:**
+- `collapsible-panel.tsx` -- Reusable collapsible content panel
 - `json-viewer.tsx` -- Wrapper around `@uiw/react-json-view` with custom dark theme
 - `particle-background.tsx` -- Animated particle effect for the portal landing
+- `surface.tsx` -- Themed surface/card container primitive
+- `theme-toggle.tsx` -- Dark/light theme switcher
 
 ## Strengths
 
@@ -133,7 +155,7 @@ All 28 type imports from `types.ts` mirror the backend Pydantic models, providin
 
 ### shadcn/ui Consistency
 
-The 22 shadcn/ui primitives provide a consistent component API across the application. Components are added via the CLI (`npx shadcn@latest add <component>`) and customized through Tailwind, not through props or CSS overrides.
+The shadcn/ui primitives provide a consistent component API across the application. Components are added via the CLI (`npx shadcn@latest add <component>`) and customized through Tailwind, not through props or CSS overrides.
 
 ### Skeleton Loaders
 
@@ -149,29 +171,17 @@ Content loading states use skeleton loaders (not spinners) throughout the dashbo
 
 ## Custom Hooks
 
-Data fetching and state logic has been extracted from page components into reusable custom hooks:
-
-### `useAsyncData<T>(fetcher, deps)` -- Generic Async Data Hook
-
-A shared hook that encapsulates the common `useState` + `useEffect` + loading + error pattern:
-
-```tsx
-const { data, loading, error, refetch } = useAsyncData(
-  () => getAuditLog(workflowId).then(d => d.events),
-  [workflowId]
-);
-```
-
-Returns `{ data, loading, error, refetch }` with cleanup on unmount and stale-request prevention.
-
-### Domain-Specific Hooks
+Data fetching and state logic has been extracted from page components into reusable custom hooks in `src/hooks/`:
 
 | Hook | Purpose |
 |------|---------|
-| `useCaseDetail(workflowId)` | Case data fetching + status polling |
+| `useCaseDetail(workflowId)` | Case data fetching |
+| `useCasePolling(workflowId)` | Case status polling with auto-refresh |
 | `usePipelineStatus(workflowId)` | Agent pipeline status tracking with auto-refresh |
 | `useDecisionSubmit(workflowId)` | Decision submission with loading/error state |
 | `usePeppolVerify(workflowId)` | PEPPOL verification trigger and result management |
+| `useLocale()` | Locale / i18n context access |
+| `useTheme()` | Theme (dark/light) context access |
 
 ### React Query Caching Layer
 
@@ -201,7 +211,7 @@ All page components use the `"use client"` directive. The dashboard is inherentl
 
 ### Page-Level Integration Tests
 
-All 27 dashboard components have dedicated test files. Page-level components (`page.tsx` files) are thin orchestrators after hook extraction, and may benefit from integration tests that verify the full hook + component composition.
+Most dashboard components have dedicated test files. Page-level components (`page.tsx` files) are thin orchestrators after hook extraction, and may benefit from integration tests that verify the full hook + component composition.
 
 ## CopilotKit + AG-UI Integration
 

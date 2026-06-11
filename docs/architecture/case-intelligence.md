@@ -4,7 +4,9 @@ title: Case Intelligence
 description: AI-driven Decision Support Panel that synthesizes similar cases, applicable rules, and officer corrections into actionable intelligence
 components:
   - app/agents/case_intelligence_agent.py
-last_verified: 2026-03-29
+  - app/api/case_intelligence.py
+  - app/services/letta_policy_service.py
+last_verified: 2026-06-11
 status: implemented
 ---
 

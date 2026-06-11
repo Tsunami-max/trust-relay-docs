@@ -4,7 +4,8 @@ title: "State Machine"
 components:
   - app/workflows/compliance_case.py
   - app/models/case.py
-last_verified: 2026-04-02
+  - app/models/workflow_state.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -41,6 +42,7 @@ stateDiagram-v2
     GENERATING_TASKS --> REVIEW_PENDING: Tasks generated
 
     REVIEW_PENDING --> APPROVED: Officer approves
+    REVIEW_PENDING --> APPROVED_WITH_RESTRICTIONS: Officer approves with merchant restrictions
     REVIEW_PENDING --> REJECTED: Officer rejects
     REVIEW_PENDING --> ESCALATED: Officer escalates
 
@@ -50,6 +52,7 @@ stateDiagram-v2
     AWAITING_DOCUMENTS --> FAILED: Max iterations reached (5)
 
     APPROVED --> [*]
+    APPROVED_WITH_RESTRICTIONS --> [*]
     REJECTED --> [*]
     ESCALATED --> [*]
     FAILED --> [*]
@@ -71,15 +74,17 @@ stateDiagram-v2
 | `REVIEW_PENDING` | All automated processing complete, waiting for officer decision | After task generation |
 | `FOLLOW_UP_REQUIRED` | Officer requested additional information from customer | Officer `follow_up` decision |
 | `APPROVED` | Case approved by compliance officer (terminal) | Officer `approve` decision |
+| `APPROVED_WITH_RESTRICTIONS` | Case approved with merchant restrictions (volume caps, secondary review flag, restriction rationale) attached (terminal) | Officer `approve_with_restrictions` decision |
 | `REJECTED` | Case rejected by compliance officer (terminal) | Officer `reject` decision |
 | `ESCALATED` | Case escalated for senior review (terminal) | Officer `escalate` decision |
 | `FAILED` | Case failed due to timeout or max iterations (terminal) | Timeline exceeded or iteration limit |
 
 ## Terminal States
 
-Four states are terminal -- the workflow completes and no further transitions occur:
+Five states are terminal -- the workflow completes and no further transitions occur:
 
 - **APPROVED** -- Compliance requirements met, customer cleared
+- **APPROVED_WITH_RESTRICTIONS** -- Customer cleared but with conditions (e.g. monthly volume cap, mandatory periodic review). The `MerchantRestrictions` payload and its `restriction_reason` (EU AI Act Art. 13) are persisted with the decision.
 - **REJECTED** -- Compliance requirements not met, customer denied
 - **ESCALATED** -- Case requires senior compliance officer review
 - **FAILED** -- Administrative failure (timeout or iteration limit reached)
@@ -169,32 +174,42 @@ Every state transition generates an audit event with:
 }
 ```
 
-Additional audit events are logged for:
+Additional audit events are logged (via `self._log_audit(...)` into in-memory state, plus some via the `persist_audit_event` activity). The full set emitted by `ComplianceCaseWorkflow` includes:
 
 - `case_created` -- Initial case creation
-- `pre_investigation_started` -- OSINT and registry collection began
-- `pre_investigation_completed` -- All pre-investigation evidence gathered
-- `gap_analysis_completed` -- Document requirements computed with automation tier
-- `requirements_approved` -- Officer approved requirements (FULL_REVIEW) or auto-advanced (AUTONOMOUS/ASSISTED)
+- `requirements_computed` -- Document requirements computed with covered/required/escalated counts and automation tier
+- `requirements_auto_approved` -- Gate auto-advanced (reason: `autonomous_tier` or `assisted_timeout`)
+- `requirements_approved` -- Requirements gate cleared (officer signal for FULL_REVIEW, or auto for AUTONOMOUS/ASSISTED)
 - `documents_received` -- Customer submitted documents
-- `investigation_completed` -- OSINT pipeline finished
-- `mcc_classified` -- MCC code assigned
+- `documents_skipped` -- Officer used "Skip & Continue" to bypass the portal
+- `mcc_classified` -- MCC code assigned (and `mcc_reclassified` when an officer changes it)
+- `nace_mcc_reconciliation` -- Declared NACE vs inferred MCC divergence check
+- `quality_scored` (plus `investigation_quality_low` / `investigation_quality_critical`) -- LLM-as-judge quality scoring
+- `synthesis_refreshed` -- Investigation summary refreshed after document upload
 - `tasks_generated` -- Follow-up tasks created
 - `officer_decision` -- Officer action with decision type and reason
+- `restrictions_applied` -- Merchant restrictions attached on `approve_with_restrictions`
 - `validation_bounce_back` -- Documents failed validation, auto-looping
-- `mcc_reclassified` -- Officer manually changed MCC code
+- `follow_up_tasks_completed` -- Customer satisfied outstanding follow-up tasks
+- `trust_capsule_assembled` -- Customs Shield Trust Capsule built on a terminal decision
 - `timeline_exceeded` -- Case timed out
 - `max_iterations_reached` -- Iteration limit hit
 - `follow_up_requested` -- Officer sent case back to customer
 
+The `persist_audit_event` activity additionally writes `investigation_completed` to PostgreSQL when each OSINT/KYC investigation finishes.
+
 ## Implementation
 
-The state machine is implemented directly in the Temporal workflow class (`ComplianceCaseWorkflow`). States are stored as a string enum value in `self.status`. The workflow uses Temporal's `wait_condition` for blocking waits (document submission, officer decision, requirements review) and standard control flow (`while`, `if/elif`) for state transitions.
+The state machine is implemented directly in the Temporal workflow class (`ComplianceCaseWorkflow`). All workflow state lives in a single `WorkflowState` dataclass (`app/models/workflow_state.py`) held as `self._state`; the current status is the string enum value `self._state.status`. The workflow uses Temporal's `wait_condition` for blocking waits (document submission, officer decision, requirements review) and standard control flow (`while`, `if/elif`) for state transitions.
 
-The pre-investigation phase is implemented via three activities:
+The pre-investigation phase is orchestrated directly inside the workflow's `run` method, which dispatches these activities in order:
 
-- `run_pre_investigation` -- orchestrates registry agents and OSINT collection
-- `run_document_gap_analysis` -- computes coverage, gaps, and automation tier
-- `wait_for_requirements_approval` -- implements the tier-based gate logic
+- `registry_and_documents` -- runs registry agents (KBO, NBB, INPI, ARES, etc.) and downloads official documents (defined in `app/workflows/registry_activity.py`)
+- `run_osint_investigation` -- full OSINT collection and synthesis (via the `_run_kyb_investigation` helper)
+- `collect_registry_documents` -- fallback document collection when `registry_and_documents` returned no downloads
+- `cross_reference_evidence` -- builds the corroboration matrix and flags discrepancies
+- `analyze_document_gaps` -- computes coverage, customer-required documents, and the automation tier
+
+The tier-based requirements gate is **not** a separate activity. It is implemented inline in `run()` using `workflow.wait_condition(lambda: self._state.requirements_approved)`: `AUTONOMOUS` sets the flag immediately, `ASSISTED` waits with a 15-minute timeout before auto-approving, and `FULL_REVIEW` waits indefinitely for the `signal_requirements_approved` signal.
 
 See [ADR-0018](/docs/adr/0018-dynamic-document-requirements) for the architectural rationale and [Temporal Workflows](/docs/architecture/temporal-workflows) for implementation details.

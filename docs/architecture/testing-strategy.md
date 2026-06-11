@@ -1,22 +1,29 @@
 ---
 sidebar_position: 13
 title: "Testing Strategy"
-last_verified: 2026-03-29
+components:
+  - app/workflows/compliance_case.py
+  - app/workflows/activities.py
+  - app/worker.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
 # Testing Strategy
 
-The project has substantial test coverage with 4,117+ backend tests, 59 frontend test files, and 6 E2E specs -- 4,176+ automated tests in total. This page documents the testing approach and infrastructure.
+The project has substantial test coverage with ~6,100 backend test functions across 376 test files, 77 frontend Jest suites, and 17 Playwright E2E specs. This page documents the testing approach and infrastructure.
 
 ## Test Counts
 
 | Layer | Tests | Runner | Notes |
 |-------|-------|--------|-------|
-| Backend | 4,117+ | pytest | 241 test files, async mode, no `@pytest.mark.asyncio` needed |
-| Frontend | 59 | Jest + RTL | 59 test suites covering dashboard, portal, entity-network, memory, and utilities |
-| E2E | 6 | Playwright | Cross-browser browser tests |
-| **Total** | **4,176+** | | |
+| Backend | ~6,100 (`def test_*`) | pytest | 376 test files (recursive: `tests/`, `tests/api/`, `tests/services/`, `tests/agents/`, `tests/lex/`), async mode, no `@pytest.mark.asyncio` needed |
+| Frontend | 859 (77 suites) | Jest + RTL | Covers dashboard, portal, entity-network, network-intelligence, graph-explorer, admin/prompts, memory, and utilities |
+| E2E | 17 specs | Playwright | Cross-browser browser tests under `frontend/e2e/` |
+
+:::warning Backend suite execution blocker (2026-06-11)
+The backend pytest suite **cannot currently be executed under the local pyenv 3.12 interpreter** due to a `beartype`/Temporal-sandbox circular-import incompatibility: `py-key-value-aio` pulls in `beartype 0.22.9`, which collides with Temporal's workflow sandbox import machinery at collection time. The frontend Jest suite is green (859/859 passing as of 2026-06-11, after repairing 11 stale suites). The test *code* is intact; this is an environment/interpreter blocker, not a test-content regression. CI runs the backend suite under Python 3.13 (see [CI/CD Pipeline](#cicd-pipeline-phase-6)).
+:::
 
 ## Backend Testing
 
@@ -32,7 +39,7 @@ With `asyncio_mode=auto`, all async test functions are automatically detected an
 
 ### AI Agent Testing
 
-All 18+ PydanticAI agents are tested using the `TestModel`:
+The PydanticAI agents (33 agent modules under `app/agents/`) are tested using the `TestModel`:
 
 ```python
 import os
@@ -124,7 +131,7 @@ Several test files include live-gated tests that run against real external APIs 
 
 ### What Is Tested
 
-All dashboard components have dedicated test files with rendering, interaction, and edge case coverage. The 59 test suites include:
+All dashboard components have dedicated test files with rendering, interaction, and edge case coverage. The 77 test suites (859 passing tests) span `src/__tests__/`, `src/__tests__/entity-network/`, `src/components/network-intelligence/__tests__/`, `src/components/graph-explorer/__tests__/`, `src/components/admin/prompts/__tests__/`, and `src/lib/__tests__/`. A representative slice:
 
 ```
 frontend/src/__tests__/
@@ -165,13 +172,17 @@ Page-level components (`page.tsx` files) have limited test coverage. With the ex
 
 ## E2E Testing
 
-Six Playwright specs cover critical user journeys:
+Seventeen Playwright specs (under `frontend/e2e/`) cover critical user journeys, including the CZ demo narrative, GoAML CZ export, chatbot (portal + dashboard), network intelligence, decision-memo coherence, MCC classification, and the skip-documents forensics flows:
 
 ```
-e2e/
-  case-creation.spec.ts
-  portal-upload.spec.ts
-  decision-flow.spec.ts
+frontend/e2e/
+  comprehensive-fresh-cases.spec.ts
+  cz-demo-narrative.spec.ts
+  chatbot-portal.spec.ts
+  chatbot-dashboard.spec.ts
+  decision-memo-coherence.spec.ts
+  network-intelligence.spec.ts
+  goaml-cz.spec.ts
   ...
 ```
 
@@ -189,11 +200,11 @@ The project follows S4U Development Methodology coverage targets:
 |-------|--------|--------|--------|
 | Workflow state machine + activities | 90% | ~85% | Close |
 | FastAPI endpoints | 70% | ~75% | **Met** |
-| React components | 70% | ~80% | **Met** (59 test suites) |
+| React components | 70% | ~80% | **Met** (77 test suites) |
 | Docling / MinIO integration | 70% | ~70% | Met |
 
 :::tip
-Frontend remediation (Phases 5+) brought total coverage from ~40% to ~80% for React components. All dashboard components now have dedicated test files across 59 test suites.
+Frontend remediation (Phases 5+) brought total coverage from ~40% to ~80% for React components. All dashboard components now have dedicated test files across 77 test suites (859 passing tests).
 :::
 
 ## S4U Development Methodology Compliance
@@ -233,7 +244,7 @@ async def test_synthesis_agent(mock_agent):
 
 ### CI/CD Pipeline (Phase 6)
 
-Tests now run automatically on every push and pull request via GitHub Actions. The CI pipeline uses PostgreSQL 16 and Redis 7 service containers, ensuring tests run against real databases -- not mocks.
+Tests run automatically on every push and pull request via GitHub Actions (`.github/workflows/ci.yml`, plus `nightly-golden.yml`). The CI pipeline runs under Python 3.13 with PostgreSQL 16 and Redis 8 service containers, ensuring tests run against real databases -- not mocks.
 
 ### Testcontainers Integration (Phase 6)
 
@@ -251,7 +262,7 @@ In CI, GitHub Actions service containers serve the same purpose with less overhe
 
 ### Frontend Component Coverage (Phase 5)
 
-All dashboard components now have dedicated test files across 59 test suites, up from partial coverage of 16 components. Tests cover rendering, user interactions, edge cases, and accessibility.
+All dashboard components now have dedicated test files across 77 test suites (859 passing tests), up from partial coverage of 16 components. Tests cover rendering, user interactions, edge cases, and accessibility.
 
 ## Future Testing Enhancements
 
@@ -267,17 +278,19 @@ Page components are thin after custom hook extraction. Adding integration tests 
 
 ```
 backend/tests/
-  test_workflow.py          # Temporal workflow integration tests
+  conftest.py               # shared fixtures
+  fixtures/                 # JSON/HTML/PDF fixtures for scraper + extractor tests
+  golden/                   # golden-file snapshots (also driven by nightly-golden.yml)
   test_activities.py        # Activity function tests
-  test_osint_agent.py       # OSINT pipeline tests
-  test_osint_cache.py       # Cache/reuse logic tests
+  test_eba_risk_matrix.py   # EBA risk matrix scoring tests
   test_belgian_agent.py     # Belgian agent tests
-  test_nbb_service.py       # NBB API client tests (55+ tests)
-  test_kbo_service.py       # KBO scraper tests
+  test_nbb_service.py       # NBB API client tests
   test_mcc_classifier.py    # MCC classification tests
-  test_peppol_*.py          # PEPPOL service tests
-  test_northdata_*.py       # NorthData scraping tests
-  test_cases.py             # API endpoint tests
-  test_portal.py            # Portal endpoint tests
+  test_dynamic_workflow.py  # DynamicWorkflowEngine (YAML-compiled workflow) tests
+  test_decision_memorandum_service.py
+  api/                      # FastAPI router tests
+  services/                 # service-layer tests
+  test_agents/, test_agents_api.py   # agent fleet tests
+  lex/                      # regulatory corpus (Lex) tests
   ...
 ```

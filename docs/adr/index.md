@@ -23,7 +23,7 @@ ADRs are immutable once accepted. If a decision is superseded, the original ADR 
 | [ADR-0008](./0008-raw-sql) | Raw SQL via SQLAlchemy text() for Database Access | Accepted | 2025-12-15 |
 | [ADR-0009](./0009-silent-recovery) | Minimal Error Handling with Silent Recovery for PoC | Accepted | 2025-12-15 |
 | [ADR-0010](./0010-react-usestate) | React useState/useEffect for Frontend State Management | Accepted (PoC) — effectively superseded by TanStack React Query v5 | 2025-12-15 |
-| [ADR-0011](./0011-auth-deferred) | Authentication Deliberately Deferred for PoC | Accepted (superseded by Pillar 0) | 2025-12-15 |
+| [ADR-0011](./0011-auth-deferred) | ~~Authentication Deliberately Deferred for PoC~~ | Superseded 2026-04-18 — Keycloak OIDC implemented | 2025-12-15 |
 | [ADR-0012](./0012-hybrid-scraping) | Hybrid Scraping Tool Selection per Data Source | Implemented | 2026-01-15 |
 | [ADR-0013](./0013-copilotkit-v2) | CopilotKit v2 Migration | Accepted (supersedes ADR-0004) | 2026-02-01 |
 | [ADR-0014](./0014-neo4j-knowledge-graph) | Neo4j Knowledge Graph (CQRS Read Layer) | Implemented | 2026-02-25 |
@@ -49,6 +49,19 @@ ADRs are immutable once accepted. If a decision is superseded, the original ADR 
 | [ADR-0034](./0034-multi-country-registries) | Multi-Country Registry Architecture | Accepted | 2026-04-03 |
 | [ADR-0035](./0035-atlas-reference-docs) | Atlas Reference Documentation within Docusaurus | Accepted | 2026-04-07 |
 | [ADR-0036](./0036-pii-classification) | PII Classification Architecture | Accepted | 2026-04-07 |
+| [ADR-0037](./0037-shared-package-extraction) | Shared Python Packages for Atlas Integration | Accepted | 2026-04-11 |
+| [ADR-0038](./0038-shell-company-detection) | Shell Company Detection via Establishment Address Comparison | Accepted | 2026-04-14 |
+| [ADR-0039](./0039-resilience-rollout-kbc-gap-signals) | Resilience Rollout Completion + KBC Acquiring Gap Signals | Accepted | 2026-04-14 |
+| [ADR-0040](./0040-observability-metrics-state-persistence) | Observability Metrics + Breaker State Persistence | Accepted | 2026-04-14 |
+| [ADR-0041](./0041-pure-mailbox-detection) | Pure-Mailbox Detection for Shell Companies | Accepted | 2026-04-17 |
+| [ADR-0042](./0042-cz-regulatory-professional-registries) | Czech Regulatory + Professional Registry Coverage | Accepted | 2026-04-17 |
+| [ADR-0043](./0043-cross-country-registry-parity) | Cross-Country Registry Parity (decoders, director shapes, KBO packed-layout fix) | Accepted | 2026-04-17 |
+| ADR-0044 | *Withdrawn during review — number reserved* | Withdrawn | — |
+| [ADR-0045](./0045-sanctions-fp-suppression) | Sanctions False-Positive Suppression (evidence-based, tenant-scoped, always visible) | Proposed | 2026-04-18 |
+| [ADR-0046](./0046-nbb-cbso-csv-endpoint-degradation) | NBB CBSO CSV Endpoint Degradation and Honest Data-Gap Surfacing | Accepted | 2026-04-22 |
+| [ADR-0047](./0047-async-docling-extraction) | Async Docling Extraction (Option B — background activity, idempotent MinIO writes) | Accepted | 2026-04-23 |
+| [ADR-0048](./0048-financial-analysis-agent) | Financial Analysis Agent (ratios + distress models + peer benchmarks) | Accepted | 2026-04-22 |
+| [ADR-0049](./0049-cross-reference-identity-mismatch) | Cross-Reference Registration-Number Identity-Mismatch Detection | Accepted | 2026-04-22 |
 
 ## ADR Template
 

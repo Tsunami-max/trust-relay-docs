@@ -2,7 +2,7 @@
 sidebar_position: 18
 title: Shared Packages
 description: 6 Python packages + 1 React UI package for Atlas integration
-last_verified: 2026-04-13
+last_verified: 2026-06-11
 status: reference
 ---
 
@@ -16,7 +16,7 @@ As of 2026-04-13 the packages are verified end-to-end by `./scripts/demo_package
 
 | Package | Description | Lines | Dependencies |
 |---------|-------------|-------|-------------|
-| **trustrelay-models** | Pydantic types — the typed contracts (43 files) | ~6,400 | pydantic |
+| **trustrelay-models** | Pydantic types — the typed contracts (44 files) | ~6,400 | pydantic |
 | **trustrelay-protocols** | Protocol interfaces Atlas implements (9 files) | ~440 | models |
 | **trustrelay-registries** | 11-country company registry library (38 files) | ~7,700 | models, httpx |
 | **trustrelay-engines** | Decision algorithms + compliance features (16 files) | ~4,700 | models, protocols |
@@ -133,7 +133,7 @@ print(f"Phases: {len(workflow['phases'])}")        # 6
 
 ### trustrelay-models
 
-The foundation package. Contains 41 Pydantic model files covering:
+The foundation package. Contains 44 Pydantic model files covering:
 
 - Case lifecycle (`CaseResponse`, `CaseStatus`, `CaseCreateRequest`)
 - Governance (`PreExecutionCheck`, `GovernanceViolation`, ...)

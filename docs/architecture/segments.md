@@ -11,7 +11,7 @@ tests:
   - tests/test_segment_integration.py
   - tests/test_segment_deep.py
   - tests/test_segment_pipeline.py
-last_verified: 2026-04-06
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -79,7 +79,7 @@ flowchart TD
 
 ## Service Catalog — 6 Verticals
 
-The `MASTER_SERVICE_CATALOG` in `app/models/service_catalog.py` defines 6 verticals with 27 services:
+The `MASTER_SERVICE_CATALOG` (now sourced from the `trustrelay-models` shared package and re-exported via `app/models/service_catalog.py`) defines 6 verticals with 27 services:
 
 | Vertical | Services | Template | Key Regulations |
 |----------|----------|----------|----------------|
@@ -163,11 +163,13 @@ The `_regulatory_basis.jinja2` template renders the segment's regulatory basis t
 
 ### EVOI Calibration
 
-The `UtilityFunction.with_calibration()` method overrides cost parameters per segment:
+The `UtilityFunction.with_calibration()` method overrides cost parameters per segment (values from each profile's `evoi_calibration` block in `config/segments/`):
 
-- **Default:** `cost_false_negative = 10,000` (50x asymmetry)
-- **Banking:** `cost_false_negative = 15,000–20,000` (higher regulatory penalty)
-- **Correspondent Banking:** `cost_false_negative = 50,000` (extreme caution)
+- **Default / Professional Services:** `cost_false_negative = 10,000` (50x asymmetry; no explicit `evoi_calibration`, falls back to the model default)
+- **Customs / PSP:** `cost_false_negative = 12,000`
+- **Banking / HVG:** `cost_false_negative = 15,000`
+- **BE Precious Metals:** `cost_false_negative = 18,000`
+- **CZ Banking:** `cost_false_negative = 20,000` (highest configured penalty)
 
 Higher false-negative costs make the EVOI engine recommend more investigation agents, because the cost of missing a risky entity is higher.
 
@@ -217,7 +219,7 @@ The `CreateCaseDialog` passes the template's `vertical` in `additional_data`, en
 |------|---------------|
 | `app/models/segment_profile.py` | 13 Pydantic models (YAML input + compiled output) |
 | `app/services/segment_compiler.py` | YAML loading, segment resolution, Lex resolution, SHA-256 hashing |
-| `app/models/service_catalog.py` | 6 verticals, 27 services in `MASTER_SERVICE_CATALOG` |
+| `app/models/service_catalog.py` | 6 verticals, 27 services in `MASTER_SERVICE_CATALOG` (re-exported from `trustrelay-models`) |
 | `config/segments/*.yaml` | 8 segment profiles (3 defaults + 5 vertical-specific) |
 | `app/prompts/templates/_regulatory_basis.jinja2` | Dynamic regulatory basis with static fallback |
 | `app/models/evoi.py` | `UtilityFunction.with_calibration()` |
@@ -227,11 +229,11 @@ The `CreateCaseDialog` passes the template's `vertical` in `additional_data`, en
 
 ---
 
-## Testing — 45 Tests
+## Testing — 47 Tests
 
 | Test File | Tests | What It Verifies |
 |-----------|-------|-----------------|
 | `test_segment_compiler.py` | 25 | Model parsing, YAML loading, compiler resolution, Lex resolution, hashing |
 | `test_segment_deep.py` | 12 | EVOI behavioral impact, risk calibration math, prompt rendering per segment |
-| `test_segment_pipeline.py` | 6 | Risk calibration in reassessment, EVOI caution shift, OSINT-first filtering |
+| `test_segment_pipeline.py` | 8 | Risk calibration in reassessment, EVOI caution shift, OSINT-first filtering |
 | `test_segment_integration.py` | 2 | End-to-end compilation, JSON serialization |

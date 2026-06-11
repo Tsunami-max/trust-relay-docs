@@ -10,7 +10,9 @@ components:
   - app/services/model_tiers.py
   - app/services/tool_audit_service.py
   - app/services/langfuse_service.py
-last_verified: 2026-03-29
+  - app/services/agent_progress_service.py
+  - app/services/agent_registry.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -31,55 +33,92 @@ These components operate independently but reinforce each other. The Tool Audit 
 
 The Agent Registry operates at two levels: a **pipeline topology** that defines the DAG of agents executed during each compliance investigation, and a **manifest registry** that declares formal capabilities for each agent.
 
-### Pipeline Topology (11 Agents)
+### Pipeline Topology (23 Stages)
 
-The investigation pipeline is defined in `agent_progress_service.py` as a directed acyclic graph (DAG) with 8 columns representing execution phases. Each agent declares its dependencies, and the orchestrator respects these constraints during execution.
+The investigation pipeline is defined in `agent_progress_service.py` (`PIPELINE_AGENTS`) as a directed acyclic graph (DAG) with 23 stages spread across 10 columns (0–9) representing execution phases. Each stage declares its dependencies, and the orchestrator respects these constraints during execution. Columns 0–4 are the pre-enrichment and document phase; the OSINT investigation runs at column 5, and its parallel sub-checks fan out at column 6 before converging on synthesis.
 
 ```mermaid
 graph LR
-    DV["document_validator<br/><small>Col 0</small>"]
-    OSINT["osint<br/><small>Col 1</small>"]
-    REG["registry<br/><small>Col 2</small>"]
-    PEP["peppol_verification<br/><small>Col 3 / BE only</small>"]
-    INH["inhoudingsplicht_check<br/><small>Col 3 / BE only</small>"]
-    PV["person_validation<br/><small>Col 3</small>"]
-    AM["adverse_media<br/><small>Col 3</small>"]
-    SYN["synthesis<br/><small>Col 4</small>"]
-    MCC["mcc_classifier<br/><small>Col 5</small>"]
-    TG["task_generator<br/><small>Col 6</small>"]
-    GE["graph_etl<br/><small>Col 7</small>"]
+    subgraph PRE["Cols 0-1: Pre-enrichment"]
+        VIES["vies_validation"]
+        ND["northdata_lookup"]
+        GLEIF["gleif_check"]
+        WEB["website_discovery"]
+        IR["initial_risk"]
+    end
+    REG["registry_query<br/><small>Col 2</small>"]
+    DD["document_download<br/><small>Col 3</small>"]
+    DOC["docling_extraction<br/><small>Col 4</small>"]
+    OSINT["osint<br/><small>Col 5</small>"]
+    MCC["mcc_classifier<br/><small>Col 6</small>"]
+    PEP["peppol_verification<br/><small>Col 6 / BE</small>"]
+    INH["inhoudingsplicht_check<br/><small>Col 6 / BE</small>"]
+    PV["person_validation<br/><small>Col 6</small>"]
+    AM["adverse_media<br/><small>Col 6</small>"]
+    SI["social_intelligence<br/><small>Col 6</small>"]
+    VC["verification_checks<br/><small>Col 6</small>"]
+    FA["financial_analysis<br/><small>Col 6</small>"]
+    SYN["synthesis<br/><small>Col 7</small>"]
+    RR["risk_reassessment<br/><small>Col 8</small>"]
+    GA["gap_analysis<br/><small>Col 8</small>"]
+    QS["quality_scorer<br/><small>Col 8</small>"]
+    TG["task_generator<br/><small>Col 8</small>"]
+    GE["graph_etl<br/><small>Col 9</small>"]
 
-    DV --> OSINT --> REG
-    REG --> PEP
-    REG --> INH
-    REG --> PV
-    REG --> AM
+    VIES --> IR
+    ND --> IR
+    GLEIF --> IR
+    WEB --> IR
+    IR --> REG --> DD --> DOC --> OSINT
+    OSINT --> MCC
+    OSINT --> PEP
+    OSINT --> INH
+    OSINT --> PV
+    OSINT --> AM
+    OSINT --> SI
+    OSINT --> VC
+    OSINT --> FA
     PV --> SYN
     AM --> SYN
-    PEP --> SYN
-    SYN --> MCC --> TG --> GE
+    SI --> SYN
+    SYN --> RR
+    SYN --> GA
+    SYN --> QS
+    SYN --> TG --> GE
 
     style PEP fill:#e8f4f8,stroke:#2196F3
     style INH fill:#e8f4f8,stroke:#2196F3
 ```
 
-The full pipeline agent definitions:
+The full pipeline stage definitions:
 
-| Agent | Display Name | Column | Depends On | Country Filter |
+| Stage | Display Name | Column | Depends On | Country Filter |
 |-------|-------------|--------|------------|----------------|
-| `document_validator` | Document Validator | 0 | -- | -- |
-| `osint` | OSINT Investigation | 1 | `document_validator` | -- |
-| `registry` | Company Registry | 2 | `osint` | -- |
-| `peppol_verification` | PEPPOL Verification | 3 | `registry` | BE only |
-| `inhoudingsplicht_check` | Inhoudingsplicht Check | 3 | `registry` | BE only |
-| `person_validation` | Director Verification | 3 | `registry` | -- |
-| `adverse_media` | Compliance Screening | 3 | `registry` | -- |
-| `synthesis` | Risk Assessment | 4 | `person_validation`, `adverse_media`, `peppol_verification` | -- |
-| `mcc_classifier` | MCC Classifier | 5 | `synthesis` | -- |
-| `task_generator` | Task Generator | 6 | `mcc_classifier` | -- |
-| `graph_etl` | Knowledge Graph | 7 | `task_generator` | -- |
+| `vies_validation` | VIES VAT Validation | 0 | -- | -- |
+| `northdata_lookup` | NorthData Lookup | 0 | -- | -- |
+| `gleif_check` | GLEIF/LEI Check | 0 | -- | -- |
+| `website_discovery` | Website Discovery | 0 | -- | -- |
+| `initial_risk` | Initial Risk Assessment | 1 | the four col-0 stages | -- |
+| `registry_query` | Registry Query | 2 | `initial_risk` | -- |
+| `document_download` | Document Download | 3 | `registry_query` | -- |
+| `docling_extraction` | Docling Extraction | 4 | `document_download` | -- |
+| `osint` | OSINT Investigation | 5 | `docling_extraction` | -- |
+| `mcc_classifier` | MCC Classifier | 6 | `osint` | -- |
+| `peppol_verification` | PEPPOL Verification | 6 | `osint` | BE only |
+| `inhoudingsplicht_check` | Inhoudingsplicht Check | 6 | `osint` | BE only |
+| `person_validation` | Director Verification | 6 | `osint` | -- |
+| `adverse_media` | Compliance Screening | 6 | `osint` | -- |
+| `social_intelligence` | Social Intelligence | 6 | `osint` | -- |
+| `verification_checks` | Verification Checks | 6 | `osint` | -- |
+| `financial_analysis` | Financial Analysis | 6 | `osint` | -- |
+| `synthesis` | Risk Assessment | 7 | parallel col-6 stages | -- |
+| `risk_reassessment` | Risk Reassessment | 8 | `synthesis` | -- |
+| `gap_analysis` | Gap Analysis | 8 | `synthesis` | -- |
+| `quality_scorer` | Quality Scorer | 8 | `synthesis` | -- |
+| `task_generator` | Task Generator | 8 | `synthesis` | -- |
+| `graph_etl` | Knowledge Graph | 9 | `task_generator` | -- |
 
-Each agent also carries an `icon` identifier (Lucide icon name) and a human-readable `description`, both used by the frontend to render the live pipeline visualization.
+Each stage also carries an `icon` identifier (Lucide icon name) and a human-readable `description`, both used by the frontend to render the live pipeline visualization.
 
 ### Pipeline Lifecycle
 
@@ -99,7 +138,7 @@ async def init_pipeline(case_id: str, iteration: int, country: str | None = None
         )
 ```
 
-Country-filtered agents (`peppol_verification`, `inhoudingsplicht_check`) are only initialized when the case's country matches. A Belgian case gets all 11 agents; a German case gets 9.
+Country-filtered stages (`peppol_verification`, `inhoudingsplicht_check`) are only initialized when the case's country matches. A Belgian case gets all 23 stages; a non-BE case gets 21.
 
 As each agent executes, it calls `update_status()` with one of five statuses:
 
@@ -124,9 +163,9 @@ def compute_pipeline_status(statuses: list[str]) -> str:
     return "idle"
 ```
 
-### Agent Manifests (14 Agents)
+### Agent Manifests (15 Agents)
 
-Beyond the pipeline topology, 14 agents are formally registered in the Agent Registry (`agent_manifests.py`) with structured capability declarations. Each manifest is an `AgentManifest` Pydantic model:
+Beyond the pipeline topology, 15 agents are formally registered in the Agent Registry (`agent_manifests.py`) with structured capability declarations. Each manifest is an `AgentManifest` Pydantic model:
 
 ```python
 class AgentManifest(BaseModel):
@@ -157,7 +196,7 @@ The registry supports three query patterns:
 | `get_agents_for_domain(risk_domain)` | All agents whose information gain domains include a specific risk area |
 | `get_investigation_team(country_code, risk_domains)` | Intersection of jurisdiction and domain -- the core query for assembling case-specific agent teams |
 
-The 14 registered agents:
+The 15 registered agents:
 
 | Agent | Type | Jurisdiction | Key Risk Domains | Required Tools |
 |-------|------|-------------|------------------|----------------|
@@ -165,6 +204,7 @@ The 14 registered agents:
 | `belgian_agent` | Investigation | BE | identity, ownership, financial_health, regulatory | kbo:search, gazette:search, nbb:financials |
 | `person_validation_agent` | Investigation | Universal | identity, pep | brightdata:linkedin_search |
 | `adverse_media_agent` | Investigation | Universal | sanctions, pep, adverse_media | tavily:search |
+| `social_intelligence_agent` | Investigation | Universal | reputation, digital_presence, adverse_media | brightdata:linkedin_company, brightdata:google_reviews, brightdata:social_search |
 | `synthesis_agent` | Synthesis | Universal | identity, ownership, sanctions, financial_health | -- |
 | `document_validator` | Classification | Universal | document_integrity | -- |
 | `mcc_classifier` | Classification | Universal | business_activity | -- |

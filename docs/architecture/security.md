@@ -1,7 +1,14 @@
 ---
 sidebar_position: 5
 title: "Security"
-last_verified: 2026-04-07
+components:
+  - app/db/database.py
+  - app/middleware/correlation.py
+  - app/api/portal.py
+  - app/api/case_crud.py
+  - app/pii/encryption.py
+  - app/api/data_subject.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -37,13 +44,19 @@ _JWKS_TTL_SECONDS = 300
 
 ### Multi-Tenancy (Row Level Security)
 
-All 30+ tenant-scoped database tables are protected by PostgreSQL Row Level Security (RLS) policies with `FORCE ROW LEVEL SECURITY` enabled. The session layer sets the tenant context on every database connection:
+Tenant-scoped database tables carry PostgreSQL Row Level Security (RLS) policies (ADR-0023) created across Alembic migrations with `FORCE ROW LEVEL SECURITY` enabled. Each table has a `tenant_isolation_*` policy keyed on the `app.current_tenant` GUC and an `admin_bypass_*` policy keyed on `app.rls_bypass`. The session layer (`app/db/database.py`) sets the tenant context on every connection via `set_config('app.current_tenant', ..., true)`:
 
-- `get_session()` always sets the default tenant context
-- `get_tenant_session(tid)` provides explicit tenant-scoped access
-- `get_admin_session()` bypasses RLS for cross-tenant administrative operations
+- `get_session()` sets the demo tenant (`00000000-0000-0000-0000-000000000001`) as the default RLS context
+- `get_tenant_session(tid)` sets an explicit tenant context (transaction-local GUC)
+- `get_admin_session()` sets `app.rls_bypass='true'` for cross-tenant administrative operations
 
-This ensures complete data isolation between tenants at the database level, not just the application level.
+:::danger RLS is currently inert in the shipped configuration
+The RLS design above is **not enforced at runtime as shipped**. The application connects to PostgreSQL as the bootstrap **superuser** `temporal` — this is the `database_url` default in `app/config.py` (`postgresql+asyncpg://temporal:temporal@...`), and the runtime `.env` does **not** override `DATABASE_URL`. PostgreSQL superusers **bypass even `FORCE ROW LEVEL SECURITY`**, so the `tenant_isolation_*` policies never take effect for the application connection.
+
+A non-superuser application role (`trustrelay_app`, `NOSUPERUSER`) is defined in `scripts/create_app_role.sql`, but that script is not run as part of the default setup and `DATABASE_URL` is not pointed at it. **Until the app connects as `trustrelay_app`, tenant isolation is enforced only by the application's choice of `get_tenant_session(tenant_id)` at the query layer — not by the database.** This is a known gap to close before any multi-tenant production deployment.
+:::
+
+When the app runs as the non-superuser `trustrelay_app` role, these policies provide tenant isolation at the database level, not just the application level.
 
 ### Portal Token Authentication with Expiry
 
@@ -73,7 +86,9 @@ Portal endpoints require a cross-tenant token lookup before RLS enforcement. A s
 1. **Phase 1 — Token lookup**: `_get_case_by_token()` uses the default session (not tenant-scoped) to find the case and determine its `tenant_id`.
 2. **Phase 2 — Tenant-scoped queries**: All subsequent database operations use `get_tenant_session(tenant_id)`, which sets the PostgreSQL RLS context and enforces row-level isolation.
 
-This pattern is applied to all four customer-facing portal endpoints: `get_portal_state`, `upload_document`, `submit_documents`, and `validate_document`. Even if a token collision occurred, subsequent queries would be scoped to the correct tenant, preventing cross-tenant data access.
+This pattern is applied to all four customer-facing portal endpoints: `get_portal_state`, `upload_document`, `submit_documents`, and `validate_document` — each calls `_get_case_by_token()` (default session) and then switches to `get_tenant_session(tenant_id)`. Even if a token collision occurred, subsequent queries would be scoped to the correct tenant.
+
+Note: the database-level guarantee of this pattern depends on RLS actually being enforced. As documented under [Multi-Tenancy](#multi-tenancy-row-level-security), RLS is inert while the app runs as the PostgreSQL superuser, so cross-tenant isolation here currently rests on the application correctly selecting the tenant session, not on the database rejecting out-of-tenant rows.
 
 See `backend/app/api/portal.py`.
 

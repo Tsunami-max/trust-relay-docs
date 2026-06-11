@@ -1,10 +1,8 @@
 ---
 sidebar_position: 11
 title: Lex — Regulatory Knowledge Layer
-description: 34-regulation corpus (EU + 7 national AML laws) with zero-hallucination citations, hybrid RAG search, and compliance tab enrichment
+description: 40-regulation corpus (27 EU + 13 national AML laws across 12 jurisdictions) with zero-hallucination citations, hybrid RAG search, and compliance tab enrichment
 components:
-  - app/services/lex/corpus_service.py
-  - app/services/lex/search_service.py
   - app/services/lex/chunker.py
   - app/services/lex/citation_verifier.py
   - app/services/lex/copilot_tool.py
@@ -24,13 +22,14 @@ components:
   - app/services/lex/fetchers/retsinformation_fetcher.py
   - app/services/lex/fetchers/riigi_teataja_fetcher.py
   - app/services/lex/parsers/regulation_parser.py
-last_verified: 2026-03-29
+  - app/api/lex.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
 # Lex — Regulatory Knowledge Layer
 
-Lex gives Atlas the **actual text** of 34 EU regulations and national AML laws across 8 jurisdictions. When an officer sees "AMLR Art.28 CDD Coverage — 85%", they can ask the copilot what Article 28 actually requires and receive an answer grounded in verbatim regulation text — with zero hallucinated citations.
+Lex gives Atlas the **actual text** of 40 regulations — 27 EU regulations plus 13 national AML laws across 12 jurisdictions. When an officer sees "AMLR Art.28 CDD Coverage — 85%", they can ask the copilot what Article 28 actually requires and receive an answer grounded in verbatim regulation text — with zero hallucinated citations.
 
 ## The Problem
 
@@ -63,7 +62,7 @@ graph TB
     subgraph Consumers["Consumer Layer"]
         COP[Copilot<br/>40+ tools]
         CT[Compliance Tab<br/>Gap Analysis]
-        RR[Regulatory Radar<br/>34 regs, 67+ articles]
+        RR[Regulatory Radar<br/>21 regs, 89 articles]
     end
 
     subgraph Lex["Lex Service Layer"]
@@ -114,7 +113,7 @@ graph TB
 
 ## Regulatory Corpus
 
-The corpus contains **34 regulations** across 7 ingestion waves, sourced from EUR-Lex CELLAR (EU regulations) and national official gazettes/authority websites (national AML transpositions).
+The corpus contains **40 regulations** — **27 EU regulations** sourced from EUR-Lex CELLAR plus **13 national AML laws** across **12 jurisdictions** (BE, CH, CZ, DE, DK, EE, FI, FR, NL, NO, RO, SK) sourced from national official gazettes/authority websites. The corpus is defined declaratively in `corpus_config.py` (one `RegulationConfig` per regulation, each specifying its fetcher and parser).
 
 ### Wave 1 — Core EU Regulations (8)
 
@@ -170,9 +169,9 @@ The Union Customs Code trilogy — critical for entities acting as importer/expo
 | **UCC-DA** (EU 2015/2446) — UCC Delegated Act | 32015R2446 | High |
 | **UCC-IA** (EU 2015/2447) — UCC Implementing Act | 32015R2447 | High |
 
-### Wave 6–7 — National AML Regulations (7)
+### Wave 6+ — National AML Regulations (13)
 
-National transpositions of the EU AML Directives into domestic law. Each uses a jurisdiction-specific fetcher.
+National transpositions of the EU AML Directives into domestic law. Each uses a jurisdiction-specific fetcher (the `fetcher` field in each `RegulationConfig`).
 
 | Regulation | Jurisdiction | Fetcher | Source |
 |---|---|---|---|
@@ -182,7 +181,15 @@ National transpositions of the EU AML Directives into domestic law. Each uses a 
 | **DK-AML** — Danish Hvidvaskloven | DK | `pdf` | Finanstilsynet |
 | **BE-AML** — Belgian AML Law (18 Sept 2017) | BE | `pdf` | NBB |
 | **CZ-AML** — Czech Act 253/2008 | CZ | `pdf` | FAU |
-| **DE-GwG** — German Geldwaschegesetz | DE | `html` | Gesetze-im-Internet |
+| **FR-CMF** — French Code monétaire et financier | FR | `legifrance` | Légifrance |
+| **DE-GwG** — German Geldwäschegesetz | DE | `html` | Gesetze-im-Internet |
+| **CH-GwG** — Swiss Geldwäschereigesetz | CH | `pdf_fetcher` | Fedlex |
+| **NO-AML** — Norwegian Hvitvaskingsloven | NO | `html_fetcher` | Lovdata |
+| **SK-AML** — Slovak AML Act 297/2008 | SK | `html_fetcher` | Slov-Lex |
+| **RO-AML** — Romanian Law 129/2019 | RO | `pdf` | Monitorul Oficial |
+| **RO-AML-OUG** — Romanian OUG transposition | RO | `pdf` | Monitorul Oficial |
+
+> Two national configs (`CH-GwG`, `NO-AML`, `SK-AML`) declare `pdf_fetcher`/`html_fetcher` fetcher keys, but the `ingest.py` dispatch table only registers `pdf`/`html` (along with `eurlex`, `riigi_teataja`, `finlex`, `bwb`, `retsinformation`, `legifrance`). These three would raise `Unknown fetcher type` until the dispatch keys are aligned.
 
 ## Ingestion Pipeline
 
@@ -210,15 +217,18 @@ graph LR
 
 ### Multi-Source Fetcher Architecture
 
-The ingestion pipeline supports 5 fetcher types, selected per regulation via the `fetcher` field in `corpus_config.py`:
+The ingestion pipeline dispatches across **8 fetcher types** (the `_get_fetcher` factory in `ingest.py`), selected per regulation via the `fetcher` field in `corpus_config.py`:
 
 | Fetcher | Source Type | Used By |
 |---|---|---|
-| `eurlex` | EUR-Lex CELLAR REST API (XHTML, no auth) | All 27 EU regulations |
+| `eurlex` | EUR-Lex CELLAR REST API (XHTML, no auth) | All 27 EU regulations (default) |
 | `riigi_teataja` | Estonian official gazette HTML | EE-AML |
+| `finlex` | Finnish Finlex gazette | (available; FI-AML config currently uses `pdf`) |
 | `bwb` | Dutch wetten.overheid.nl (Basis Wetten Bestand) | NL-Wwft |
-| `pdf` | PDF download + pypdf text extraction | FI-AML, DK-AML, BE-AML, CZ-AML |
+| `retsinformation` | Danish Retsinformation gazette | (available; DK-AML config currently uses `pdf`) |
+| `pdf` | PDF download + pypdf text extraction | FI-AML, DK-AML, BE-AML, CZ-AML, RO-AML, RO-AML-OUG |
 | `html` | Direct HTML scraping from official sites | DE-GwG |
+| `legifrance` | French Légifrance | FR-CMF |
 
 All fetchers produce the same `FetchedRegulation` output (raw content + SHA-256 hash), so the downstream parser, chunker, embedder, and indexer stages are source-agnostic.
 

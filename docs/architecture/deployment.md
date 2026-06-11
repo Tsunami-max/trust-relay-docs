@@ -1,13 +1,16 @@
 ---
 sidebar_position: 12
 title: "Deployment"
-last_verified: 2026-03-29
+last_verified: 2026-06-11
 status: implemented
+components:
+  - app/main.py
+  - app/config.py
 ---
 
 # Deployment
 
-The application runs locally via Docker Compose with 9 services. This page documents the current setup and the production deployment roadmap.
+The application runs locally via Docker Compose with 14 services. This page documents the current setup and the production deployment roadmap.
 
 ## Docker Compose Architecture
 
@@ -22,9 +25,16 @@ graph TB
         PG["postgres<br/>PostgreSQL 16 (5432)"]
         MN["minio<br/>S3 Storage (9000/9001)"]
         RD["redis<br/>Cache (6379)"]
+        KC["keycloak<br/>OIDC (8180)"]
+        N4["neo4j<br/>Graph (7474/7687)"]
+        LT["letta<br/>Memory (8283)"]
+        CH["clickhouse<br/>(8123)"]
+        LF["langfuse + worker<br/>Observability (3002)"]
     end
 
     FE --> BE
+    FE --> KC
+    BE --> KC
     BE --> TM
     WK --> TM
     BE --> PG
@@ -32,6 +42,9 @@ graph TB
     BE --> MN
     WK --> MN
     WK --> RD
+    BE --> N4
+    BE --> LT
+    LF --> CH
     TM --> PG
 ```
 
@@ -48,6 +61,10 @@ graph TB
 | `neo4j` | `neo4j:2026-community` | 7474, 7687 | -- | `cypher-shell` |
 | `minio` | `minio/minio:latest` | 9000, 9001 | -- | `mc ready local` |
 | `redis` | `redis:8-alpine` | 6379 | -- | `redis-cli ping` |
+| `keycloak` | `quay.io/keycloak/keycloak:26.0` | 8180 (host → 8080) | postgres (service_healthy) | HTTP health |
+| `letta` | `letta/letta:latest` | 8283 | postgres | HTTP health |
+| `clickhouse` | `clickhouse/clickhouse-server:24` | 8123 | -- | `clickhouse-client` |
+| `langfuse` / `langfuse-worker` | `langfuse/langfuse:3.155.1` | 3002 (host → 3000) | clickhouse, postgres | HTTP health |
 
 ## Port Assignments
 
@@ -63,6 +80,10 @@ graph TB
 | 9000 | MinIO API | S3-compatible endpoint |
 | 9001 | MinIO Console | Web UI for storage management |
 | 6379 | Redis | Cache for PEPPOL and inhoudingsplicht results |
+| 8180 | Keycloak | OIDC identity provider (container port 8080) |
+| 8283 | Letta | Agent memory server |
+| 8123 | ClickHouse | Langfuse analytics store |
+| 3002 | Langfuse | LLM observability UI (container port 3000) |
 
 :::warning
 Ports 3000 and 8000 are intentionally avoided. These are reserved for other applications running on the same development machine.
@@ -76,7 +97,7 @@ Ports 3000 and 8000 are intentionally avoided. These are reserved for other appl
 docker-compose up -d
 ```
 
-This starts all 8 services. The database schema is automatically initialized via the `init_db.sql` script mounted into PostgreSQL's `docker-entrypoint-initdb.d`.
+This starts all 14 services. The database schema is automatically initialized via the `init_db.sql` script mounted into PostgreSQL's `docker-entrypoint-initdb.d`.
 
 ### Development Mode (Recommended)
 
@@ -111,11 +132,10 @@ The SQL file is idempotent -- it uses `CREATE TABLE IF NOT EXISTS` and `DO $$ ..
 
 ### Seed Data
 
-Demo data can be loaded for investor presentations:
+Demo data can be loaded for presentations via the seed scripts in `backend/scripts/` (e.g. `seed_showcase.py`, `seed_graph_demo.py`, `seed_lex_corpus.py`, `seed_all_regulatory.py`). Tenant and demo-case seeding (including the AWDC demo tenant) is also handled by Alembic migrations `052_seed_digiteal_tenant`, `055_seed_awdc_tenant`, and `056_seed_awdc_demo_cases`:
 
 ```bash
-cd backend && python scripts/seed_demo.py
-# Creates 3 demo cases: Acme Trading, Globex Corp, NovaPay
+cd backend && python scripts/seed_showcase.py
 ```
 
 ## Environment Variables
@@ -138,15 +158,22 @@ BRIGHTDATA_API_TOKEN=...
 TAVILY_API_KEY=...
 NORTHDATA_API_KEY=...
 
-# Mock modes (all default to true for development)
-OSINT_MOCK_MODE=true
-MCC_MOCK_MODE=true
-TASK_GENERATOR_MOCK_MODE=true
-DOC_VALIDATION_MOCK_MODE=true
-BELGIAN_MOCK_MODE=true
-PEPPOL_MOCK_MODE=true
-BRIGHTDATA_MOCK_MODE=true
-TAVILY_MOCK_MODE=true
+# Mock modes — all default to FALSE (real data sources are the default).
+# Set individual flags to true to run that source against hardcoded demo data.
+OSINT_MOCK_MODE=false
+MCC_MOCK_MODE=false
+TASK_GENERATOR_MOCK_MODE=false
+DOC_VALIDATION_MOCK_MODE=false
+BELGIAN_MOCK_MODE=false
+PEPPOL_MOCK_MODE=false
+BRIGHTDATA_MOCK_MODE=false
+TAVILY_MOCK_MODE=false
+
+# Authentication (Keycloak OIDC, port 8180)
+AUTH_JWKS_URL=http://localhost:8180/realms/trust-relay/protocol/openid-connect/certs
+AUTH_ISSUER=http://localhost:8180/realms/trust-relay
+AUTH_AUDIENCE=trust-relay-app
+KEYCLOAK_URL=http://localhost:8180
 ```
 
 ### Frontend (.env.local)
@@ -214,7 +241,7 @@ This ensures services only start after their dependencies are healthy, eliminati
 
 Both backend and frontend use multi-stage Dockerfiles:
 
-- **Backend:** `python:3.11-slim` base, installs only production dependencies, copies built wheel
+- **Backend:** `python:3.13-slim` base (builder + runtime stages), installs only production dependencies, wires the `packages/` shared monorepo
 - **Frontend:** Build stage with `npm run build`, production stage with standalone Next.js output
 
 This reduces image sizes and eliminates development dependencies from production containers.

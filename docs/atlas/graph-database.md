@@ -1,8 +1,12 @@
 ---
 sidebar_position: 15
 title: "Atlas — Knowledge Graph"
-last_verified: 2026-04-08
+last_verified: 2026-06-11
 status: reference
+components:
+  - app/services/graph_service.py
+  - app/services/graph_parity_service.py
+  - app/api/graph.py
 ---
 
 # Atlas — Knowledge Graph
@@ -25,7 +29,7 @@ The graph layer spans multiple backend modules:
 | `age_client.py` | `src/graph/` | Apache AGE (PostgreSQL graph extension) for PG-only deployments |
 | `projections.py` | `src/graph/` | Graph projections |
 | `parity_service.py` | `src/graph/` | PostgreSQL/Neo4j parity verification |
-| `graph_router.py` | `src/api/` | ~35 REST endpoints for graph operations |
+| `graph_router.py` | `src/api/` | 33 REST endpoints for graph operations |
 
 Apache AGE is available as a secondary graph engine for PostgreSQL-only deployments that cannot run Neo4j.
 
@@ -35,7 +39,7 @@ The Neo4j integration does not use hardcoded entity handlers. Node types, relati
 
 ### Entity Types
 
-Atlas syncs the following node types to Neo4j, derived from the ontology schema (v3.3):
+Atlas syncs the following node types to Neo4j, derived from the active ontology schema (v3.5):
 
 | Node Type | Source | Key Properties |
 |-----------|--------|----------------|
@@ -156,7 +160,7 @@ Hidden connections show a badge count on unexpanded nodes, indicating how many r
 
 ## Graph API Endpoints
 
-The graph router exposes ~35 endpoints organized by function:
+The graph router exposes 33 endpoints organized by function:
 
 ### Visualization
 

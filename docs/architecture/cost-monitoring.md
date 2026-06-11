@@ -10,7 +10,7 @@ components:
   - app/api/costs.py
 tests:
   - tests/test_cost_monitoring.py
-last_verified: 2026-04-06
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -146,10 +146,11 @@ The background sync loop runs in the FastAPI lifespan:
 
 ## Admin API
 
-Seven endpoints under `/api/admin/costs/`, protected by `require_role("super_admin", "tenant_admin")`:
+Eight endpoints under `/api/admin/costs/` (router prefix `/admin/costs` mounted at `/api`), protected by `require_role("super_admin", "tenant_admin")`:
 
 | Method | Path | Description |
 |--------|------|-------------|
+| GET | `/agent-summary` | Per-agent cost summary over a period (`24h`/`7d`/`30d`) |
 | GET | `/case/{workflow_id}` | Per-case cost breakdown by agent |
 | GET | `/summary` | Aggregate costs with day/country filters |
 | GET | `/trends` | Daily/weekly cost trends for charting |

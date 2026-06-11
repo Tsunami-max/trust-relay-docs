@@ -1,10 +1,9 @@
 ---
 sidebar_position: 5
 title: "Living Documentation"
-description: "Every architectural decision and system capability is documented at the time it is built, not retroactively — documentation is a deliverable, not an afterthought"
+description: "**What:** Every architectural decision, business analysis, and system capability is documented in a structured Docusaurus site at the time it is built, not"
 ---
 
-# Living Documentation
 
 **What:** Every architectural decision, business analysis, and system capability is documented in a structured Docusaurus site at the time it is built, not retroactively. Documentation is a deliverable on the same tier as code and tests. A feature is not considered complete until its documentation exists.
 
@@ -22,7 +21,7 @@ This creates a compounding knowledge flywheel:
 
 The flywheel's value is proportional to the documentation's quality and currency. Stale documentation is worse than no documentation because it misleads the AI into producing code aligned with a system state that no longer exists. This is why documentation currency is enforced structurally (through the documentation commit pattern) rather than through periodic "documentation sprints" that inevitably lag behind the code.
 
-## The Five Audiences
+**The five audiences for documentation:**
 
 | Audience | What they need | How the docs serve them |
 |---|---|---|
@@ -32,13 +31,11 @@ The flywheel's value is proportional to the documentation's quality and currency
 | Regulators | Compliance depth | EU AI Act traceability, GDPR data processing records, AML audit trail documentation |
 | Team | Alignment as system grows | ADRs prevent re-litigating decisions; pillar documentation prevents scope ambiguity |
 
-**Evidence:** Trust Relay maintains 72 Docusaurus documents: 30 architecture documents, 36 ADRs, 8 API reference documents, 6 strategy/business documents, and 2 feature showcases. The code-to-documentation commit ratio is approximately 1:1 — meaning that for every commit that changes code, there is roughly one commit that updates documentation. This ratio is not mandated by a metric; it is a natural outcome of the documentation commit pattern where documentation updates are included in the same branch as code changes.
+**Evidence:** Trust Relay maintains 72 Docusaurus documents: 30 architecture documents, 17 ADRs, 8 API reference documents, 6 strategy/business documents, and 2 feature showcases. The code-to-documentation commit ratio is approximately 1:1 — meaning that for every commit that changes code, there is roughly one commit that updates documentation. This ratio is not mandated by a metric; it is a natural outcome of the documentation commit pattern where documentation updates are included in the same branch as code changes.
 
-The Docusaurus site (trust-relay.pages.dev) is the first artifact shown to external parties — investors, partners, regulators. It establishes engineering credibility before a single line of code is reviewed. The VLAIO development project pitch (2026-03-17) used the Docusaurus site as primary evidence of technical capability. See the [Evidence appendix](../evidence/trust-relay-metrics) for documentation metrics.
+The Docusaurus site (trust-relay.pages.dev) is the first artifact shown to external parties — investors, partners, regulators. It establishes engineering credibility before a single line of code is reviewed. The VLAIO development project pitch (2026-03-17) used the Docusaurus site as primary evidence of technical capability. See [appendix-f-evidence.md](../appendix-f-evidence) for documentation metrics.
 
-:::info Honesty note
-The 1:1 ratio is approximate, not exact. Documentation lags behind code during intensive implementation sprints and catches up during consolidation phases. The methodology does not claim perfect synchronization — it claims structural incentives that keep documentation within a reasonable distance of the code's actual state.
-:::
+**Honesty note:** The 1:1 ratio is approximate, not exact. Documentation lags behind code during intensive implementation sprints and catches up during consolidation phases. The methodology does not claim perfect synchronization — it claims structural incentives that keep documentation within a reasonable distance of the code's actual state.
 
 **How:** The documentation practice operates through four mechanisms:
 
@@ -50,4 +47,22 @@ The 1:1 ratio is approximate, not exact. Documentation lags behind code during i
 
 4. **The AI context loop.** Memory files reference Docusaurus documents. Design specifications reference ADRs. CLAUDE.md references architecture overviews. This cross-referencing creates a navigable knowledge graph that both humans and AI can traverse to find relevant context for any given task.
 
-For the full living documentation practice, see [Living Documentation Practice](../practices/living-documentation).
+For the full living documentation practice, see Section 11 of this document.
+
+**Architecture-as-Code (extension).** Living documentation becomes infrastructure when it is machine-readable. The methodology extends the living documentation principle with five practices:
+
+1. **Structured frontmatter** — every architecture page has machine-readable metadata (`components`, `tests`, `data_flow`, `depends_on`, `last_verified`, `status`). AI agents parse this to understand which docs are relevant to the files they're modifying.
+
+2. **Auto-generated architecture index** — a build plugin scans all pages and generates `docs/architecture-index.json` mapping source files to their documentation pages. AI agents read this index before modifying code.
+
+3. **Sync enforcement** — a pre-commit check blocks commits when documentation is stale (last_verified > 30 days for modified files). Documentation freshness is enforced, not requested.
+
+4. **Documentation-first development** — the brainstorming skill creates a Docusaurus placeholder page (status: planned) before any code exists. The page tracks the feature lifecycle: planned → in-progress → implemented.
+
+5. **Test mapping** — the `tests:` frontmatter field maps components to their test files. The Stop hook verifies that the RIGHT tests were run, not just "some tests."
+
+The result: documentation drift is structurally impossible for new features because the page exists before the code, enforcement blocks stale docs, and AI agents consult docs before modifying code.
+
+**Evidence:** Trust Relay has 35 architecture pages with structured frontmatter, 56 components mapped, an auto-generated architecture index, and a sync check script. See [appendix-h-architecture-as-code.md](../appendix-h-architecture-as-code) for the complete reference.
+
+---

@@ -3,7 +3,9 @@ sidebar_position: 15
 title: "Ontology Layer"
 components:
   - app/services/graph_ontology_data.py
-last_verified: 2026-03-29
+  - app/services/graph_service.py
+  - app/services/graph_etl.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -100,7 +102,11 @@ graph TD
 | Investigation | Investigation, TrustCapsule, FollowUpTask | Workflow lifecycle and compliance deliverables |
 | Compliance | Rule, RegulatoryArticle, Motif, MotifInstance, SegmentConfig | Regulatory logic, fraud patterns, and segment configuration |
 | Monitoring | Transaction, Alert, MCC | Sentry AML transaction surveillance |
-| Meta-Ontology | OntologyVersion, NodeTypeDefinition, RelTypeDefinition, DerivedQueryDefinition, PipelineRun | Self-describing schema versioning and pipeline audit trail |
+| Meta-Ontology | OntologyVersion, NodeTypeDefinition, RelationshipTypeDefinition, DerivedQueryDefinition, PipelineRun | Self-describing schema versioning and pipeline audit trail |
+
+:::note Specification vs. runtime
+This page describes the **canonical ontology specification** as seeded into Neo4j by `graph_service.seed_ontology()` from `graph_ontology_data.py` (20 catalogue node types + 4 customs types in v4.1.0, 37 relationship type definitions, plus the meta-ontology and compliance nodes seeded by `graph_service.py`). The specification uses `Entity` / `IS_DIRECTOR_OF` / `IS_UBO_OF` as canonical names. The **runtime ETL** (`graph_etl.py`) currently MERGEs the primary legal-entity node as `Company` (not `Entity`) and writes directorship/UBO edges as `HAS_DIRECTOR` / `HAS_UBO` rather than the canonical `IS_DIRECTOR_OF` / `IS_UBO_OF`. These two conventions have not been reconciled in code. The Cypher in the motif and provenance sections below is ontology-specification pseudocode and will not match the ETL-produced graph verbatim. The Belgian Entity Lifecycle Pipeline (Phases 1-3, `add_episode`/`add_episode_bulk`) is a designed pipeline tied to the VLAIO WP1 research package — it is not yet wired into the production ingestion path.
+:::
 
 ---
 
@@ -574,7 +580,7 @@ Four sub-tabs within the case detail page's Entity Network tab:
 
 | Sub-tab | Component | Data Source | Shows |
 |---------|-----------|-------------|-------|
-| 2D Graph | `SvgEntityGraph` | `GET /api/graph/risk-propagation/{wid}` | Concentric ring layout of company + connected entities |
+| 2D Graph | `NetworkGraph` (`components/dashboard/entity-network/NetworkGraph.tsx`) | `GET /api/graph/risk-propagation/{case_id}` | Concentric ring layout of company + connected entities |
 | 3D Provenance | `ProvenanceGraph` | `GET /api/graph/entity/{reg}/provenance` | WebGL graph with source artifact nodes + per-property provenance |
 | Schema Overlay | `SchemaOverlay` | `GET /api/graph/entity/{reg}/schema-overlay` | Node type catalog with regulation filtering and instance counts |
 | Compliance Map | `ComplianceMap` | `GET /api/graph/entity/{reg}/compliance-map` | Regulation compliance cards with gap analysis |

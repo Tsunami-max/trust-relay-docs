@@ -3,8 +3,15 @@ sidebar_position: 28
 title: "Regulatory Compliance Architecture"
 description: "How Trust Relay's architecture ensures compliance with EU AI Act, GDPR, and AML regulations by design"
 components:
-  - app/services/regulatory_radar_service.py
-last_verified: 2026-03-29
+  - app/services/agent_manifests.py
+  - app/services/governance_engine.py
+  - app/services/tool_audit_service.py
+  - app/services/diagnostic_service.py
+  - app/services/calibration_service.py
+  - app/services/evoi_engine.py
+  - app/services/belgian_evidence_service.py
+  - app/db/database.py
+last_verified: 2026-06-11
 status: implemented
 ---
 
@@ -44,7 +51,7 @@ graph TD
     end
 
     subgraph "Trust Relay Architecture"
-        ADR["36 ADRs + Agent Manifests"]
+        ADR["48 ADRs + Agent Manifests"]
         AUDIT["6 Audit Tables"]
         CONF["Confidence Scoring"]
         GOV["GovernanceEngine"]
@@ -85,10 +92,10 @@ Articles 11 through 15 impose specific requirements on high-risk AI system provi
 
 | Documentation Artifact | Location | Purpose |
 |------------------------|----------|---------|
-| 17 Architecture Decision Records | `docs/adr/ADR-0001` through `ADR-0017` | Every significant design choice is documented with context, decision, rationale, and consequences. Includes AI framework selection (ADR-0001), orchestration engine (ADR-0002), data access patterns (ADR-0008), and memory architecture (ADR-0017). |
-| 14 Agent Manifests | `backend/app/services/agent_manifests.py` | Formal capability declarations for every AI agent: name, description, `information_gain_domains`, estimated cost, input/output schemas, and governance constraints. These manifests are the machine-readable technical documentation of the AI layer. |
+| 48 Architecture Decision Records | `docs/adr/ADR-0001` through `ADR-0049` (ADR-0044 withdrawn) | Every significant design choice is documented with context, decision, rationale, and consequences. Includes AI framework selection (ADR-0001), orchestration engine (ADR-0002), data access patterns (ADR-0008, since superseded by the ORM repository pattern), and memory architecture (ADR-0017). |
+| 15 Agent Manifests | `backend/app/services/agent_manifests.py` | Formal capability declarations for every AI agent: name, description, `information_gain_domains`, estimated cost, input/output schemas, and governance constraints. These manifests are the machine-readable technical documentation of the AI layer. |
 | Reasoning Template Rule Sets | `backend/app/services/reasoning_template_registry.py` | Version-controlled compliance playbooks with SHA-256 hashed rule versions. Each template declares required documents, verification chains, red flag rules, and regulatory article mappings per jurisdiction. |
-| System Documentation | Docusaurus site (26+ architecture pages) | Full architectural documentation covering data flow, state machine, AI agents, confidence scoring, governance, EVOI, session diagnostics, and deployment. |
+| System Documentation | Docusaurus site (Atlas architecture pages) | Full architectural documentation covering data flow, state machine, AI agents, confidence scoring, governance, EVOI, session diagnostics, and deployment. |
 
 **Source files:** `docs/adr/`, `backend/app/services/agent_manifests.py`, `backend/app/models/agent_manifest.py`
 
@@ -141,7 +148,7 @@ Additionally, PydanticAI's `all_messages()` captures the full chain of thought f
 
 All six tables include `tenant_id` for multi-tenant isolation and `created_at` for temporal ordering. All are append-only by design -- the application layer contains no UPDATE or DELETE operations against audit data.
 
-**Source files:** `backend/app/db/models.py` (ORM definitions), `backend/app/services/tool_audit_service.py` (`@audited_tool` decorator), `backend/app/services/governance_engine.py` (governance event logging), `backend/app/services/diagnostics_service.py` (pipeline stage recording)
+**Source files:** `backend/app/db/models.py` (ORM definitions), `backend/app/services/tool_audit_service.py` (`@audited_tool` decorator), `backend/app/services/governance_engine.py` (governance event logging), `backend/app/services/diagnostic_service.py` (pipeline stage recording)
 
 ### Article 13 -- Transparency
 
@@ -238,7 +245,7 @@ graph TD
 
 **Session diagnostics.** The 12-stage pipeline telemetry system records timing, status, and details for every stage of every investigation. The `FailureClassifier` -- a deterministic, rule-based engine with 15 priority-ordered rules and zero LLM dependency -- automatically classifies negative officer feedback into root causes (hallucination, extraction failure, source timeout, etc.) with severity levels and suggested actions.
 
-**Source files:** `backend/app/services/calibration_service.py`, `backend/app/services/evoi_engine.py`, `backend/app/services/automation_tier_service.py`, `backend/app/services/diagnostics_service.py`
+**Source files:** `backend/app/services/calibration_service.py`, `backend/app/services/evoi_engine.py`, `backend/app/services/automation_tier_service.py`, `backend/app/services/diagnostic_service.py`
 
 ---
 
@@ -275,7 +282,7 @@ input_hash = hashlib.sha256(
 
 **Self-hosted deployment.** Trust Relay is designed for on-premises or private-cloud deployment. All processing -- AI inference, document conversion (IBM Docling, MIT license), OSINT investigation, knowledge graph analysis -- runs within the customer's infrastructure. No data is transmitted to external AI providers unless explicitly configured. The compliance memory system (Letta) runs self-hosted. Evidence bundles are stored in the customer's MinIO instance. There is no phone-home telemetry.
 
-**Source files:** `backend/app/db/database.py` (RLS session management), `backend/app/services/tool_audit_service.py` (SHA-256 hashing), `backend/alembic/versions/017_rls_policies.py` (RLS migration)
+**Source files:** `backend/app/db/database.py` (RLS session management), `backend/app/services/tool_audit_service.py` (SHA-256 hashing), `backend/alembic/versions/017_row_level_security.py` (RLS migration)
 
 ### Article 30 -- Records of Processing Activities
 
@@ -297,7 +304,7 @@ All records are append-only and include `tenant_id` for per-tenant isolation. Th
 
 Trust Relay's technical documentation provides the foundation for DPIA review:
 
-- **36 ADRs** documenting every significant technical decision with rationale
+- **48 ADRs** documenting every significant technical decision with rationale
 - **Data flow documentation** showing exactly how documents and personal data move through the system (see [Data Flow](/docs/architecture/data-flow))
 - **Agent manifests** declaring what data each AI agent accesses and what it produces
 - **RLS architecture** demonstrating tenant isolation guarantees
@@ -374,7 +381,7 @@ hash = sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 bundle = sha256(json.dumps(source_hashes, sort_keys=True).encode()).hexdigest()
 ```
 
-**Source files:** `backend/app/services/diagnostics_service.py` (session reconstruction), `backend/app/services/belgian_evidence_service.py` (evidence capsules)
+**Source files:** `backend/app/services/diagnostic_service.py` (session reconstruction), `backend/app/services/belgian_evidence_service.py` (evidence capsules)
 
 ### Documented Risk-Based Methodology
 
@@ -504,17 +511,17 @@ The following table provides a complete mapping from regulatory requirement to T
 
 | Regulation | Article/Requirement | Trust Relay Component | Source File |
 |------------|---------------------|----------------------|-------------|
-| EU AI Act | Art. 11 -- Technical Documentation | 36 ADRs, 14 agent manifests, Docusaurus docs | `docs/adr/`, `backend/app/services/agent_manifests.py` |
+| EU AI Act | Art. 11 -- Technical Documentation | 48 ADRs, 15 agent manifests, Docusaurus docs | `docs/adr/`, `backend/app/services/agent_manifests.py` |
 | EU AI Act | Art. 12 -- Automatic Logging | 6 audit tables, `@audited_tool` decorator | `backend/app/db/models.py`, `backend/app/services/tool_audit_service.py` |
 | EU AI Act | Art. 13 -- Transparency | 4-dimension confidence, Red Flag Engine, chain-of-thought capture | `backend/app/services/confidence_engine.py`, `backend/app/services/red_flag_engine.py` |
 | EU AI Act | Art. 14 -- Human Oversight | GovernanceEngine (4 mechanisms), output validator, supervised autonomy | `backend/app/services/governance_engine.py`, `backend/app/agents/synthesis_agent.py` |
 | EU AI Act | Art. 15 -- Accuracy & Robustness | Calibration service, EVOI, rolling window monitoring, session diagnostics | `backend/app/services/calibration_service.py`, `backend/app/services/evoi_engine.py` |
 | GDPR | Art. 22 -- Human Review | Temporal workflow blocks at REVIEW_PENDING, no auto-approve path | `backend/app/workflows/compliance_case.py` |
-| GDPR | Art. 25 -- Privacy by Design | PostgreSQL RLS (22 tables), SHA-256 hashing, self-hosted deployment | `backend/app/db/database.py`, `backend/alembic/versions/017_rls_policies.py` |
+| GDPR | Art. 25 -- Privacy by Design | PostgreSQL RLS (30+ tables), SHA-256 hashing, self-hosted deployment | `backend/app/db/database.py`, `backend/alembic/versions/017_row_level_security.py` |
 | GDPR | Art. 30 -- Processing Records | Per-tenant audit trails across 6 tables | `backend/app/db/models.py` |
 | GDPR | Art. 35 -- DPIA Foundation | Technical documentation, data flow docs, agent manifests | `docs/adr/`, Docusaurus architecture pages |
 | 6AMLD/AMLR | 5-Year Retention | Append-only audit tables, MinIO evidence, no programmatic deletion | All audit table models in `backend/app/db/models.py` |
-| 6AMLD/AMLR | SAR Audit Trail | Session reconstruction (6-table JOIN), evidence capsules | `backend/app/services/diagnostics_service.py`, `backend/app/services/belgian_evidence_service.py` |
+| 6AMLD/AMLR | SAR Audit Trail | Session reconstruction (6-table JOIN), evidence capsules | `backend/app/services/diagnostic_service.py`, `backend/app/services/belgian_evidence_service.py` |
 | 6AMLD/AMLR | Risk-Based Methodology | Confidence scoring, Red Flag Engine, EVOI, reasoning templates | `backend/app/services/confidence_engine.py`, `backend/app/services/evoi_engine.py` |
 
 ---
