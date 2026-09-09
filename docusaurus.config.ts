@@ -79,6 +79,12 @@ const config: Config = {
       },
       items: [
         {
+          type: 'doc',
+          docId: 'coverage/countries',
+          position: 'left',
+          label: 'Country coverage',
+        },
+        {
           type: 'docSidebar',
           sidebarId: 'architectureSidebar',
           position: 'left',
